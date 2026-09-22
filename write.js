@@ -321,18 +321,23 @@ function renderChapterControls(){
       </select>
     </div>
 
-    <div class="chapter-control" style="margin-left:auto;">
-    <button class="icon-btn-sm" data-act="util-open" title="Utilities — clock, calendar, calculator and more"><i class="bi bi-grid-3x3-gap"></i></button>
+    <span class="cc-sep"></span>
+    <div class="chapter-control cc-tools">
       <button class="icon-btn-sm" data-act="notes-open" title="Notes — a scratchpad panel"><i class="bi bi-sticky"></i></button>
       <button class="icon-btn-sm" data-act="go-page" data-page="notebook" title="Book — projects and snapshots"><i class="bi bi-journal-bookmark"></i></button>
+    </div>
+    <span class="cc-sep"></span>
+    <div class="chapter-control cc-tools">
+      <button class="icon-btn-sm" data-act="util-open" title="Utilities — clock, calendar, calculator and more"><i class="bi bi-grid-3x3-gap"></i></button>
+    </div>
+    <div class="chapter-control cc-right">
+      <span class="cc-sep"></span>
       ${S.page === 'manuscript'
         ? '<button class="icon-btn-sm" data-act="split-open" title="Split screen"><i class="bi bi-layout-sidebar-inset-reverse"></i></button>'
         : ''}
       ${S.config.expOverlay
         ? '<button class="icon-btn-sm" data-act="overlay-open" title="Overlay screen"><i class="bi bi-layout-split"></i></button>'
         : ''}
-      <span class="cc-sep"></span>
-      <span class="cc-sep"></span>
       <span class="cc-sep"></span>
       <button class="icon-btn-sm" data-act="find-open" title="Find &amp; replace (Ctrl+F)"><i class="bi bi-search"></i></button>
     </div>`;
@@ -744,7 +749,7 @@ function renderToolbar(){
     <!-- divider lives in the Shift + / panel now (Shift + @ · Insert · Rule) -->
 
 
-      <button class="tb-btn" data-act="icon-lib" title="Icon library"><i class="bi bi-emoji-smile"></i></button>
+      <button class="tb-btn tb-push-right" data-act="icon-lib" title="Icon library"><i class="bi bi-emoji-smile"></i></button>
     </div>
   `;
   paintSwatches();
@@ -839,7 +844,48 @@ function mixedFontWrap(node, from, to, fontName){
 
 function mixedFontScope(){
   const s = S.config.mixedFontScope;
-  return (s === 'sentence' || s === 'random') ? s : 'word';
+  return (s === 'sentence' || s === 'random' || s === 'letter') ? s : 'word';
+}
+
+/* Wrap every letter of [from..to] in its own span, each taking a random
+   font from the three — the "letter randomisation" mode. */
+function mixedFontWrapLetters(node, from, to){
+  const ed = $('editor');
+  const sel = window.getSelection();
+  const fonts = mixedFontList();
+  if(!ed || !node || !sel || !sel.rangeCount || !fonts.length) return false;
+  const r = sel.getRangeAt(0);
+  if(!r.collapsed || r.startContainer !== node) return false;
+  const word = node.textContent.slice(from, to);
+  if(!word) return false;
+
+  const frag = document.createDocumentFragment();
+  for(let i = 0; i < word.length; i++){
+    const ch = word[i];
+    if(/\s/.test(ch)){ frag.appendChild(document.createTextNode(ch)); continue; }
+    const s = document.createElement('span');
+    s.style.fontFamily = mixedFontStack(fonts[Math.floor(Math.random() * fonts.length)]);
+    s.textContent = ch;
+    frag.appendChild(s);
+  }
+  const last = frag.lastChild;
+
+  const range = document.createRange();
+  range.setStart(node, from);
+  range.setEnd(node, to);
+  try{
+    range.deleteContents();
+    range.insertNode(frag);
+  }catch(err){ return false; }
+  if(!last || !last.parentNode) return false;
+
+  const after = document.createRange();
+  after.setStartAfter(last);
+  after.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(after);
+  saveSel();
+  return true;
 }
 
 /* Wrap the word that was just typed in the next font of the rotation. */
@@ -882,6 +928,14 @@ function mixedFontApply(){
   const upto = node.textContent.slice(0, r.startOffset);
   const m = /([\p{L}\p{M}][\p{L}\p{M}\d''\-]*)$/u.exec(upto);
   if(!m) return;
+
+  // ── letter mode: each letter of the word takes a random font ──
+  if(scope === 'letter'){
+    if(mixedFontWrapLetters(node, r.startOffset - m[1].length, r.startOffset)){
+      mixedFontTurn++;
+    }
+    return;
+  }
 
   let font;
   if(scope === 'random'){
@@ -1211,7 +1265,7 @@ function openFind(){
   if(existing){ existing.remove(); return; }
   const bar = document.createElement('div');
   bar.id = 'findBar';
-  bar.className = 'find-panel';
+  bar.className = '';          /* in-flow, under the toolbar — not a floating card */
   bar.innerHTML = ''
     + '<div class="find-row">'
     +   '<input type="text" id="findInput" placeholder="Find in this text…" autocomplete="off" spellcheck="false">'

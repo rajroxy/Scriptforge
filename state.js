@@ -18,7 +18,18 @@ const MODES = [
     categories: [
       { id: 'fiction',    name: 'Fiction',     icon: 'book-half',    desc: 'Novels, novellas, and short stories' },
     ],
-    editorViews:    ['draft', 'outline', 'manuscript', 'kanban', 'bible'],
+    editorViews:    ['draft', 'outline', 'plan', 'manuscript', 'kanban', 'bible'],
+    fabGroups: [
+      { label:'Views', views:[
+        { id:'inspire',    name:'Idea',       icon:'lightbulb-fill' },
+        { id:'draft',      name:'Draft',      icon:'lightbulb' },
+        { id:'outline',    name:'Outline',    icon:'list-nested' },
+        { id:'plan',       name:'Plan',       icon:'list-check' },
+        { id:'manuscript', name:'Manuscript', icon:'file-earmark-text' }
+      ]},
+      { label:'Reference', views:[{ id:'bible', name:'Bible', icon:'journal-bookmark' }]},
+      { label:'Workflow',  views:[{ id:'kanban', name:'Kanban', icon:'kanban' }]}
+    ]
   },
 
   {
@@ -29,7 +40,18 @@ const MODES = [
     categories: [
       { id: 'fiction',    name: 'Fiction',     icon: 'book-half',    desc: 'Screenplays and scripts' },
     ],
-    editorViews:    ['draft', 'outline', 'manuscript', 'kanban', 'bible'],
+    editorViews:    ['draft', 'outline', 'plan', 'manuscript', 'kanban', 'bible'],
+    fabGroups: [
+      { label:'Views', views:[
+        { id:'inspire',    name:'Idea',      icon:'lightbulb-fill' },
+        { id:'draft',      name:'Draft',     icon:'lightbulb' },
+        { id:'outline',    name:'Outline',   icon:'list-nested' },
+        { id:'plan',       name:'Plan',      icon:'list-check' },
+        { id:'manuscript', name:'Script',    icon:'file-earmark-text' }
+      ]},
+      { label:'Reference', views:[{ id:'bible', name:'Bible', icon:'journal-bookmark' }]},
+      { label:'Workflow',  views:[{ id:'kanban', name:'Kanban', icon:'kanban' }]}
+    ]
   }
 ];
 
@@ -47,6 +69,8 @@ const PAGE_META = {
   manuscript:    { name:'Manuscript',    icon:'file-earmark-text' },
   kanban:        { name:'Kanban',        icon:'kanban' },
   bible:         { name:'Bible',         icon:'journal-bookmark' },
+  inspire:       { name:'Idea',          icon:'lightbulb-fill' },
+  plan:          { name:'Plan',          icon:'list-check' },
 
   // Universal
   home:          { name:'Dashboard',     icon:'house-door-fill' },
@@ -63,7 +87,7 @@ const PAGE_META = {
 // ═══════════════════════════════════════════════════════════
 
 const I18N = {
-  en:       { home:'Dashboard', overview:'Overview', stats:'Statistics', reader:'Reader', editor:'Editor', draft:'Draft', outline:'Outline', manuscript:'Manuscript', kanban:'Kanban', bible:'Bible' },
+  en:       { home:'Dashboard', overview:'Overview', stats:'Statistics', reader:'Reader', editor:'Editor', draft:'Draft', outline:'Outline', plan:'Plan', manuscript:'Manuscript', kanban:'Kanban', bible:'Bible', inspire:'Idea' },
   hinglish: { home:'Dashboard', overview:'Overview', stats:'Statistics', reader:'Reader', editor:'Editor', draft:'Draft', outline:'Outline', manuscript:'Manuscript', kanban:'Kanban', bible:'Bible' },
   hi:       { home:'डैशबोर्ड', overview:'अवलोकन', stats:'आंकड़े', reader:'पाठक', editor:'संपादक', draft:'ड्राफ़्ट', outline:'रूपरेखा', manuscript:'पांडुलिपि', kanban:'कानबान', bible:'बाइबल' },
   bn:       { home:'ড্যাশবোর্ড', overview:'সারসংক্ষেপ', stats:'পরিসংখ্যান', reader:'পাঠক', editor:'সম্পাদক', draft:'খসড়া', outline:'রূপরেখা', manuscript:'পাণ্ডুলিপি', kanban:'কানবান', bible:'বাইবেল' },
@@ -554,7 +578,7 @@ const S = {
     expHinglish:false,        // Hinglish -> Hindi / English entries inside the Translate option
     overlay:{ open:false, page:'stats', x:null, y:null, w:640, h:420 },
     split:{ w:420 },          // docked split screen: how wide the side column is
-    font:'', fontSize:17, lineHeight:1.75,
+    font:'', uiFont:'', fontSize:17, lineHeight:1.75,
     letterSpacing:0, wordSpacing:0, paraSpacing:14,
     fontWeight:'400', textAlign:'left',
     editorWidth:'760px', canvasPad:48,
@@ -589,6 +613,43 @@ const S = {
 // ═══════════════════════════════════════════════════════════
 
 function D(){ return S.modes[S.mode]; }
+
+/* ═══════════════════════════════════════════════════════════
+   PER-PROJECT DATA — every project owns its own Views · Reference ·
+   Workflow. Point the current mode's working set at the project's own
+   copies (same object references, so edits save straight back), and
+   give a brand-new project the empty shape it needs.
+   ═══════════════════════════════════════════════════════════ */
+function useProjectData(proj){
+  if(!proj) return null;
+  const d = D();
+  const lists = ['chapters','drafts','ideas','notes','beats','references','timeline','cast','versions'];
+  lists.forEach(function(k){ if(!Array.isArray(proj[k])) proj[k] = []; });
+  if(!proj.chapters.length){
+    proj.chapters.push({ id: (typeof uid === 'function' ? uid() : 'ch' + Date.now()),
+                         title:'Chapter 1', content:'', children:[], collapsed:false });
+  }
+  if(!proj.bible || typeof proj.bible !== 'object'){
+    proj.bible = { characters:[], locations:[], items:[], scenes:[], events:[], organizations:[] };
+  }
+  if(!proj.kanban || typeof proj.kanban !== 'object'){
+    proj.kanban = { columns:[
+      {id:'k1', title:'Ideas', cards:[]}, {id:'k2', title:'Drafting', cards:[]},
+      {id:'k3', title:'Editing', cards:[]}, {id:'k4', title:'Done', cards:[]}
+    ]};
+  }
+
+  lists.forEach(function(k){ d[k] = proj[k]; });
+  d.bible  = proj.bible;
+  d.kanban = proj.kanban;
+
+  d.currentProject = proj.id;
+  if(proj.category) d.currentCategory = proj.category;
+  d.currentChapter = (d.currentChapter && proj.chapters.some(function(c){ return c.id === d.currentChapter; }))
+    ? d.currentChapter : proj.chapters[0].id;
+  return proj;
+}
+window.useProjectData = useProjectData;
 
 // Aliases so old code keeps working
 Object.defineProperty(window, 'chapters',        {get:()=>D().chapters,          set:v=>D().chapters=v});

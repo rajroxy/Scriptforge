@@ -440,6 +440,17 @@ function redrawCanvas(){
 //   PROJECTS & SNAPSHOTS
 // ═══════════════════════════════════════════════════════════
 
+/* Opening a project always goes through the same place, so every entry point
+   (tools menu, pages overlay, info panel) loads that project's own data. */
+TOOLS.openProject = function(pid){
+  if(typeof openProjectById === 'function'){ openProjectById(pid); return; }
+  const proj = (D().projects || []).find(function(p){ return p.id === pid; });
+  if(!proj) return;
+  useProjectData(proj);
+  save();
+  if(typeof goPage === 'function') goPage('inspire');
+};
+
 TOOLS.newProject = async function(){
   const name = await askPrompt('Project name:', 'Untitled');
   if(!name) return;
@@ -464,7 +475,7 @@ TOOLS.newProject = async function(){
   const project = {
     id, name, category, mode: S.mode, created: Date.now(),
     chapters: [{ id: chapterId, title: 'Chapter 1', content: '', children: [], collapsed: false }],
-    notes: [], beats: [], cast: [], references: [], timeline: [],
+    drafts: [], ideas: [], notes: [], beats: [], cast: [], references: [], timeline: [],
     bible: { characters:[], locations:[], items:[], scenes:[], events:[], organizations:[] },
     kanban: { columns: [
       {id:'k1', title:'Ideas', cards:[]}, {id:'k2', title:'Drafting', cards:[]},
@@ -476,13 +487,17 @@ TOOLS.newProject = async function(){
   d.projects.unshift(project);
   d.currentProject  = id;
   d.currentCategory = category;
-  d.chapters        = project.chapters;
-  d.currentChapter  = chapterId;
+
+  /* every project owns its own Views · Reference · Workflow data — point
+     the working set at this project's copies (same object references, so
+     edits save straight back onto the project) */
+  useProjectData(project);
+  d.currentChapter = chapterId;
 
   save();
   if(typeof togglePagesOverlay === 'function') togglePagesOverlay(false);
   if(typeof hideInfoPanel === 'function') hideInfoPanel();
-  goPage('manuscript');
+  goPage('inspire');
   toast('Project created');
 };
 
@@ -637,7 +652,7 @@ document.addEventListener('click', e => {
   if(rdEl){
     const i = parseInt(rdEl.dataset.snapDel);
     if(confirm('Delete this snapshot?')){
-      S.versions.splice(i, 1);
+      (D().versions || []).splice(i, 1);
       save();
       renderSnapshots();
     }
@@ -666,15 +681,42 @@ document.addEventListener('click', e => {
 
   // Beats
   if(t.closest('[data-act="add-beat"]')){
-    S.beats.push({id:uid(), text:'', level:0, type:'beat'});
+    D().beats.push({id:uid(), text:'', level:0, type:'beat'});
     save(); renderBeats(); return;
   }
+  if(t.closest('[data-act="preset-plan"]')){
+    e.preventDefault();
+    const beats = D().beats;
+    if(beats.length && !confirm('Add the preset beats to your plan?')) return;
+    const preset = [
+      { type:'act',  text:'Act I — Setup' },
+      { type:'beat', text:'Opening image' },
+      { type:'beat', text:'Inciting incident' },
+      { type:'beat', text:'Call to adventure' },
+      { type:'beat', text:'Debate' },
+      { type:'act',  text:'Act II — Confrontation' },
+      { type:'beat', text:'Break into two' },
+      { type:'beat', text:'Fun and games' },
+      { type:'beat', text:'Midpoint' },
+      { type:'beat', text:'Bad forces close in' },
+      { type:'beat', text:'All is lost' },
+      { type:'beat', text:'Dark night of the soul' },
+      { type:'act',  text:'Act III — Resolution' },
+      { type:'beat', text:'Break into three' },
+      { type:'beat', text:'Finale' },
+      { type:'beat', text:'Final image' }
+    ];
+    preset.forEach(function(b){ beats.push({ id: uid(), text: b.text, level: 0, type: b.type }); });
+    save(); renderBeats();
+    if(typeof toast === 'function') toast('Preset beats added');
+    return;
+  }
   const biEl = t.closest('[data-beat-indent]');
-  if(biEl){ S.beats[parseInt(biEl.dataset.beatIndent)].level = Math.min(5, (S.beats[parseInt(biEl.dataset.beatIndent)].level || 0) + 1); save(); renderBeats(); return; }
+  if(biEl){ const b = D().beats[parseInt(biEl.dataset.beatIndent)]; if(b){ b.level = Math.min(5, (b.level || 0) + 1); save(); renderBeats(); } return; }
   const boEl = t.closest('[data-beat-outdent]');
-  if(boEl){ S.beats[parseInt(boEl.dataset.beatOutdent)].level = Math.max(0, (S.beats[parseInt(boEl.dataset.beatOutdent)].level || 0) - 1); save(); renderBeats(); return; }
+  if(boEl){ const b = D().beats[parseInt(boEl.dataset.beatOutdent)]; if(b){ b.level = Math.max(0, (b.level || 0) - 1); save(); renderBeats(); } return; }
   const bdEl = t.closest('[data-beat-del]');
-  if(bdEl){ S.beats.splice(parseInt(bdEl.dataset.beatDel), 1); save(); renderBeats(); return; }
+  if(bdEl){ D().beats.splice(parseInt(bdEl.dataset.beatDel), 1); save(); renderBeats(); return; }
 
   // Timeline
   if(t.closest('[data-act="add-event"]')){
@@ -777,7 +819,7 @@ document.addEventListener('input', e => {
   if(cd){ S.bible[parseInt(cd.dataset.castDetails)].details = t.value; debouncedSave(); return; }
 
   const bt = t.closest('[data-beat-text]');
-  if(bt){ S.beats[parseInt(bt.dataset.beatText)].text = t.value; debouncedSave(); return; }
+  if(bt){ const b = D().beats[parseInt(bt.dataset.beatText)]; if(b){ b.text = t.value; debouncedSave(); } return; }
 
   const ct = t.closest('[data-col-title]');
   if(ct){
@@ -795,7 +837,7 @@ document.addEventListener('change', e => {
   const ct = t.closest('[data-cast-type]');
   if(ct){ S.bible[parseInt(ct.dataset.castType)].type = t.value; save(); return; }
   const bt = t.closest('[data-beat-type]');
-  if(bt){ S.beats[parseInt(bt.dataset.beatType)].type = t.value; save(); return; }
+  if(bt){ const b = D().beats[parseInt(bt.dataset.beatType)]; if(b){ b.type = t.value; save(); } return; }
 });
 
 // ═══ Close modal helper ═══

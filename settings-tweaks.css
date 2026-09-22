@@ -1,0 +1,208 @@
+/* ═══════════════════════════════════════════════════════════
+   Settings + shell — follow-up overrides. Loaded after
+   pages-fix.css so these always win.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── settings header — a touch smaller, per request ── */
+html body .settings-modal .modal-head{ padding:5px 14px !important; }
+html body .settings-modal .modal-head .icon-btn{ width:20px !important; height:20px !important; }
+html body .settings-modal .modal-head .set-esc{
+  height:15px !important;
+  font-size:8.5px !important;
+  padding:0 5px !important;
+}
+
+/* ── right-click (advanced) panel — the same 8px corner every panel,
+      card and modal in the app uses (one corner scale) ── */
+html body .sf-adv{ border-radius:var(--r-lg, 8px) !important; }
+
+/* ── the Dashboard mode pills sit a little higher in the bar ── */
+html body .mode-pills{ transform:translate(-50%, -50%) translateY(-6px) !important; }
+
+/* ── the AI result sheet wears the same compact header as Settings ── */
+html body .gt-head{ padding:6px 10px !important; gap:8px !important; }
+html body .gt-head .gt-title{ font-size:12.5px !important; }
+html body .gt-head .gt-sub,
+html body .gt-head .gt-meta{ font-size:9.5px !important; }
+html body .gt-head .gt-x{ width:20px !important; height:20px !important; font-size:11px !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   FAB · the right-click AI assistant
+   ═══════════════════════════════════════════════════════════ */
+html body .fab-ai-head{
+  padding:5px 6px 5px 10px !important;
+  min-height:0 !important;
+  gap:6px !important;
+}
+html body .fab-ai-head i{ font-size:11px !important; }
+html body .fab-ai-head span{ font-size:9.5px !important; letter-spacing:.09em !important; }
+html body .fab-ai-x{
+  flex:0 0 auto !important;
+  display:inline-flex !important; align-items:center !important; justify-content:center !important;
+  width:20px !important; height:20px !important;
+  background:transparent !important; border:0 !important;
+  border-radius:var(--r-sm, 4px) !important;
+  color:var(--ink-4) !important; font-size:11px !important;
+  cursor:pointer !important;
+  transition:background .12s ease, color .12s ease !important;
+}
+html body .fab-ai-x:hover{ background:var(--overlay) !important; color:var(--ink) !important; }
+
+html body .fab-ai-sec{
+  margin:6px 0 2px !important;
+  padding:0 8px !important;
+  font-size:9px !important; font-weight:600 !important;
+  letter-spacing:.09em !important; text-transform:uppercase !important;
+  color:var(--ink-4) !important;
+}
+html body .fab-ai-sec:first-child{ margin-top:2px !important; }
+
+html body .fab-ai-opt{
+  display:flex !important; align-items:flex-start !important; gap:8px !important;
+  width:100% !important;
+  padding:7px 9px !important;
+  background:transparent !important; border:0 !important;
+  border-radius:var(--r-sm, 4px) !important;
+  text-align:left !important; cursor:pointer !important;
+  transition:background .12s ease !important;
+}
+html body .fab-ai-opt:hover{ background:var(--overlay) !important; }
+html body .fab-ai-opt .fa-ic{
+  flex:0 0 auto !important;
+  display:inline-flex !important; align-items:center !important; justify-content:center !important;
+  width:20px !important; height:20px !important;
+  border-radius:var(--r-sm, 4px) !important;
+  background:var(--surface-3) !important;
+  color:var(--ink-3) !important; font-size:11px !important;
+}
+html body .fab-ai-opt:hover .fa-ic{ color:var(--ink) !important; }
+html body .fab-ai-opt .fa-txt{ display:flex !important; flex-direction:column !important; gap:1px !important; min-width:0 !important; }
+html body .fab-ai-opt .fa-txt b{ font-size:11.5px !important; font-weight:550 !important; color:var(--ink) !important; }
+html body .fab-ai-opt .fa-txt em{
+  font-style:normal !important;
+  font-size:10px !important; line-height:1.35 !important;
+  color:var(--ink-4) !important;
+}
+html body .fab-ai-ask{ display:flex !important; gap:4px !important; padding:2px 4px 0 !important; }
+html body .fab-ai-ask .ai-input{ flex:1 1 auto !important; min-width:0 !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   IDEA — Prompt me, its own AI popover, titled saved prompts
+   ═══════════════════════════════════════════════════════════ */
+html body #page-inspire .idea-bar-left{
+  display:flex !important; align-items:center !important; gap:6px !important;
+  flex:0 1 auto !important; min-width:0 !important;
+}
+html body #page-inspire .idea-ai-wrap{ position:relative !important; display:inline-flex !important; }
+html body #page-inspire .ol-btn-go{
+  background:var(--surface-4) !important;
+  color:var(--ink) !important;
+  font-weight:600 !important;
+}
+html body #page-inspire .ol-btn-go i{ color:var(--accent-2, var(--accent)) !important; }
+html body #page-inspire .ol-btn-go:hover{ background:var(--overlay) !important; }
+
+html body #page-inspire .idea-ai-pop{
+  position:absolute !important;
+  top:calc(100% + 6px) !important; left:0 !important;
+  z-index:40 !important;
+  width:230px !important;
+  padding:8px !important;
+  background:var(--surface-1, var(--surface-2)) !important;
+  border:1px solid var(--line-2) !important;
+  border-radius:var(--r-lg, 8px) !important;
+  box-shadow:0 12px 32px rgba(0,0,0,.28) !important;
+}
+html body #page-inspire .idea-ai-pop[hidden]{ display:none !important; }
+html body #page-inspire .iap-head{
+  display:flex !important; align-items:center !important; gap:6px !important;
+  padding:0 2px 6px !important;
+  font-size:9.5px !important; font-weight:600 !important;
+  letter-spacing:.08em !important; text-transform:uppercase !important;
+  color:var(--ink-4) !important;
+}
+html body #page-inspire .iap-row{
+  display:flex !important; align-items:center !important; gap:8px !important;
+  padding:3px 2px !important;
+}
+html body #page-inspire .iap-row label{ flex:0 0 44px !important; font-size:11px !important; color:var(--ink-3) !important; }
+html body #page-inspire .iap-row select{ flex:1 1 auto !important; min-width:0 !important; }
+html body #page-inspire .iap-note{
+  margin:6px 2px 0 !important;
+  font-size:9.5px !important; line-height:1.4 !important;
+  color:var(--ink-4) !important;
+}
+html body #page-inspire .iap-note b{ color:var(--ink-3) !important; font-weight:600 !important; }
+
+html body #page-inspire .idea-row-txt{
+  display:flex !important; flex-direction:column !important; gap:1px !important;
+  flex:1 1 auto !important; min-width:0 !important;
+}
+html body #page-inspire .idea-row-txt b{
+  font-size:11.5px !important; font-weight:550 !important; color:var(--ink) !important;
+  white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important;
+}
+html body #page-inspire .idea-row-txt em{
+  font-style:normal !important;
+  font-size:10px !important; color:var(--ink-4) !important;
+  white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important;
+}
+html body #page-inspire .idea-row{ align-items:center !important; }
+html body #page-inspire .idea-ghost,
+html body #page-inspire .idea-busy,
+html body #page-inspire .idea-err{
+  font-size:13px !important;
+  line-height:1.6 !important;
+  color:var(--ink-3) !important;
+  text-align:center !important;
+  max-width:52ch !important;
+}
+html body #page-inspire .idea-busy i{ margin-right:6px !important; color:var(--accent-2, var(--accent)) !important; }
+html body #page-inspire .idea-err{ color:var(--danger, #e5484d) !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   TRANSLATE — the four quick pairs, above the language grid
+   ═══════════════════════════════════════════════════════════ */
+html body .ft-pairs{ margin:2px 2px 8px !important; }
+html body .ft-pairs-label{
+  display:block !important;
+  padding:0 2px 4px !important;
+  font-size:9px !important; font-weight:600 !important;
+  letter-spacing:.08em !important; text-transform:uppercase !important;
+  color:var(--ink-4) !important;
+}
+html body .ft-pairs-row{
+  display:grid !important;
+  grid-template-columns:1fr 1fr !important;
+  gap:3px !important;
+}
+html body .ft-pair{
+  display:flex !important; align-items:center !important; justify-content:center !important;
+  padding:6px 8px !important;
+  background:var(--surface-2) !important; border:0 !important;
+  border-radius:var(--r-sm, 4px) !important;
+  color:var(--ink-2) !important; font-size:11px !important; font-family:inherit !important;
+  cursor:pointer !important;
+  transition:background .12s ease, color .12s ease !important;
+}
+html body .ft-pair:hover{ background:var(--surface-4) !important; color:var(--ink) !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   PLAN — the card's type picker reads like every other dropdown
+   ═══════════════════════════════════════════════════════════ */
+html body #page-plan .beat-card .beat-type{
+  -webkit-appearance:none !important;
+  appearance:none !important;
+  height:22px !important;
+  padding:0 18px 0 7px !important;
+  background-color:var(--surface-2) !important;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath d='M1 2.5 4 5.5 7 2.5' fill='none' stroke='%237c8899' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat:no-repeat !important;
+  background-position:right 6px center !important;
+  border:1px solid var(--line-2) !important;
+  border-radius:var(--r-sm, 4px) !important;
+  color:var(--ink-3) !important;
+  font-size:10.5px !important;
+  cursor:pointer !important;
+}
+html body #page-plan .beat-card .beat-type:hover{ color:var(--ink) !important; border-color:var(--line-3) !important; }

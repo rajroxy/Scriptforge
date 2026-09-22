@@ -596,12 +596,46 @@ PLUGINS.initVoice = function(){
 };
 
 PLUGINS.toggleVoice = function(){
+  if(S.config.plugins && S.config.plugins.voice === false){ toast('Voice dictation is off', 'warn'); return; }
   if(!S.voiceSupported){ toast('Voice not supported. Try Chrome.', 'err'); return; }
   if(!S.voiceRecog) PLUGINS.initVoice();
   try{
     if(S.voiceListening){ S.voiceRecog.stop(); S.voiceListening = false; toast('Voice stopped'); }
     else { S.voiceRecog.start(); S.voiceListening = true; toast('Listening…'); }
   }catch(e){ toast('Already listening', 'warn'); }
+};
+
+// ═══════════════════════════════════════════════════════════
+//   TEXT-TO-SPEECH — read a passage, the selection, or the editor
+// ═══════════════════════════════════════════════════════════
+
+PLUGINS.speak = function(text){
+  if(!('speechSynthesis' in window)){ toast('Speech not supported in this build', 'err'); return false; }
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  if(!t){ toast('Nothing to read', 'warn'); return false; }
+  try{
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(t.slice(0, 8000));
+    u.lang = S.config.defaultLang === 'hi' ? 'hi-IN' : 'en-US';
+    u.rate = 1; u.pitch = 1;
+    window.speechSynthesis.speak(u);
+    return true;
+  }catch(e){ toast('Could not read aloud', 'err'); return false; }
+};
+
+PLUGINS.stopSpeaking = function(){
+  try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+};
+
+PLUGINS.speakEditor = function(){
+  if(S.config.plugins && S.config.plugins.tts === false){ toast('Text-to-speech is off', 'warn'); return; }
+  if(window.speechSynthesis && window.speechSynthesis.speaking){ PLUGINS.stopSpeaking(); toast('Stopped'); return; }
+  const ed = $('editor');
+  const sel = window.getSelection();
+  let text = '';
+  if(sel && !sel.isCollapsed && ed && ed.contains(sel.anchorNode)) text = sel.toString();
+  if(!text && ed) text = (ed.innerText || ed.textContent || '');
+  if(PLUGINS.speak(text)) toast('Reading aloud');
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -637,6 +671,7 @@ document.addEventListener('click', e => {
     return;
   }
   if(t.closest('[data-act="toggle-voice"]')){ e.preventDefault(); PLUGINS.toggleVoice(); return; }
+  if(t.closest('[data-act="toggle-tts"]')){ e.preventDefault(); PLUGINS.speakEditor(); return; }
   if(t.closest('[data-act="toggle-live"]')){ e.preventDefault(); PLUGINS.toggleLiveBar(); return; }
   if(t.closest('[data-act="live-cycle"]')){ e.preventDefault(); PLUGINS.cycleLiveTarget(); return; }
   if(t.closest('[data-act="live-accept"]')){ e.preventDefault(); PLUGINS.acceptLive(); return; }

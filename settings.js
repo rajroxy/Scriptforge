@@ -14,35 +14,42 @@ SETTINGS.open = function(){
   const scrim = document.createElement('div');
   scrim.className = 'modal-scrim';
   scrim.innerHTML = `
-    <div class="modal" style="max-width:920px;">
-      <div class="modal-head">
-        <h2><i class="bi bi-sliders" style="color:var(--accent-2);"></i> Settings</h2>
-        <button class="icon-btn v-close" data-act="set-close">
+    <div class="modal settings-modal set-shell" style="max-width:1000px;">
+      <aside class="set-side">
+        <nav id="setTabs" class="set-nav"></nav>
+      </aside>
+      <div class="set-main">
+        <div class="modal-head">
+          <span class="set-head-actions" style="display:flex;align-items:center;">
+            <span class="set-esc" title="Press Escape to close">esc</span>
+            <button class="icon-btn v-close" data-act="set-close">
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
     <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
   </svg>
 </button>
-      </div>
-      <div id="setTabs" style="display:flex;gap:0;padding:0 20px;border-bottom:1px solid var(--line);overflow-x:auto;"></div>
-      <div class="modal-body" id="setBody"></div>
-      <div class="modal-foot">
-        <button class="btn btn-ghost" data-act="set-close">Close</button>
-        <button class="btn btn-primary" data-act="set-save"><i class="bi bi-check-lg"></i> Save</button>
+          </span>
+        </div>
+        <div class="modal-body" id="setBody"></div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" data-act="set-close">Close</button>
+          <button class="btn btn-primary" data-act="set-save"><i class="bi bi-check-lg"></i> Save</button>
+        </div>
       </div>
     </div>
   `;
   root.appendChild(scrim);
 
      const tabs = [
+    {divider:true},
     {id:'ai',           icon:'stars',          label:'AI Assistance'},
     {divider:true},
     {id:'general',      icon:'gear',           label:'General'},
     {id:'appearance',   icon:'palette',        label:'Appearance'},
     {id:'typography',   icon:'fonts',          label:'Typography'},
-    {id:'plugins',      icon:'puzzle',         label:'Plugins'},
     {id:'language',     icon:'translate',      label:'Language'},
-    {id:'privacy',      icon:'shield-lock',    label:'Privacy'},
-    {id:'sound',        icon:'volume-up',      label:'Sound'}
+    {id:'sound',        icon:'volume-up',      label:'Sound'},
+    {divider:true},
+    {id:'plugins',      icon:'puzzle',         label:'Plugins'}
   ];
   const tabBar = $('setTabs');
   tabs.forEach(t => {
@@ -58,6 +65,8 @@ SETTINGS.open = function(){
     b.dataset.setTab = t.id;
     tabBar.appendChild(b);
   });
+
+  /* sidebar layout — nothing to mirror into the head any more */
 
   renderSetTab('ai');
 
@@ -255,6 +264,11 @@ function applyConfig(key){
       root.style.setProperty('--doc-font', `'${c.font}', serif`);
       const ed = $('editor'); if(ed) ed.style.fontFamily = `'${c.font}', serif`;
       break;
+    case 'uiFont':
+      // the typeface used across the whole interface
+      if(c.uiFont) root.style.setProperty('--ui', `'${c.uiFont}', -apple-system, BlinkMacSystemFont, system-ui, sans-serif`);
+      else root.style.removeProperty('--ui');
+      break;
     case 'fontSize':
       root.style.setProperty('--doc-size', c.fontSize + 'px');
       const e2 = $('editor'); if(e2) e2.style.fontSize = c.fontSize + 'px';
@@ -326,7 +340,7 @@ function applyAllConfig(){
   rs.setProperty('--surface-opacity', 1);
   rs.setProperty('--border-opacity', 1);
   rs.setProperty('--backdrop-blur', '0px');
-  ['theme','font','fontSize','lineHeight','letterSpacing','wordSpacing','paraSpacing','editorWidth','uiScale','eyeComfort',
+  ['theme','font','uiFont','fontSize','lineHeight','letterSpacing','wordSpacing','paraSpacing','editorWidth','uiScale','eyeComfort',
    'expMixedFonts','expOverlay'].forEach(applyConfig);
   if(typeof applyVisualizerAlign === 'function') applyVisualizerAlign();
 }
@@ -430,86 +444,29 @@ SETTINGS.renderers.appearance = function(root){
   cEye.appendChild(eyeHint);
   root.appendChild(cEye);
 
-  /* ── motion effect ── */
-  const c10 = card('Motion', 'activity');
-  const moEff = document.createElement('select');
-  moEff.className = 'sel';
-  (window.MOTION ? MOTION.EFFECTS : ['none']).forEach(function(id){
+  // ── FONT — the typeface used across the whole app ──
+  const cFont = card('Font', 'fonts');
+  const appFontSel = document.createElement('select');
+  appFontSel.className = 'sel';
+  appFontSel.style.minWidth = '220px';
+  const appFontDef = document.createElement('option');
+  appFontDef.value = '';
+  appFontDef.textContent = 'Default (Inter)';
+  if(!S.config.uiFont) appFontDef.selected = true;
+  appFontSel.appendChild(appFontDef);
+  FONTS.forEach(f => {
     const o = document.createElement('option');
-    o.value = id; o.textContent = id;
-    moEff.appendChild(o);
+    o.value = f.name; o.textContent = f.name;
+    if(f.name === S.config.uiFont) o.selected = true;
+    appFontSel.appendChild(o);
   });
-  moEff.value = S.config.motionEffect || 'rain';
-  moEff.onchange = function(){
-    S.config.motionEffect = moEff.value;
-    if(moEff.value === 'none') S.config.motionOn = false;
-    save();
-    if(window.MOTION) MOTION.sync();
-    renderSetTab('appearance');
-  };
-  c10.appendChild(row('Motion effect', 'Animated canvas drawn on the player stage', moEff));
-
-  const moOn = document.createElement('div');
-  moOn.className = 'tgl';
-  moOn.classList.toggle('on', !!S.config.motionOn);
-  moOn.onclick = function(){
-    S.config.motionOn = !S.config.motionOn;
-    if(S.config.motionOn && (!S.config.motionEffect || S.config.motionEffect === 'none'))
-      S.config.motionEffect = 'rain';
-    save();
-    if(window.MOTION) MOTION.sync();
-    renderSetTab('appearance');
-  };
-  c10.appendChild(row('Enable motion', 'Show the effect on the player stage', moOn));
-
-  function motionRange(label, desc, key, min, max, step, def){
-    const inp = document.createElement('input');
-    inp.type = 'range'; inp.className = 'rng';
-    inp.min = min; inp.max = max; inp.step = step;
-    inp.value = (S.config[key] === undefined ? def : S.config[key]);
-    const val = document.createElement('span');
-    val.className = 'rng-val';
-    val.textContent = parseFloat(inp.value).toFixed(1);
-    inp.oninput = function(){
-      S.config[key] = parseFloat(inp.value);
-      val.textContent = parseFloat(inp.value).toFixed(1);
-      save();
-    };
-    c10.appendChild(row(label, desc, [inp, val]));
-  }
-  motionRange('Speed', 'How fast the effect runs', 'motionSpeed', 0.2, 2.5, 0.1, 1);
-  motionRange('Intensity', 'Brightness and thickness', 'motionIntensity', 0.2, 2, 0.1, 1);
-  motionRange('Reactivity', 'How hard the music drives it', 'motionReact', 0, 2, 0.1, 1);
-
-  const moCol = document.createElement('input');
-  moCol.type = 'color';
-  moCol.className = 'inp';
-  moCol.value = S.config.motionColor || '#fab387';
-  moCol.oninput = function(){ S.config.motionColor = moCol.value; save(); };
-  c10.appendChild(row('Colour', 'Effect colour', moCol));
-
-  const moSync = document.createElement('div');
-  moSync.className = 'tgl';
-  moSync.classList.toggle('on', S.config.motionSync !== false);
-  moSync.onclick = function(){
-    S.config.motionSync = (S.config.motionSync === false);
-    moSync.classList.toggle('on', S.config.motionSync);
+  appFontSel.onchange = function(){
+    S.config.uiFont = appFontSel.value;
+    applyConfig('uiFont');
     save();
   };
-  c10.appendChild(row('Sync to music', 'Drive the effect with the audio', moSync));
-
-  const proxyTgl = document.createElement('div');
-  proxyTgl.className = 'tgl';
-  proxyTgl.classList.toggle('on', !!S.config.musicProxy);
-  proxyTgl.onclick = function(){
-    S.config.musicProxy = !S.config.musicProxy;
-    proxyTgl.classList.toggle('on', S.config.musicProxy);
-    save();
-    toast(S.config.musicProxy ? 'Proxy enabled — catbox URLs will route through CORS proxy' : 'Proxy disabled');
-  };
-  c10.appendChild(row('Proxy catbox URLs', 'Route catbox.moe through a CORS proxy so beat analysis works', proxyTgl));
-  
-  root.appendChild(c10);
+  cFont.appendChild(row('App font', 'Typeface used across the whole interface', appFontSel));
+  root.appendChild(cFont);
 
   // ── ANIMATION ──
   const c8 = card('Animation', 'lightning');
@@ -552,10 +509,6 @@ SETTINGS.renderers.appearance = function(root){
   c8.appendChild(row('Rich animations', 'Extra transitions, spring easing, motion effects', richAnims));
 
   root.appendChild(c8);
-
-  const c11 = card('Interface', 'window-stack');
-  classRow(c11, 'Overlay screen', 'Floating overlay pane on the editor toolbar — off leaves the docked split screen', 'expOverlay', 'overlay-on');
-  root.appendChild(c11);
 
 };
 
@@ -745,12 +698,6 @@ SETTINGS.renderers.ai = function(root){
   root.appendChild(c4);
 
   fillModelSelect(sel, S.config.availableModels[S.config.provider] || getDefaultModels());
-
-  /* ── Assistant actions — the two that used to live under Experimental ── */
-  const c5 = card('Assistant actions', 'stars');
-  cfgRow(c5, 'Organise my words', 'Adds an action that rebuilds a messy paragraph out of your own words — in the assistant and in the editor context menu', 'expOrganize');
-  cfgRow(c5, 'Hinglish conversions', 'Adds Hinglish → हिन्दी and Hinglish → English inside the Translate option of the right-click assistant', 'expHinglish');
-  root.appendChild(c5);
 };
 
 function fillModelSelect(sel, models){
@@ -781,18 +728,6 @@ function buildModelDropdown(){
 
 SETTINGS.renderers.type = function(root){
   const c1 = card('Font', 'fonts');
-  const sel = document.createElement('select');
-  sel.className = 'sel';
-  sel.style.minWidth = '200px';
-  FONTS.forEach(f => {
-    const o = document.createElement('option');
-    o.value = f.name; o.textContent = f.name;
-    if(f.name === S.config.font) o.selected = true;
-    sel.appendChild(o);
-  });
-  sel.onchange = () => { S.config.font = sel.value; applyConfig('font'); save(); };
-  c1.appendChild(row('Editor font', 'Font used in the writing canvas', sel));
-
   const size = document.createElement('input');
   size.type = 'range'; size.className = 'rng';
   size.min = 12; size.max = 40; size.step = .5;
@@ -913,43 +848,25 @@ SETTINGS.renderers.type = function(root){
   cfgRow(c4, 'AI ghost text', 'Show the AI continuation as you pause', 'ghostText');
   cfgRow(c4, 'Suggestion chips', 'Quick actions along the bottom', 'suggestionChips');
   root.appendChild(c4);
-
-  /* ── Intermixed fonts — moved here from Experimental ── */
-  const c5 = card('Intermixed fonts', 'fonts');
-  cfgRow(c5, 'Mix three fonts', 'While you write, words take one of three fonts in turn — the toolbar font dropdown is untouched', 'expMixedFonts');
-
-  if(!Array.isArray(S.config.mixedFonts)) S.config.mixedFonts = ['', '', ''];
-  for(let i = 0; i < 3; i++){
-    const sel = document.createElement('select');
-    sel.className = 'sel';
-    sel.style.minWidth = '190px';
-    sel.innerHTML = '<option value="">Editor font</option>' +
-      FONTS.map(f => `<option value="${f.name}"${S.config.mixedFonts[i] === f.name ? ' selected' : ''}>${f.name}</option>`).join('');
-    sel.onchange = function(){ S.config.mixedFonts[i] = sel.value; save(); };
-    c5.appendChild(row('Font ' + (i + 1), 'Slot ' + (i + 1) + ' of the rotation', sel));
-  }
-  const scopeSel = document.createElement('select');
-  scopeSel.className = 'sel';
-  scopeSel.style.minWidth = '190px';
-  scopeSel.innerHTML = `
-    <option value="word"${S.config.mixedFontScope !== 'sentence' && S.config.mixedFontScope !== 'random' ? ' selected' : ''}>Word by word</option>
-    <option value="sentence"${S.config.mixedFontScope === 'sentence' ? ' selected' : ''}>Sentence by sentence</option>
-    <option value="random"${S.config.mixedFontScope === 'random' ? ' selected' : ''}>Random from the three</option>`;
-  scopeSel.onchange = function(){ S.config.mixedFontScope = scopeSel.value; save(); };
-  c5.appendChild(row('Rotate by', 'How the three fonts take turns', scopeSel));
-  root.appendChild(c5);
 };
 
 SETTINGS.renderers.plugins = function(root){
   const plugins = [
-    {k:'hinglish', name:'Hinglish transliteration', desc:'Convert Hinglish to Devanagari live'},
-    {k:'voice', name:'Voice dictation', desc:'Speak instead of type'},
     {k:'dictionary', name:'Dictionary lookup', desc:'Free dictionary API (no key)'},
     {k:'thesaurus', name:'Thesaurus & rhymes', desc:'Datamuse API (no key)'},
-    {k:'wikipedia', name:'Wikipedia research', desc:'Inline article summaries'},
-    {k:'websearch', name:'Text search', desc:'Inline search without leaving app'},
-    {k:'imagesearch', name:'Image search', desc:'Wikimedia Commons gallery'},
-    {k:'tts', name:'Text-to-speech', desc:'Read your writing aloud'}
+    {k:'voice', name:'Voice dictation', desc:'Speak instead of type',
+      action:{ label:'Start dictation', icon:'mic', run:function(){
+        if(S.config.plugins.voice === false){ toast('Turn Voice dictation on first', 'warn'); return; }
+        if(!(window.PLUGINS && PLUGINS.toggleVoice)){ toast('Voice not available', 'err'); return; }
+        closeModal();
+        PLUGINS.toggleVoice();
+      }}},
+    {k:'tts', name:'Text-to-speech', desc:'Read the editor or your selection aloud',
+      action:{ label:'Read aloud', icon:'volume-up', run:function(){
+        if(S.config.plugins.tts === false){ toast('Turn Text-to-speech on first', 'warn'); return; }
+        if(!(window.PLUGINS && PLUGINS.speakEditor)){ toast('Speech not available', 'err'); return; }
+        PLUGINS.speakEditor();
+      }}}
   ];
   const c1 = card('Available plugins', 'puzzle');
   plugins.forEach(p => {
@@ -961,7 +878,16 @@ SETTINGS.renderers.plugins = function(root){
       t.classList.toggle('on', S.config.plugins[p.k]);
       save();
     };
-    c1.appendChild(row(p.name, p.desc, t));
+    if(p.action){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-ghost';
+      btn.innerHTML = '<i class="bi bi-' + p.action.icon + '"></i> ' + p.action.label;
+      btn.onclick = p.action.run;
+      c1.appendChild(row(p.name, p.desc, [t, btn]));
+    } else {
+      c1.appendChild(row(p.name, p.desc, t));
+    }
   });
   root.appendChild(c1);
 };
@@ -1053,59 +979,7 @@ SETTINGS.renderers.language = function(root){
   });
   outSel.onchange = function(){ S.config.outputLang = outSel.value; save(); toast('AI reply language set'); };
   out.appendChild(row('Reply language', 'Improve, rewrite and translate follow this.', outSel));
-
-  const hg = document.createElement('div');
-  hg.className = 'tgl';
-  hg.classList.toggle('on', !!(S.config.plugins && S.config.plugins.hinglish));
-  hg.onclick = function(){
-    if(!S.config.plugins) S.config.plugins = {};
-    S.config.plugins.hinglish = !S.config.plugins.hinglish;
-    hg.classList.toggle('on', S.config.plugins.hinglish);
-    save();
-  };
-  out.appendChild(row('Hinglish conversions', 'Hinglish ⇄ Hindi ⇄ English in the right-click options.', hg));
   root.appendChild(out);
-
-  // ── the Merriam-Webster key, moved here from the old Environment tab ──
-  const lk = card('Lookup keys', 'key');
-  const wrap = document.createElement('div');
-  wrap.className = 'set-row';
-  wrap.innerHTML = '<div><div style="font-size:12.5px;font-weight:600;">Merriam-Webster dictionary</div>'
-    + '<div style="font-size:11px;color:var(--ink-3);margin-top:2px;">Free Collegiate key from dictionaryapi.com. Used by Utilities → Dictionary lookup.</div></div>';
-  const line = document.createElement('div');
-  line.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:8px;';
-  const inp = document.createElement('input');
-  inp.className = 'inp';
-  inp.type = 'password';
-  inp.placeholder = 'MW_API_KEY';
-  inp.style.cssText = 'flex:1;min-width:0;';
-  inp.value = String(S.config.mwApiKey || '');
-  const saveBtn = document.createElement('button');
-  saveBtn.className = 'btn btn-primary';
-  saveBtn.type = 'button';
-  saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Save';
-  const clearBtn = document.createElement('button');
-  clearBtn.className = 'btn btn-ghost';
-  clearBtn.type = 'button';
-  clearBtn.innerHTML = '<i class="bi bi-x-lg"></i> Clear';
-  line.appendChild(inp); line.appendChild(saveBtn); line.appendChild(clearBtn);
-  const note2 = document.createElement('div');
-  note2.style.cssText = 'font-size:11px;color:var(--ink-4);margin-top:6px;';
-  note2.textContent = 'Saved in this browser. Without a key the open dictionary answers instead, so lookup always works.';
-  wrap.appendChild(line); wrap.appendChild(note2);
-  lk.appendChild(wrap);
-  saveBtn.onclick = function(){
-    S.config.mwApiKey = String(inp.value || '').trim();
-    save();
-    note2.textContent = S.config.mwApiKey ? 'Saved in this browser.' : 'Cleared.';
-  };
-  clearBtn.onclick = function(){
-    S.config.mwApiKey = '';
-    inp.value = '';
-    save();
-    note2.textContent = 'Cleared — the open dictionary answers again.';
-  };
-  root.appendChild(lk);
 };
 
 // ═══ Per-mode Format page ═══
@@ -1205,83 +1079,6 @@ SETTINGS.renderFormat = function(){
   root.appendChild(c4);
 };
 
-// ═══ PRIVACY ═══
-SETTINGS.renderers.privacy = function(root){
-  const c1 = card('Local storage', 'shield-lock');
-
-  const info = document.createElement('div');
-  info.style.cssText = 'font-size:12.5px;line-height:1.7;color:var(--ink-2);padding:4px 0;';
-  info.innerHTML =
-    'Everything you write is stored <strong>locally in your browser</strong>. ' +
-    'Nothing is uploaded to any server. AI features only send text when you explicitly click an AI action.';
-  c1.appendChild(info);
-
-  const clearCache = document.createElement('button');
-  clearCache.className = 'btn btn-ghost';
-  clearCache.innerHTML = '<i class="bi bi-x-circle"></i> Clear session cache';
-  clearCache.onclick = function(){
-    if(!confirm('Clear temporary session data? Your projects are safe.')) return;
-    sessionStorage.clear();
-    toast('Session cache cleared');
-  };
-  c1.appendChild(row('Clear session cache', 'Removes temporary data only — projects untouched', clearCache));
-
-  const wipe = document.createElement('button');
-  wipe.className = 'btn btn-ghost';
-  wipe.style.color = 'var(--err)';
-  wipe.innerHTML = '<i class="bi bi-trash"></i> Clear all';
-  wipe.onclick = function(){
-    if(!confirm('Delete ALL data? Cannot be undone.')) return;
-    if(!confirm('Really delete everything?')) return;
-    localStorage.removeItem(STORE.CFG);
-    localStorage.removeItem(STORE.DATA);
-    localStorage.removeItem('sf6_theme');
-    location.reload();
-  };
-  c1.appendChild(row('Clear all data', 'Wipe projects, chapters and notes', wipe));
-
-  root.appendChild(c1);
-
-  const c2 = card('AI data', 'stars');
-
-  const disableAI = document.createElement('div');
-  disableAI.className = 'tgl';
-  disableAI.classList.toggle('on', !!S.config.aiDisabled);
-  disableAI.onclick = function(){
-    S.config.aiDisabled = !S.config.aiDisabled;
-    disableAI.classList.toggle('on', S.config.aiDisabled);
-    save();
-    toast(S.config.aiDisabled ? 'AI disabled' : 'AI enabled');
-  };
-  c2.appendChild(row('Disable all AI', 'Prevents sending text to any AI provider', disableAI));
-
-  const noHistory = document.createElement('div');
-  noHistory.className = 'tgl';
-  noHistory.classList.toggle('on', S.config.noAIHistory !== false);
-  noHistory.onclick = function(){
-    S.config.noAIHistory = !(S.config.noAIHistory !== false);
-    noHistory.classList.toggle('on', S.config.noAIHistory);
-    save();
-  };
-  c2.appendChild(row('Don\'t save AI results', 'AI responses never persist to storage', noHistory));
-
-  root.appendChild(c2);
-
-  const c3 = card('Network', 'globe');
-  const offline = document.createElement('div');
-  offline.className = 'tgl';
-  offline.classList.toggle('on', !!S.config.offlineMode);
-  offline.onclick = function(){
-    S.config.offlineMode = !S.config.offlineMode;
-    offline.classList.toggle('on', S.config.offlineMode);
-    save();
-    toast(S.config.offlineMode ? 'Offline mode on' : 'Offline mode off');
-  };
-  c3.appendChild(row('Offline mode', 'Blocks all external requests (AI, plugins, music streams)', offline));
-  root.appendChild(c3);
-};
-
-// ═══ EXPERIMENTAL ═══
 // ═══ Global click delegation for settings ═══
 document.addEventListener('click', e => {
   const t = e.target;

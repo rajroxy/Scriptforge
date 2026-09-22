@@ -90,7 +90,7 @@ IO.importProject = async function(){
 
   if(!Array.isArray(d.projects)) d.projects = [];
   d.projects.push(newProj);
-  d.currentProject = newId;
+  useProjectData(newProj);           // the import gets its own Views · Reference · Workflow
   d.currentCategory = catId;
   d.currentChapter = newProj.chapters[0]?.id || null;
   save();
@@ -99,7 +99,7 @@ IO.importProject = async function(){
 
   // Refresh UI
   if(typeof renderProjectsForCategory === 'function') renderProjectsForCategory(catId);
-  if(typeof goPage === 'function') goPage('write');
+  if(typeof goPage === 'function') goPage('inspire');   // land on the Idea view
 };
 
 window.IO = IO;

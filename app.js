@@ -18,13 +18,13 @@ function openProjectById(pid){
   if(!S.modes[S.mode]) S.modes[S.mode] = freshModeData();
   const md = S.modes[S.mode];
 
-  // Point the working set at the project's chapters
+  // Every project owns its own Views · Reference · Workflow data
   if(!proj.chapters || !proj.chapters.length){
     proj.chapters = [{ id: uid(), title: 'Chapter 1', content: '', children: [], collapsed: false }];
   }
-  md.currentProject = proj.id;
-  md.currentCategory = proj.category;
-  md.chapters = proj.chapters;
+  /* every project's own Views · Reference · Workflow (chapters, drafts,
+     ideas, notes, beats, references, timeline, bible, kanban) */
+  useProjectData(proj);
   md.currentChapter = proj.chapters[0].id;
 
   save();
@@ -33,10 +33,10 @@ function openProjectById(pid){
   if(typeof togglePagesOverlay === 'function') togglePagesOverlay(false);
   if(typeof hideInfoPanel === 'function') hideInfoPanel();
 
-  // Refresh the pills, then open the editor — projects land in Draft
+  // Refresh the pills, then open the editor — projects land on the Idea view
   if(typeof renderModePills === 'function') renderModePills();
   if(typeof updateBreadcrumb === 'function') updateBreadcrumb();
-  goPage('draft');
+  goPage('inspire');
 
   toast('Opened: ' + proj.name);
 }
@@ -318,7 +318,7 @@ if(pillEl){
     }
     const id = uid();
        const firstChapterId = uid();
-    d.projects.unshift({
+    const freshProject = {
       id, name, category: catId, mode: S.mode, created: Date.now(),
       chapters: [{id: firstChapterId, title:'Chapter 1', content:'', children:[], collapsed:false}],
       bible: { characters:[], locations:[], items:[], scenes:[], events:[], organizations:[] },
@@ -329,13 +329,15 @@ if(pillEl){
         {id:'k3', title:'Editing', cards:[]},
         {id:'k4', title:'Done', cards:[]}
       ]}
-    });
-    d.currentProject = id;
+    };
+    d.projects.unshift(freshProject);
+    /* the new project gets its own Views · Reference · Workflow right away */
+    useProjectData(freshProject);
     d.currentCategory = catId;
     d.currentChapter = firstChapterId;
     save();
     togglePagesOverlay(false);
-    goPage('write');
+    goPage('inspire');          // every project lands on the Idea view
     toast('Project created');
     return;
   }
@@ -354,17 +356,18 @@ if(pillEl){
       const text = await f.text();
       const d = D();
       const id = uid();
-      d.projects.push({
+      const imported = {
         id, name: f.name.replace(/\.[^.]+$/, ''), category: catOpen.dataset.catOpen,
         mode: S.mode, created: Date.now(),
         chapters: [{id: uid(), title:'Section 1', content: text.replace(/\n/g,'<br>'), children:[], collapsed:false}],
         currentChapter: null
-      });
-      d.currentProject = id;
+      };
+      d.projects.push(imported);
+      useProjectData(imported);
       d.currentCategory = catOpen.dataset.catOpen;
       save();
       togglePagesOverlay(false);
-      goPage('write');
+      goPage('inspire');        // imports land on the Idea view too
       toast('Project imported');
     };
     input.click();
@@ -870,7 +873,7 @@ document.addEventListener('click', e => {
       save();
 
       if(typeof togglePagesOverlay === 'function') togglePagesOverlay(false);
-      if(typeof goPage === 'function') goPage('write');
+      if(typeof goPage === 'function') goPage('inspire');
       toast('Imported: ' + file.name);
     };
     input.click();
@@ -1245,28 +1248,37 @@ window.openCommandPalette = openCommandPalette;
 //   COMMAND BOX — Super / Shift+` trigger, dropdown above pill
 // ═══════════════════════════════════════════════════════════
 
-const CMD_DEFAULTS = {
-  // Key → { label, icon, run }
-  'gt': { label:'Write page',      icon:'pencil-fill',      run:() => goPage('write') },
-  'q7': { label:'Read page',       icon:'book-half',        run:() => goPage('read') },
-  'zk': { label:'Draft page',      icon:'lightbulb',        run:() => goPage('draft') },
-  'ph': { label:'Plan page',       icon:'list-nested',      run:() => goPage('plan') },
-  'rb': { label:'Board page',      icon:'kanban',           run:() => goPage('board') },
-  'ns': { label:'Notes page',      icon:'sticky',           run:() => goPage('notes') },
-  'cn': { label:'Canvas page',     icon:'pencil-square',    run:() => goPage('canvas') },
-  'fc': { label:'Cast page',       icon:'people-fill',      run:() => goPage('cast') },
-  'rs': { label:'Research page',   icon:'link-45deg',       run:() => goPage('research') },
-  'dl': { label:'Dictionary page', icon:'book',             run:() => goPage('dictionary') },
-  'tl': { label:'Timeline page',   icon:'git',              run:() => goPage('timeline') },
-  'nb': { label:'Notebook page',   icon:'journal-bookmark-fill', run:() => goPage('notebook') },
-  'fm': { label:'Format page',     icon:'sliders',          run:() => goPage('format') },
-  'ip': { label:'Inspire page',    icon:'lightbulb-fill',   run:() => goPage('inspire') }
+// Shortcut key per FAB view (Inspire is the “Idea” page)
+const CMD_PAGE_KEYS = {
+  inspire:'id', draft:'df', outline:'ol', plan:'pl', manuscript:'ms', bible:'bl', kanban:'kb'
 };
 
+// No fixed page commands — the box mirrors the current mode’s FAB menu.
+const CMD_DEFAULTS = {};
+
+// The command box lists exactly the pages in the current mode’s FAB menu,
+// each with its shortcut, so the box stays in sync with the menu.
+function cmdPageCommands(){
+  const mode = (typeof currentMode === 'function') ? currentMode() : null;
+  const groups = mode && mode.fabGroups;
+  if(!groups) return {};
+  const out = {};
+  groups.forEach(function(g){
+    (g.views || []).forEach(function(v){
+      const pid  = (typeof v === 'string') ? v : v.id;
+      const name = (typeof v === 'string' || !v.name) ? pid : v.name;
+      const icon = (typeof v === 'string' || !v.icon) ? 'file' : v.icon;
+      const key  = CMD_PAGE_KEYS[pid] || pid.slice(0, 2);
+      out[key] = { label:name, icon:icon, run:function(){ goPage(pid); } };
+    });
+  });
+  return out;
+}
+
 function getCmdMap(){
-  // Merge user overrides if present
+  // FAB menu pages + any user overrides
   const userMap = S.config.commandKeys || {};
-  return Object.assign({}, CMD_DEFAULTS, userMap);
+  return Object.assign({}, cmdPageCommands(), userMap);
 }
 
 function openCmdBox(){
@@ -1319,7 +1331,7 @@ function renderCmdList(query){
 
   filtered.forEach(it => {
     // Sort into groups by key heuristic
-    if(['kr','gt','q7','zk','ph','rb','ns','jp'].includes(it.key)) groups.Pages.push(it);
+    if(['id','df','ol','pl','ms','bl','kb','kr','gt','q7','zk','ph','rb','ns','jp'].includes(it.key)) groups.Pages.push(it);
     else if(['im','y4'].includes(it.key)) groups.Modes.push(it);
     else if(['86','mo'].includes(it.key)) groups.File.push(it);
     else if(['hm','pw','fo'].includes(it.key)) groups.View.push(it);

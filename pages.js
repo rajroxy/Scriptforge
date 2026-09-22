@@ -504,7 +504,7 @@ PAGE_RENDERERS.home = function(root){
 
 /* ═══ OVERVIEW — a card-by-card guide to what makes this app different:
    every original feature, what it is, and exactly how to use it. ═══ */
-const OV_FEATURES = [
+const OV_FEATURES_LEGACY = [
   {
     icon:'journal-bookmark', tag:'Story bible', title:'The Bible',
     what:'A living reference for every name, place, item, event and beat in the project — kept beside the draft instead of in a separate document.',
@@ -625,62 +625,86 @@ const OV_FEATURES = [
   }
 ];
 
+/* ═══ OVERVIEW — two half cards, side by side: how to write any kind of
+   fiction novel, and how to write any kind of fiction screenplay. ═══ */
+const OV_GUIDES = [
+  {
+    icon:'journal-richtext', tag:'Novel', title:'How to write any type of fiction novel',
+    lead:'Genre-agnostic craft — romance, thriller, literary, fantasy, YA: the promise changes, the shape does not.',
+    steps:[
+      '<b>Find the promise.</b> One sentence: who wants what, and what stands in the way. If you cannot say it, you do not have a book yet.',
+      '<b>Build the people.</b> A protagonist with an external want and an internal need, an antagonist who is right in their own story, and a supporting cast with one job each.',
+      '<b>Choose the shape.</b> Three acts, four parts or Save the Cat — then decide what your genre promises the reader (a mystery must answer; a romance must resolve the relationship).',
+      '<b>Plan the turning points.</b> Eight to fifteen beats, with a midpoint reversal and an all-is-lost moment. A map, not a cage.',
+      '<b>Outline in scenes.</b> Every scene gets a goal, a conflict and an outcome. No change in a scene means cut it.',
+      '<b>Draft fast and badly, in order.</b> Write for the story, not the sentence. No editing while drafting.',
+      '<b>Rest, then revise in passes.</b> Structure first, then character, then scene, then line — one thing per pass, and keep a change log.',
+      '<b>Read it as a stranger.</b> Cut the first 10% and the last 5%, then give it a title you believe.'
+    ],
+    tools:[
+      ['Idea','Dump the premise, the questions and the images you cannot stop thinking about.'],
+      ['Draft','The words — plain text, no ceremony.'],
+      ['Outline','Chapters and subchapters, dragged into order as the book reveals itself.'],
+      ['Plan','Turn the premise into a beat sheet before you touch a page.'],
+      ['Manuscript','Assemble the chapters and read the whole book as one document.']
+    ],
+    go:'plan', cta:'Start with the beat sheet'
+  },
+  {
+    icon:'film', tag:'Screenplay', title:'How to write any type of fiction screenplay',
+    lead:'Feature, short, pilot or series — one page per minute, and nothing the camera cannot see or the mic cannot hear.',
+    steps:[
+      '<b>Logline and theme first.</b> One sentence that could sell it, plus the argument the film is making.',
+      '<b>Know the runtime.</b> A page is roughly a minute; act breaks land near 25% and 75%. In a pilot, the first ten pages are the whole pitch.',
+      '<b>Beat it out.</b> Opening image, inciting incident, debate, break into two, B-story, midpoint, escalation, all is lost, break into three, finale, final image.',
+      '<b>Break it into scenes.</b> INT./EXT. — PLACE — TIME, one idea each. Scenes are your page budget, not decoration.',
+      '<b>Write only what is seen and heard.</b> Action in present tense, one paragraph per shot, no inner thoughts on the page.',
+      '<b>Dialogue under pressure.</b> Subtext first, answers rarely, interruptions welcome. Characters who agree are boring.',
+      '<b>Respect the format.</b> Courier-style 12pt, clean sluglines, (V.O.) and (O.S.) only when they matter, transitions only when they earn their line.',
+      '<b>Rewrite by cutting pages.</b> Read it aloud for time, then cut the page you love. The goal is a script someone can budget and shoot.'
+    ],
+    tools:[
+      ['Idea','The hook, the world, and the question the script answers.'],
+      ['Draft','Plain-text passes, before the formatting gets serious.'],
+      ['Outline','Scenes and subscenes — drag them until the order sings.'],
+      ['Plan','A beat sheet with act breaks before a single slugline.'],
+      ['Script','The formatted pages in the writing view — the final pass.']
+    ],
+    go:'outline', cta:'Start with the scenes'
+  }
+];
+
 PAGE_RENDERERS.overview = function(root){
   root.innerHTML = `
     <div class="ov-wrap">
       <header class="ov-head">
         <div>
-          <h1 class="ov-title">What this app does that other writers’ apps do not</h1>
-          <div class="ov-sub">Fifteen features, what each one is, and how to use it — in cards.</div>
-        </div>
-        <div class="ov-chips">
-          <button class="ov-chip" data-ov-filter="all">All</button>
-          <button class="ov-chip" data-ov-filter="Writing">Writing</button>
-          <button class="ov-chip" data-ov-filter="Structure">Structure</button>
-          <button class="ov-chip" data-ov-filter="Publishing">Publishing</button>
-          <button class="ov-chip" data-ov-filter="Players">Players</button>
-          <button class="ov-chip" data-ov-filter="Typography">Typography</button>
+          <h1 class="ov-title">How to write fiction — novel and screenplay</h1>
+          <div class="ov-sub">Two halves, two crafts: the whole process for a novel on the left, for a screenplay on the right.</div>
         </div>
       </header>
-      <div class="ov-grid" id="ovGrid"></div>
+      <div class="ov-guides">
+        ${OV_GUIDES.map(function(g, i){
+          return '<article class="ov-card ov-guide" style="--ov-i:' + i + '">'
+            + '<div class="ov-card-top"><span class="ov-card-ic"><i class="bi bi-' + g.icon + '"></i></span>'
+            +   '<span class="ov-card-tag">' + esc(g.tag) + '</span></div>'
+            + '<h2 class="ov-card-title">' + g.title + '</h2>'
+            + '<p class="ov-card-what">' + g.lead + '</p>'
+            + '<ol class="ov-card-how">' + g.steps.map(function(s){ return '<li>' + s + '</li>'; }).join('') + '</ol>'
+            + '<div class="ov-guide-tools"><div class="ov-guide-tools-h">In this app</div>'
+            +   g.tools.map(function(tp){
+                  return '<div class="ov-guide-tool"><b>' + tp[0] + '</b><span>' + tp[1] + '</span></div>';
+                }).join('')
+            + '</div>'
+            + '<button class="ov-card-cta" data-ov-go="' + g.go + '"><span>' + g.cta + '</span><i class="bi bi-arrow-right"></i></button>'
+            + '</article>';
+        }).join('')}
+      </div>
     </div>`;
 
-  const grid = $('ovGrid');
-  const paint = function(filter){
-    const list = OV_FEATURES.filter(function(f){ return !filter || filter === 'all' || f.tag === filter; });
-    grid.innerHTML = list.map(function(f, i){
-      return '<article class="ov-card" style="--ov-i:' + i + '">'
-        + '<div class="ov-card-top"><span class="ov-card-ic"><i class="bi bi-' + f.icon + '"></i></span>'
-        +   '<span class="ov-card-tag">' + esc(f.tag) + '</span></div>'
-        + '<h2 class="ov-card-title">' + f.title + '</h2>'
-        + '<p class="ov-card-what">' + f.what + '</p>'
-        + '<ol class="ov-card-how">' + f.how.map(function(h){ return '<li>' + h + '</li>'; }).join('') + '</ol>'
-        + (f.cta ? '<button class="ov-card-cta" data-ov-go="' + (f.go || '') + '" data-ov-set="' + (f.openSettings || '') + '">'
-            + '<span>' + f.cta + '</span><i class="bi bi-arrow-right"></i></button>' : '')
-        + '</article>';
-    }).join('');
-  };
-  paint('all');
-
   root.addEventListener('click', function(e){
-    const chip = e.target.closest('[data-ov-filter]');
-    if(chip){
-      root.querySelectorAll('[data-ov-filter]').forEach(function(c){ c.classList.toggle('on', c === chip); });
-      paint(chip.dataset.ovFilter);
-      return;
-    }
     const go = e.target.closest('[data-ov-go]');
-    if(go){
-      const set = go.dataset.ovSet;
-      if(set){
-        if(window.SETTINGS && typeof SETTINGS.open === 'function') SETTINGS.open();
-        setTimeout(function(){ if(window.renderSetTab) renderSetTab(set); }, 60);
-        return;
-      }
-      const page = go.dataset.ovGo;
-      if(page) goPage(page);
-      return;
-    }
+    if(go && go.dataset.ovGo) goPage(go.dataset.ovGo);
   });
 };
 
@@ -834,7 +858,8 @@ function typoOpen(page, anchor){
   let left = vw - w - 16, top = 74;
   if(anchor && anchor.getBoundingClientRect){
     const r = anchor.getBoundingClientRect();
-    left = r.right - w; top = r.bottom + 8;
+    /* open just to the right of the button instead of left-aligned under it */
+    left = r.right + 10; top = r.bottom + 8;
   }
   p.style.left = Math.max(8, Math.min(left, vw - w - 8)) + 'px';
   p.style.top  = Math.max(8, Math.min(top,  vh - h - 8)) + 'px';
@@ -887,14 +912,14 @@ PAGE_RENDERERS.outline = function(root){
 
   root.innerHTML = `
     <div class="page-head ol-head">
-    <button class="ol-btn ol-btn-icon" data-typop="outline" title="Font, size and leading"><i class="bi bi-fonts"></i></button>
-      <div>
+      <div class="ol-head-left">
+        <button class="ol-btn ol-btn-icon" data-typop="outline" title="Font, size and leading"><i class="bi bi-fonts"></i></button>
+        <button class="ol-btn" data-ol="add"><i class="bi bi-plus-lg"></i> New ${L.ch.toLowerCase()}</button>
+        <button class="ol-btn" data-ol="addsub"><i class="bi bi-file-earmark-plus"></i> New ${L.sub.toLowerCase()}</button>
       </div>
       <div class="ol-actions">
         <button class="ol-btn" data-ol="expand"><i class="bi bi-arrows-expand"></i> Expand all</button>
         <button class="ol-btn" data-ol="collapse"><i class="bi bi-arrows-collapse"></i> Collapse all</button>
-        <button class="ol-btn" data-ol="addsub"><i class="bi bi-file-earmark-plus"></i> New ${L.sub.toLowerCase()}</button>
-        <button class="ol-btn ol-btn" data-ol="add"><i class="bi bi-plus-lg"></i> New ${L.ch.toLowerCase()}</button>
       </div>
     </div>
     <div class="ol-wrap">
@@ -915,15 +940,15 @@ PAGE_RENDERERS.outline = function(root){
       const cw = olWords(c.content);
       const kw = kids.reduce(function(m, x){ return m + olWords(x.content); }, 0);
       const done = c.ready ? ' is-ready' : '';
-      return '<div class="ol-node' + done + '" data-ol-node="' + c.id + '">'
+      return '<div class="ol-node' + done + '" data-ol-node="' + c.id + '" draggable="false">'
         + '<div class="ol-row' + (d.currentChapter === c.id ? ' on' : '') + '" data-ol-open="' + c.id + '">'
         +   '<button class="ol-twist' + (kids.length ? '' : ' is-empty') + (open ? ' is-open' : '') + '" data-ol-toggle="' + c.id + '" title="' + (open ? 'Collapse' : 'Expand') + '">'
         +     '<i class="bi bi-chevron-right"></i></button>'
+        +   '<span class="ol-grab" draggable="false" title="Drag to move this row"><i class="bi bi-grip-vertical"></i></span>'
         +   '<span class="ol-num">' + (i + 1) + '</span>'
         +   '<span class="ol-name">' + esc(c.title || (L.ch + ' ' + (i + 1))) + '</span>'
         +   (c.ready ? '<span class="ol-badge">ready</span>' : '')
         +   '<span class="ol-tools">'
-        +     '<button class="ol-tool" data-ol-addsub="' + c.id + '" title="New ' + L.sub.toLowerCase() + ' inside"><i class="bi bi-plus-lg"></i></button>'
         +     '<button class="ol-tool' + (String(c.desc || '').trim() ? ' is-on' : '') + '" data-ol-desc="' + c.id + '" title="Description"><i class="bi bi-card-text"></i></button>'
         +     '<button class="ol-tool" data-ol-rename="' + c.id + '" title="Rename"><i class="bi bi-pencil"></i></button>'
         +     '<button class="ol-tool" data-ol-del="' + c.id + '" title="Delete"><i class="bi bi-trash"></i></button>'
@@ -931,8 +956,9 @@ PAGE_RENDERERS.outline = function(root){
         + '</div>'
         + (c.descOpen ? '<div class="ol-desc"><textarea class="inp" data-ol-descbox="' + c.id + '" placeholder="Describe this ' + L.ch.toLowerCase() + ' — what happens, who changes, what it sets up…">' + esc(c.desc || '') + '</textarea></div>' : '')
         + (kids.length && open ? '<div class="ol-kids">' + kids.map(function(x, j){
-            return '<div class="ol-node ol-node-sub" data-ol-node="' + x.id + '">'
+            return '<div class="ol-node ol-node-sub" data-ol-node="' + x.id + '" draggable="false">'
               + '<div class="ol-row ol-sub' + (d.currentChapter === x.id ? ' on' : '') + '" data-ol-open="' + x.id + '">'
+              + '<span class="ol-grab" draggable="false" title="Drag to move this row"><i class="bi bi-grip-vertical"></i></span>'
               + '<span class="ol-num">' + (i + 1) + '.' + (j + 1) + '</span>'
               + '<span class="ol-name">' + esc(x.title || (L.sub + ' ' + (j + 1))) + '</span>'
               + '<span class="ol-tools">'
@@ -1042,27 +1068,125 @@ PAGE_RENDERERS.outline = function(root){
   });
 
   typoApply('outline', root);
-  let dragId = null;
-  root.addEventListener('dragstart', e => {
-    const n = e.target.closest('.ol-node'); if(!n) return;
-    dragId = n.dataset.olNode; e.dataTransfer.effectAllowed = 'move';
-  });
-  root.addEventListener('dragover', e => e.preventDefault());
-  root.addEventListener('drop', e => {
-    const t = e.target.closest('.ol-node'); if(!t || !dragId || t.dataset.olNode === dragId) return;
-    e.preventDefault();
-    const dd = D(); const id = dragId; dragId = null;
-    const take = (list) => { const i = list.findIndex(x => x.id === id); return i < 0 ? null : list.splice(i,1)[0]; };
-    let moved = take(dd.chapters);
-    (dd.chapters||[]).forEach(c => { if(!moved) moved = take(c.children||[]); });
-    if(!moved) return;
-    (dd.chapters||[]).forEach(c => {
-      if(c.id === t.dataset.olNode){ c.children = c.children||[]; c.children.unshift(moved); moved = null; }
-      else if(!moved) (c.children||[]).forEach(x => { if(x.id === t.dataset.olNode){ c.children.unshift(moved); moved=null; } });
+
+  /* ── drag to reorder — plain pointer events, so it works with a mouse,
+        a pen or a finger. Press a row (or its handle) and drag it onto
+        another row to reorder or swap. ── */
+  let dragId = null, dragNode = null, dragRow = null, dragHold = false, dragging = false;
+  let dragX = 0, dragY = 0;
+
+  const olNodeFromPoint = function(x, y){
+    const el = document.elementFromPoint ? document.elementFromPoint(x, y) : null;
+    return (el && el.closest) ? el.closest('.ol-node') : null;
+  };
+  const olHint = function(n){
+    if(n === dragNode) n = null;
+    root.querySelectorAll('.ol-node.ol-drop-hint').forEach(function(x){ if(x !== n) x.classList.remove('ol-drop-hint'); });
+    if(n) n.classList.add('ol-drop-hint');
+  };
+  const olDragReset = function(){
+    dragId = null; dragNode = null; dragRow = null; dragHold = false; dragging = false;
+    root.querySelectorAll('.ol-node').forEach(function(x){
+      x.classList.remove('ol-dragging');
+      x.classList.remove('ol-drop-hint');
     });
-    if(moved) dd.chapters.unshift(moved);
-    save(); PAGE_RENDERERS.outline(root);
+    document.body.classList.remove('ol-dragging');
+  };
+  root.addEventListener('pointerdown', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    /* a press on a control inside the row keeps its own click */
+    if(t.closest('.ol-tool, button, input, textarea, select, a')) return;
+    const row = t.closest('.ol-row');
+    const n = row ? row.closest('.ol-node') : null;
+    if(!row || !n || !n.dataset.olNode) return;
+    dragRow = row; dragNode = n; dragId = n.dataset.olNode;
+    dragHold = true; dragging = false;
+    dragX = e.clientX; dragY = e.clientY;
+    try{ row.setPointerCapture(e.pointerId); }catch(_){ }
   });
+
+  const olLocate = function(id){
+    const chs = D().chapters || [];
+    for(let i = 0; i < chs.length; i++){
+      if(chs[i].id === id) return { node: chs[i], parent: null, list: chs, index: i };
+      const kids = chs[i].children || [];
+      for(let j = 0; j < kids.length; j++){
+        if(kids[j].id === id) return { node: kids[j], parent: chs[i], list: kids, index: j };
+      }
+    }
+    return null;
+  };
+
+  const olMove = function(fromId, toId){
+    if(!fromId || !toId || fromId === toId) return;
+    const chs = D().chapters || [];
+    const from = olLocate(fromId);
+    const to   = olLocate(toId);
+    if(!from || !to) return;
+    /* never drop a chapter inside itself */
+    if(from.parent === null && to.parent && to.parent.id === fromId) return;
+
+    /* two chapters, or two subchapters of the same parent → swap places */
+    const sameKind = (from.parent === null) === (to.parent === null);
+    const sameList = from.parent === to.parent;
+    if(sameKind && sameList){
+      from.list[from.index] = to.node;
+      to.list[to.index] = from.node;
+      return;
+    }
+
+    from.list.splice(from.index, 1);
+
+    if(to.parent){
+      /* target is a subchapter */
+      if(from.parent === null){
+        const ci = chs.findIndex(function(c){ return c.id === to.parent.id; });
+        chs.splice(ci + 1, 0, from.node);
+      } else {
+        const list = to.parent.children;
+        const ti = list.findIndex(function(x){ return x.id === toId; });
+        list.splice(ti < 0 ? list.length : ti, 0, from.node);
+      }
+    } else {
+      /* target is a chapter */
+      if(from.parent === null){
+        const ti = chs.findIndex(function(c){ return c.id === toId; });
+        chs.splice(ti < 0 ? chs.length : ti, 0, from.node);
+      } else {
+        const c = chs.find(function(x){ return x.id === toId; });
+        if(!c){ chs.push(from.node); return; }
+        c.children = c.children || [];
+        c.children.unshift(from.node);
+      }
+    }
+  };
+
+  root.addEventListener('pointermove', function(e){
+    if(!dragHold || !dragId) return;
+    if(!dragging){
+      if(Math.abs(e.clientX - dragX) < 4 && Math.abs(e.clientY - dragY) < 4) return;
+      dragging = true;
+      if(dragNode) dragNode.classList.add('ol-dragging');
+      document.body.classList.add('ol-dragging');
+    }
+    if(e.cancelable) e.preventDefault();
+    olHint(olNodeFromPoint(e.clientX, e.clientY));
+  });
+  root.addEventListener('pointerup', function(e){
+    if(!dragHold) return;
+    const wasDragging = dragging;
+    const to = wasDragging ? olNodeFromPoint(e.clientX, e.clientY) : null;
+    const fromId = dragId;
+    olDragReset();
+    if(!wasDragging || !to) return;
+    const toId = to.dataset.olNode;
+    if(!fromId || !toId || fromId === toId) return;
+    olMove(fromId, toId);
+    save();
+    PAGE_RENDERERS.outline(root);
+  });
+  root.addEventListener('pointercancel', function(){ if(dragHold) olDragReset(); });
 };
 
 // ═══ KANBAN — a production board for the sections ═══
@@ -1157,13 +1281,11 @@ PAGE_RENDERERS.kanban = function(root){
   const words = all.reduce(function(n, x){ return n + x.words; }, 0);
   root.innerHTML = `
     <div class="page-head ol-head">
-    <button class="ol-btn ol-btn-icon" data-typop="kanban" title="Font, size and leading"><i class="bi bi-fonts"></i></button>
-      <div>
-        <h1 class="page-title">Kanban</h1>
-        <div class="page-sub">${all.length} cards · ${words.toLocaleString()} words · drag a card between columns</div>
+      <div class="ol-head-left">
+        <button class="ol-btn ol-btn-icon" data-typop="kanban" title="Font, size and leading"><i class="bi bi-fonts"></i></button>
+        <button class="ol-btn" data-kb="newlist"><i class="bi bi-plus-lg"></i> New list</button>
       </div>
       <div class="ol-actions">
-        <button class="ol-btn" data-kb="newlist"><i class="bi bi-plus-lg"></i> New list</button>
         <button class="ol-btn" data-kb="reset"><i class="bi bi-arrow-counterclockwise"></i> Reset board</button>
       </div>
     </div>

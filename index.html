@@ -12,7 +12,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#08090c">
-<title>ScriptForge</title>
+<title>ScriptForge</title><!--test-->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,7 +20,9 @@
 <link rel="stylesheet" href="theme.css?v=4">
 <link rel="stylesheet" href="layout.css?v=6">
 <link rel="stylesheet" href="pages.css?v=11">
-<link rel="stylesheet" href="overrides.css?v=63">
+<link rel="stylesheet" href="overrides.css?v=64">
+<link rel="stylesheet" href="pages-fix.css?v=19">
+<link rel="stylesheet" href="settings-tweaks.css?v=3">
 <style>
 /* Video control bar — docked underneath the video area instead of floating over it */
 #vpFloatBar{
@@ -945,7 +947,6 @@ try{
   <div class="boot-inner">
     <div class="boot-logo">
       <span class="boot-mark"><i class="bi bi-pen-fill"></i></span>
-      <span class="boot-text">ScriptForge</span>
     </div>
     <div class="boot-bar">
       <div class="boot-fill" id="bootFill"></div>
@@ -961,7 +962,6 @@ try{
 <header class="topbar">
   <button class="logo-btn" title="Home">
     <span class="logo-mark"><i class="bi bi-pen-fill"></i></span>
-    <span class="logo-text">ScriptForge</span>
   </button>
   <div class="breadcrumb" id="breadcrumb"></div>
   <div class="mode-pills" id="modePills"></div>
@@ -1056,26 +1056,28 @@ try{
 </div>
 
 <!-- ═══════════ SCRIPTS — order matters ═══════════ -->
-<script src="state.js?v=13"></script>
+<script src="state.js?v=16"></script>
 <script src="fs.js"></script>
-<script src="io.js"></script>
-<script src="pages.js?v=91"></script>
-<script src="write.js?v=34"></script>
+<script src="io.js?v=2"></script>
+<script src="pages.js?v=95"></script>
+<script src="write.js?v=38"></script>
 <script src="split.js?v=4"></script>
 <script src="ai.js?v=8"></script>
-<script src="plugins.js?v=9"></script>
-<script src="tools.js?v=2"></script>
-<script src="settings.js?v=16"></script>
+<script src="plugins.js?v=10"></script>
+<script src="tools.js?v=3"></script>
+<script src="settings.js?v=23"></script>
 <script src="panels.js?v=9"></script>
 <script src="motion.js?v=4"></script>
-<script src="app.js?v=35"></script>
+<script src="app.js?v=37"></script>
+<script src="pages-fix.js?v=21"></script>
+<script src="ai-extras.js?v=1"></script>
 <script src="github.js?v=4"></script>
 <script src="chapter-buttons.js?v=18"></script>
 <script src="overlay.js?v=13"></script>
 <script src="utils.js?v=3"></script>
 <script src="notes.js?v=3"></script>
 <script src="sounds.js?v=2"></script>
-<script src="draft-chat.js?v=9"></script>
+<script src="draft-chat.js?v=10"></script>
 
 
 
@@ -1096,13 +1098,13 @@ try{
 <!-- ═══════════ FAB ═══════════ -->
 <div class="fab-wrap" id="fabWrap">
   <div class="fab-menu" id="fabMenu" hidden>
-    <div class="fab-menu-head">Views</div>
     <div class="fab-menu-body" id="fabMenuViews"></div>
   </div>
   <div class="fab-ai" id="fabAI" hidden>
     <div class="fab-ai-head">
       <i class="bi bi-stars"></i>
       <span>AI Assistant</span>
+      <button class="fab-ai-x" data-act="fab-ai-close" title="Close"><i class="bi bi-x-lg"></i></button>
     </div>
     <div class="fab-ai-body" id="fabAIBody"></div>
   </div>

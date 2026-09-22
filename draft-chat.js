@@ -281,7 +281,6 @@
 
     '<section class="draft-pane">' +
       '<header class="draft-pane-head">' +
-        '<span class="dc-pane-title" id="dcTitle">New chat</span>' +
         '<span class="draft-list-acts">' +
           '<button class="icon-btn-sm" data-dc="settings" title="Chat AI settings"><i class="bi bi-sliders"></i></button>' +
         '</span>' +
