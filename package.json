@@ -1,0 +1,21 @@
+{
+  "name": "scriptforge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Scriptforge — AI-powered developer playground with Exa-powered web search",
+  "scripts": {
+    "dev": "bun scripts/serve.ts",
+    "start": "bun scripts/serve.ts",
+    "typecheck": "tsc --noEmit",
+    "verify-exa": "tsx scripts/verify-exa.ts"
+  },
+  "dependencies": {
+    "exa-js": "^1.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.6.3"
+  }
+}
