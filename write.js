@@ -277,6 +277,13 @@ WRITE.init = function(){
     if(document.activeElement === newEd) saveSel();
   });
 
+  /* the font and the size are re-applied to the fresh editor — the inline
+     style is lost every time the page repaints, which is why the size
+     setting looked like it did nothing */
+  if(typeof applyConfig === 'function'){
+    try{ applyConfig('font'); applyConfig('fontSize'); }catch(e){}
+  }
+
   if(window.TOOLS?.initVoice) window.TOOLS.initVoice();
   updateCounts();
   
@@ -330,8 +337,8 @@ function renderChapterControls(){
     <div class="chapter-control cc-tools">
       <button class="icon-btn-sm" data-act="util-open" title="Utilities — clock, calendar, calculator and more"><i class="bi bi-grid-3x3-gap"></i></button>
     </div>
+    <span class="cc-sep"></span>
     <div class="chapter-control cc-right">
-      <span class="cc-sep"></span>
       ${S.page === 'manuscript'
         ? '<button class="icon-btn-sm" data-act="split-open" title="Split screen"><i class="bi bi-layout-sidebar-inset-reverse"></i></button>'
         : ''}
@@ -988,6 +995,13 @@ function onCtx(e){
     <button class="menu-item" data-ai="hinglishToEnglish"><i class="mi-icon bi bi-translate"></i>Hinglish → English</button>
     <button class="menu-item" data-ai="improve"><i class="mi-icon bi bi-stars"></i>Improve</button>
     ${S.config.expOrganize ? '<button class="menu-item" data-ai="organize"><i class="mi-icon bi bi-list-nested"></i>Organise my words</button>' : ''}
+    ${S.page === 'manuscript' ? `
+    <div class="menu-sep"></div>
+    <button class="menu-item" data-ai="msChapterTitles"><i class="mi-icon bi bi-bookmark-fill"></i>Chapter titles</button>
+    <button class="menu-item" data-ai="msChapterSubs"><i class="mi-icon bi bi-text-paragraph"></i>Chapter subtitles</button>
+    <button class="menu-item" data-ai="msSubTitles"><i class="mi-icon bi bi-signpost-2"></i>Subchapter titles</button>
+    <button class="menu-item" data-ai="msSubSubs"><i class="mi-icon bi bi-text-indent-left"></i>Subchapter subtitles</button>
+    ` : ''}
     <div class="menu-sep"></div>
     <button class="menu-item" data-ins="link"><i class="mi-icon bi bi-link-45deg"></i>Insert link</button>
     <button class="menu-item" data-cmd="removeFormat"><i class="mi-icon bi bi-eraser"></i>Clear format</button>

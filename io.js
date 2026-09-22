@@ -36,13 +36,19 @@ IO.exportProject = async function(){
   const filename = (proj.name || 'project').replace(/[^a-z0-9\-_ ]/gi, '_') + '.json';
   const json = JSON.stringify(payload, null, 2);
 
-  const res = await FS.saveFile(filename, json, 'application/json');
+  /* the file keeps its home, so the next export rewrites it instead of
+     arriving beside it as “name (1).json” */
+  const res = await FS.saveFile(filename, json, 'application/json', { path: proj.savedPath || null });
   if(res.ok){
-    proj.savedPath = res.path;
+    if(res.method !== 'download' && res.path) proj.savedPath = res.path;
     save();
-    toast('Exported to ' + (res.path || filename));
+    if(res.download){
+      toast('Downloaded ' + filename + ' — the browser names a download, so it cannot be overwritten here', 'warn');
+    }else{
+      toast((res.replaced ? 'Updated ' : 'Saved ') + (res.path || filename));
+    }
     const infoEl = document.getElementById('projectSavedPath');
-    if(infoEl) infoEl.textContent = res.path || '';
+    if(infoEl) infoEl.textContent = proj.savedPath || '';
   } else if(res.error && res.error !== 'cancelled'){
     toast('Export failed: ' + res.error, 'err');
   }

@@ -236,25 +236,62 @@
   }
   function close(){
     if(!V.open) return;
+    /* 1 · both halves are written into their own sections first, so the data
+       is authoritative before a single node is moved */
     saveBoth();
-    const host = canvas(), act = editor(V.active);
-    V.open = false;
+
+    /* The LEFT half is the manuscript's own document, so it is the one that
+       stays on screen when the split is switched off — never the right pane,
+       even if you were last typing in it. */
+    const keep   = 'left';
+    const host   = canvas();
+    const keepId = V.ids[keep];
+    const keepCh = getSection(keepId);
+    /* the section's own text — not whatever node happens to be on screen */
+    const keepHTML = keepCh ? (keepCh.content || '') : ((editor(keep) || {}).innerHTML || '');
+    const keepStyle = styleStore()[keep];
+
+    V.active = keep;
+    V.open   = false;
     document.body.classList.remove('sf-writing-split','sf-split-resizing');
-    if(host && act){
-      act.removeAttribute('data-sf-split-editor');
-      act.classList.remove('sf-split-editor');
-      act.id = 'editor';
+
+    /* 2 · a fresh manuscript document: nothing of the split is left in it */
+    if(host){
+      host.classList.remove('sf-split-canvas');
       while(host.firstChild) host.removeChild(host.firstChild);
-      host.appendChild(act);
-      /* the surviving half keeps the type it was given */
-      const st0 = styleStore()[V.active];
-      act.style.fontFamily = st0.font ? "'" + st0.font + "', serif" : '';
-      act.style.fontSize   = st0.size ? st0.size + 'px' : '';
-      if(typeof renderChapterControls==='function') renderChapterControls();
-      if(typeof updateCounts==='function') updateCounts();
+      const doc = document.createElement('div');
+      doc.className   = 'write-doc';
+      doc.id          = 'editor';
+      doc.contentEditable = 'true';
+      doc.setAttribute('spellcheck','false');
+      doc.innerHTML   = keepHTML;
+      if(keepStyle){
+        doc.style.fontFamily = keepStyle.font ? "'" + keepStyle.font + "', serif" : '';
+        doc.style.fontSize   = keepStyle.size ? keepStyle.size + 'px' : '';
+      }
+      host.appendChild(doc);
     }
+
+    /* 3 · the open section is the left half's, and it keeps its type —
+       through the app's own font config, so a repaint cannot drop it */
+    if(keepStyle){
+      if(S && S.config){
+        S.config.font     = keepStyle.font || '';
+        S.config.fontSize = keepStyle.size || S.config.fontSize;
+      }
+      try{ if(typeof applyConfig === 'function') applyConfig('font'); }catch(e){}
+      try{ if(typeof applyConfig === 'function') applyConfig('fontSize'); }catch(e){}
+    }
+    if(keepId) D().currentChapter = keepId;
     V.ids = {left:null,right:null}; V.ranges = {left:null,right:null};
+    if(typeof renderChapterControls==='function') renderChapterControls();
+    if(typeof updateCounts==='function') updateCounts();
     save();
+
+    /* 4 · let the app repaint the page, so no split geometry survives */
+    try{
+      if(typeof goPage === 'function' && (S.page === 'write' || S.page === 'manuscript')) goPage(S.page);
+    }catch(e){}
   }
   function afterRender(){
     if(!V.open) return;

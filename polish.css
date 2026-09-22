@@ -1,0 +1,455 @@
+/* ═══════════════════════════════════════════════════════════
+   ScriptForge — the Fountain script page
+
+   Two panes inside the writing canvas: the plain Fountain source and
+   the formatted script page the app already knows how to draw.
+   ═══════════════════════════════════════════════════════════ */
+html body .fnt-wrap{
+  display:flex;
+  align-items:stretch;
+  gap:10px;
+  min-height:100%;
+  padding:4px 0 0;
+}
+
+html body .fnt-pane{
+  flex:1 1 50%;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  background:var(--surface-2);
+  border:1px solid var(--line-2);
+  border-radius:var(--r-md, 6px);
+  overflow:hidden;
+}
+
+html body .fnt-src{
+  flex:1 1 auto;
+  width:100%;
+  min-height:380px;
+  padding:14px 16px;
+  background:transparent;
+  border:0;
+  outline:none;
+  resize:none;
+  color:var(--ink);
+  font-family:'Courier Prime', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:13px;
+  line-height:1.62;
+  letter-spacing:.01em;
+  tab-size:4;
+  white-space:pre-wrap;
+  overflow-y:auto;
+}
+html body .fnt-src::placeholder{ color:var(--ink-4); }
+
+html body .fnt-prev-pane{ background:var(--doc-bg, var(--surface-1)); }
+
+html body .fnt-hint{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 12px;
+  border-bottom:1px solid var(--line-2);
+  background:var(--surface-2);
+  color:var(--ink-4);
+  font-size:10px;
+  letter-spacing:.03em;
+}
+html body .fnt-hint b{ color:var(--ink-3); font-weight:600; }
+html body .fnt-hint i{ color:var(--accent, var(--ink-3)); }
+
+/* the formatted page, inside its pane */
+html body .fnt-prev-pane .write-doc.fnt-doc{
+  flex:1 1 auto;
+  min-height:0;
+  max-width:none;
+  margin:0;
+  padding:18px 22px 60px;
+  overflow-y:auto;
+  cursor:default;
+}
+html body .fnt-doc p{ margin-bottom:var(--doc-para, 12px); }
+
+/* one column when there is no room for two */
+@media (max-width:900px){
+  html body .fnt-wrap{ flex-direction:column; }
+  html body .fnt-pane{ flex:1 1 auto; }
+  html body .fnt-src{ min-height:240px; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Right-click settings — the sliders icon at the top-left is gone, the
+   switch is the app's own switch, and every row shows its options
+   without hunting for a caret.
+   ═══════════════════════════════════════════════════════════ */
+html body .sf-adv-head{
+  display:none !important;
+  padding:0 !important;
+  border:0 !important;
+  min-height:0 !important;
+}
+html body .sf-adv{ width:272px !important; }
+html body .sf-adv-body{ padding:7px !important; }
+
+/* the same switch the rest of the app uses */
+html body .sf-adv-tgl{
+  width:36px !important;
+  height:20px !important;
+  border:1px solid var(--line) !important;
+  border-radius:999px !important;
+  background:var(--surface-4) !important;
+}
+html body .sf-adv-tgl::after{
+  top:1px !important;
+  left:1px !important;
+  width:16px !important;
+  height:16px !important;
+  background:#fff !important;
+}
+html body .sf-adv-row.on .sf-adv-tgl{
+  background:var(--accent) !important;
+  border-color:var(--accent) !important;
+}
+html body .sf-adv-row.on .sf-adv-tgl::after{
+  transform:translateX(16px) !important;
+  background:#fff !important;
+}
+
+/* the options sit in an inset card and open from the row's caret, so
+   the panel stays a compact list of four rows */
+html body .sf-adv-sub{
+  display:none !important;
+  flex-direction:column !important;
+  gap:7px !important;
+  margin:2px 7px 9px 11px !important;
+  padding:9px 10px !important;
+  background:var(--surface-2) !important;
+  border:1px solid var(--line-2) !important;
+  border-radius:var(--r-md, 6px) !important;
+}
+html body .sf-adv-row.open + .sf-adv-sub{ display:flex !important; }
+
+/* a switch that is ON must still let its own options be changed — the
+   whole point of the inline settings is choosing them (this used to
+   grey the controls out and swallow every click) */
+html body .sf-adv-row.on ~ .sf-adv-sub .sel,
+html body .sf-adv-row.on ~ .sf-adv-sub select,
+html body .sf-adv-row.on ~ .sf-adv-sub input,
+html body .sf-adv-row.on ~ .sf-adv-sub .sf-adv-sub-row > label,
+html body .sf-adv-row.on ~ .sf-adv-sub .sf-adv-sub-btn,
+html body .sf-adv-row.on ~ .sf-adv-sub .sf-adv-sub-note{
+  opacity:1 !important;
+  pointer-events:auto !important;
+}
+html body .sf-adv-sub-note{ margin:0 !important; }
+html body .sf-adv-sub .sel{ cursor:pointer !important; }
+
+/* the caret is the way in, so it has to look like one */
+html body .sf-adv-row .sf-adv-caret{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  flex:0 0 auto !important;
+  width:22px !important;
+  height:22px !important;
+  margin-left:2px !important;
+  background:var(--surface-2) !important;
+  border:1px solid var(--line-2) !important;
+  border-radius:var(--r-sm, 4px) !important;
+  color:var(--ink-3) !important;
+  font-size:10px !important;
+  transition:background .12s ease, color .12s ease !important;
+}
+html body .sf-adv-row .sf-adv-caret:hover,
+html body .sf-adv-row.open .sf-adv-caret{
+  background:var(--surface-4) !important;
+  color:var(--ink) !important;
+}
+html body .sf-adv-ic{
+  background:var(--surface-3) !important;
+  border-radius:var(--r-md, 6px) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Plugin panels — a way out to the real page
+   ═══════════════════════════════════════════════════════════ */
+html body .sfpp-out{
+  flex:0 0 auto !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  gap:5px !important;
+  width:auto !important;
+  height:22px !important;
+  padding:0 8px !important;
+  margin-top:10px !important;
+  background:var(--surface-3) !important;
+  border:0 !important;
+  border-radius:var(--r-sm, 4px) !important;
+  color:var(--ink-3) !important;
+  font:inherit !important;
+  font-size:11px !important;
+  cursor:pointer !important;
+}
+html body .sfpp-out:hover{ background:var(--surface-4) !important; color:var(--ink) !important; }
+html body .sfpp-out i{ font-size:11px !important; }
+html body .sfpp-full{
+  display:flex !important;
+  justify-content:flex-start !important;
+  padding-top:4px !important;
+}
+
+/* the in-panel reader — the whole page as text, right in the panel */
+html body .sfpp-text{
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  overflow-y:auto !important;
+  padding:10px 12px 16px !important;
+  font-size:12.5px !important;
+  line-height:1.62 !important;
+  color:var(--ink-2) !important;
+}
+html body .sfpp-text p{ margin:0 0 9px !important; }
+html body .sfpp-text p:first-child{ color:var(--ink) !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   Draft bar — New draft left, the AI pair right, and the whole bar
+   steps out of the way while an AI panel is on screen
+   ═══════════════════════════════════════════════════════════ */
+html body #page-draft .sf-bar [data-sfbar="ai:fixGrammar"]{
+  margin-left:auto !important;
+}
+html body.sf-ai-open #page-draft .sf-bar,
+html body #page-draft .sf-bar.sf-bar-hidden{
+  display:none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Plan — the board picker and the board headings
+   ═══════════════════════════════════════════════════════════ */
+html body #page-plan .plan-picker{
+  display:flex !important;
+  align-items:center !important;
+  gap:6px !important;
+  flex:0 0 auto !important;
+  min-width:0 !important;
+}
+html body #page-plan .plan-board-sel{ max-width:160px !important; }
+/* new · rename · remove, one small group beside the picker */
+html body #page-plan .plan-board-new,
+html body #page-plan .plan-board-ren,
+html body #page-plan .plan-board-del{
+  width:26px !important;
+  height:26px !important;
+  font-size:11px !important;
+}
+html body #page-plan .plan-board-del:hover{
+  background:color-mix(in srgb, #d9534f 16%, var(--surface-3)) !important;
+  border-color:#d9534f !important;
+  color:#d9534f !important;
+}
+html body #page-plan .plan-board-del:disabled,
+html body #page-plan .plan-board-del[disabled]{
+  opacity:.35 !important;
+  cursor:not-allowed !important;
+}
+html body #page-plan .plan-board-count{
+  font-size:10px !important;
+  letter-spacing:.04em !important;
+  color:var(--ink-4) !important;
+  white-space:nowrap !important;
+}
+html body #page-plan .plan-board-sep{
+  grid-column:1 / -1 !important;
+  display:flex !important;
+  align-items:center !important;
+  gap:7px !important;
+  width:100% !important;
+  margin:8px 0 0 !important;
+  padding:6px 9px !important;
+  background:var(--surface-2) !important;
+  border:1px solid var(--line-2) !important;
+  border-radius:var(--r-md, 6px) !important;
+  color:var(--ink-4) !important;
+  font-size:10px !important;
+  font-weight:600 !important;
+  letter-spacing:.09em !important;
+  text-transform:uppercase !important;
+}
+html body #page-plan .plan-board-sep i{ color:var(--accent, var(--ink-3)) !important; }
+html body #page-plan.plan-all .plan-board-sep{ margin-top:10px !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   The Outline page's right-click menu — the app's menu card
+   ═══════════════════════════════════════════════════════════ */
+html body .sf-ctx{
+  position:fixed !important;
+  z-index:1500 !important;
+  min-width:216px !important;
+  padding:5px !important;
+  background:var(--surface-1, var(--surface-2)) !important;
+  border:1px solid var(--line-2) !important;
+  border-radius:var(--r-lg, 8px) !important;
+  box-shadow:var(--e-3) !important;
+}
+html body .sf-ctx .menu-item{
+  display:flex !important;
+  align-items:center !important;
+  gap:8px !important;
+  width:100% !important;
+  padding:6px 8px !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:var(--r-md, 6px) !important;
+  color:var(--ink) !important;
+  font:inherit !important;
+  font-size:12px !important;
+  text-align:left !important;
+  cursor:pointer !important;
+}
+html body .sf-ctx .menu-item:hover{ background:var(--surface-3) !important; }
+html body .sf-ctx .menu-item .mi-icon{ color:var(--ink-4) !important; font-size:12px !important; }
+html body .sf-ctx .menu-sep{
+  height:1px !important;
+  margin:4px 6px !important;
+  background:var(--line-2) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   The AI result sheet — its own bi-x-lg, in the head where it belongs
+   ═══════════════════════════════════════════════════════════ */
+html body .gt-head .gt-meta{ margin-left:auto !important; }
+html body .gt-head .gt-x{
+  flex:0 0 auto !important;
+  margin-left:8px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:22px !important;
+  height:22px !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:var(--r-sm, 4px) !important;
+  color:var(--ink-4) !important;
+  font-size:11px !important;
+  cursor:pointer !important;
+  transition:background .12s ease, color .12s ease !important;
+}
+html body .gt-head .gt-x:hover{ background:var(--surface-3) !important; color:var(--ink) !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   Small placements
+   ═══════════════════════════════════════════════════════════ */
+/* the Novel / Screenplay panel sits a little higher than it did */
+html body .modes-panel{
+  top:104px !important;
+  bottom:96px !important;
+}
+
+/* the Canvas page carries no type button, and the drawing canvas keeps
+   its tools tidy without the “T” */
+html body #page-mindmap .mm-head [data-typop]{ display:none !important; }
+html body #page-canvas .canvas-tools [data-cx-tool="text"]{ display:none !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   PLAN — the board fills the page, and every row of cards is
+   reachable.
+
+   pages.css left .plan-wrap with height:100% and a 200px bottom
+   pad; the board's own scroll area therefore ran past the bottom
+   of the page, so the cards below the second row could not be
+   scrolled into view at all. The wrap now takes the space under
+   the head, and the board does the scrolling.
+   ═══════════════════════════════════════════════════════════ */
+html body #page-plan .plan-wrap{
+  height:auto !important;
+  padding:0 !important;
+  flex:1 1 auto !important;
+  min-height:0 !important;      /* it fits the page exactly — never past it */
+  overflow:hidden !important;
+  display:flex !important;
+  flex-direction:column !important;
+}
+html body #page-plan .plan-wrap #beatList.beat-board{
+  flex:1 1 auto !important;
+  height:100% !important;          /* exactly the room left under the head */
+  max-height:100% !important;      /* never taller than the room it was given */
+  min-height:0 !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  align-content:start !important;
+  align-items:start !important;
+  grid-auto-rows:max-content !important;   /* a row is as tall as its card */
+  grid-template-rows:none !important;      /* and no fixed row survives */
+  overscroll-behavior:contain !important;
+  scrollbar-gutter:stable !important;
+  position:relative !important;
+  z-index:1 !important;                    /* nothing sits over the board */
+  padding:10px 10px 26px !important;       /* the last row clears the edge */
+}
+/* a card keeps its own height inside its row — it can never be squeezed
+   into, or stretched over, the row it sits in */
+html body #page-plan .beat-card{
+  align-self:start !important;
+  height:auto !important;
+  min-height:136px !important;
+}
+/* the board headings that the board filter draws are grid items too — they
+   take a row of their own instead of a card slot */
+html body #page-plan .plan-board-sep{
+  grid-column:1 / -1 !important;
+}
+html body #page-plan .plan-board-note{ grid-column:1 / -1 !important; }
+/* while every board is on, "All boards" fits them all — the row height still
+   follows the card, so nothing is ever cut off */
+html body #page-plan.plan-all .beat-card{ min-height:92px !important; }
+/* a card the board filter hides is really hidden — the card's own
+   display rule used to beat the hidden attribute */
+html body #page-plan .beat-card[hidden]{ display:none !important; }
+/* the empty-board note is a line, not a block that pushes the board down */
+html body #page-plan .beat-empty{ padding:22px 16px !important; }
+
+/* ── the head: one row, two tidy groups ──
+   left   T · which board (picker, ＋, rename, remove, count)
+   right  Add beat · Add act · Add scene · All boards · Clear */
+html body #page-plan#page-plan .page-head.plan-head{
+  flex-wrap:wrap !important;
+  row-gap:6px !important;
+  gap:6px !important;
+  overflow:visible !important;
+}
+html body #page-plan#page-plan .page-head .ol-head-left{
+  display:flex !important;
+  align-items:center !important;
+  gap:6px !important;
+  flex:1 1 auto !important;
+  min-width:0 !important;
+}
+html body #page-plan#page-plan .page-head .plan-actions,
+html body #page-plan#page-plan .page-head .plan-tools{
+  display:flex !important;
+  align-items:center !important;
+  gap:6px !important;
+  flex:0 0 auto !important;
+  margin-left:auto !important;
+}
+/* a hairline between the writing actions and the board controls */
+html body #page-plan .plan-actions [data-act="plan-all"]{
+  margin-left:6px !important;
+}
+html body #page-plan .plan-actions [data-act="plan-all"]::before{
+  content:'' !important;
+  position:absolute !important;
+  left:-6px !important; top:50% !important;
+  width:1px !important; height:18px !important;
+  margin-top:-9px !important;
+  background:var(--line-2) !important;
+}
+html body #page-plan .plan-actions [data-act="plan-all"]{ position:relative !important; }
+/* Clear reads as the destructive one, quietly */
+html body #page-plan .plan-actions .plan-btn-clear:hover{
+  background:color-mix(in srgb, #d9534f 14%, var(--surface-3)) !important;
+  border-color:#d9534f !important;
+  color:#d9534f !important;
+}

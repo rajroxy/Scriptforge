@@ -18,7 +18,10 @@ const UTIL_GROUPS = [
             { id:'goal',     label:'Word goal', icon:'bullseye' } ] },
   { id:'text', label:'Text', icon:'type',
     tools:[ { id:'counter',  label:'Word counter',   icon:'file-text' },
-            { id:'caseconv', label:'Case converter', icon:'text-capitalize' } ] },
+            { id:'caseconv', label:'Case converter', icon:'text-capitalize' },
+            { id:'repeat',   label:'Repeated words', icon:'arrow-repeat' } ] },
+  { id:'draft', label:'Draft', icon:'pencil-square',
+    tools:[ { id:'names',    label:'Name generator', icon:'person-vcard' } ] },
   { id:'numbers', label:'Numbers', icon:'calculator',
     tools:[ { id:'calc',  label:'Calculator',     icon:'calculator' },
             { id:'units', label:'Unit converter', icon:'arrow-left-right' },
@@ -458,12 +461,40 @@ UTIL_TOOLS.sprint = function(host){
   return stop;
 };
 
-/* ── Calendar — a month of days, with the days you opened ScriptForge filled ── */
+/* ── Calendar — a month of days: the days you opened the app, the days you
+   pinned, and every project's target date. Click a day to pin it; give a
+   project a target and it shows on the day it is due. ── */
 UTIL_TOOLS.calendar = function(host){
   const log = S.config.openLog || {};
   const keyOf = dt => (typeof dayKey === 'function' ? dayKey(dt) : dt.toDateString());
+
+  /* pinned dates — a session-transcending list of day keys */
+  const pins = function(){
+    if(!S.config) S.config = {};
+    if(!Array.isArray(S.config.pinnedDates)) S.config.pinnedDates = [];
+    return S.config.pinnedDates;
+  };
+  const isPinned = k => pins().indexOf(k) >= 0;
+  const togglePin = function(k){
+    const list = pins(), i = list.indexOf(k);
+    if(i >= 0){ list.splice(i, 1); if(typeof toast === 'function') toast('Unpinned ' + k); }
+    else { list.push(k); list.sort(); if(typeof toast === 'function') toast('Pinned ' + k); }
+    if(typeof save === 'function') save();
+  };
+
+  /* every project that carries a target date */
+  const projects = function(){
+    const d = (typeof D === 'function') ? D() : {};
+    return (d.projects || []).filter(function(p){ return p && p.id; });
+  };
+  const withTarget = () => projects().filter(function(p){ return p.targetDate; })
+                                   .sort(function(a, b){ return String(a.targetDate).localeCompare(String(b.targetDate)); });
+  const targetsOn = k => withTarget().filter(function(p){ return p.targetDate === k; });
+
+  const todayKey = keyOf(new Date());
   let view = new Date();
   view.setDate(1);
+  let picked = '';   /* the project chosen in the target row */
 
   host.innerHTML = `
     <div class="util-cal-head">
@@ -474,22 +505,45 @@ UTIL_TOOLS.calendar = function(host){
       <button class="util-btn" data-cal="1" title="Next month"><i class="bi bi-chevron-right"></i></button>
     </div>
     <div class="util-cal-grid" id="utilCalGrid"></div>
-    <div class="util-note" style="margin-top:8px;">Filled days are days you opened ScriptForge.</div>`;
+    <div class="util-cal-keys">
+      <span><i class="bi bi-circle-fill"></i> opened</span>
+      <span><i class="bi bi-pin-angle-fill"></i> pinned</span>
+      <span><i class="bi bi-bullseye"></i> project target</span>
+    </div>
+    <div class="util-cal-sec">
+      <div class="util-cal-sec-head"><i class="bi bi-bullseye"></i> Project targets</div>
+      <div class="util-cal-set" id="utilCalSet"></div>
+      <div class="util-cal-list" id="utilCalTargets"></div>
+    </div>
+    <div class="util-cal-sec">
+      <div class="util-cal-sec-head"><i class="bi bi-pin-angle"></i> Pinned dates</div>
+      <div class="util-cal-list" id="utilCalPins"></div>
+    </div>`;
 
-  const monthEl = host.querySelector('#utilCalMonth');
-  const gridEl  = host.querySelector('#utilCalGrid');
+  const monthEl  = host.querySelector('#utilCalMonth');
+  const gridEl   = host.querySelector('#utilCalGrid');
+  const setEl    = host.querySelector('#utilCalSet');
+  const targEl   = host.querySelector('#utilCalTargets');
+  const pinEl    = host.querySelector('#utilCalPins');
 
-  function paint(){
+  const niceDate = function(k){
+    const parts = String(k).split('-');
+    const dt = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    return isNaN(dt.getTime()) ? k : dt.toLocaleDateString([], { day:'numeric', month:'short', year:'numeric' });
+  };
+  const daysTo = function(k){
+    const parts = String(k).split('-');
+    const dt = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    return Math.round((dt - new Date(todayKey.split('-')[0], todayKey.split('-')[1] - 1, todayKey.split('-')[2])) / 86400000);
+  };
+
+  function paintGrid(){
     const y = view.getFullYear(), m = view.getMonth();
     monthEl.textContent = view.toLocaleDateString([], { month:'long', year:'numeric' });
 
     const startDow = (new Date(y, m, 1).getDay() + 6) % 7;   // Monday first
     const daysInMonth = new Date(y, m + 1, 0).getDate();
     const prevDays = new Date(y, m, 0).getDate();
-    const today = new Date();
-    const sameDay = dt => dt.getFullYear() === today.getFullYear()
-                       && dt.getMonth() === today.getMonth()
-                       && dt.getDate() === today.getDate();
 
     let html = ['M','T','W','T','F','S','S']
       .map(d => '<div class="util-cal-dow">' + d + '</div>').join('');
@@ -499,10 +553,17 @@ UTIL_TOOLS.calendar = function(host){
     }
     for(let d = 1; d <= daysInMonth; d++){
       const dt = new Date(y, m, d);
-      const opened = !!log[keyOf(dt)];
-      const cls = 'util-cal-day' + (sameDay(dt) ? ' today' : '') + (opened ? ' on' : '');
-      const label = dt.toLocaleDateString([], { weekday:'long', day:'numeric', month:'long' });
-      html += '<div class="' + cls + '" title="' + label + (opened ? ' — opened' : '') + '">' + d + '</div>';
+      const k  = keyOf(dt);
+      const opened = !!log[k];
+      const pin    = isPinned(k);
+      const tgs    = targetsOn(k);
+      let cls = 'util-cal-day' + (k === todayKey ? ' today' : '')
+              + (opened ? ' on' : '') + (pin ? ' pin' : '') + (tgs.length ? ' target' : '');
+      const bits = [dt.toLocaleDateString([], { weekday:'long', day:'numeric', month:'long' })];
+      if(opened) bits.push('opened');
+      if(pin) bits.push('pinned');
+      tgs.forEach(function(p){ bits.push('target: ' + p.name + (p.targetLabel ? ' — ' + p.targetLabel : '')); });
+      html += '<button type="button" class="' + cls + '" data-cal-pin="' + k + '" title="' + esc(bits.join(' · ')) + '">' + d + '</button>';
     }
     const pad = (7 - ((startDow + daysInMonth) % 7)) % 7;
     for(let i = 1; i <= pad; i++) html += '<div class="util-cal-day dim">' + i + '</div>';
@@ -510,12 +571,99 @@ UTIL_TOOLS.calendar = function(host){
     gridEl.innerHTML = html;
   }
 
+  function paintSet(){
+    const list = projects();
+    if(!picked || !list.some(function(p){ return p.id === picked; })) picked = (list[0] && list[0].id) || '';
+    setEl.innerHTML =
+      '<select class="util-inp" data-cal-proj>' +
+        (list.length
+          ? list.map(function(p){
+              const cur = p.targetDate ? '  ·  ' + niceDate(p.targetDate) : '';
+              return '<option value="' + esc(p.id) + '"' + (p.id === picked ? ' selected' : '') + '>' + esc(p.name || 'Untitled') + cur + '</option>';
+            }).join('')
+          : '<option value="">No projects yet</option>') +
+      '</select>' +
+      '<input class="util-inp" type="date" data-cal-date value="' + (todayKey) + '">' +
+      '<button class="util-btn primary" data-cal-set="1" title="Give this project a target date"><i class="bi bi-bullseye"></i> Set target</button>';
+  }
+
+  function paintTargets(){
+    const list = withTarget();
+    targEl.innerHTML = list.length
+      ? list.map(function(p){
+          const k = p.targetDate, diff = daysTo(k);
+          const when = diff === 0 ? 'today' : (diff > 0 ? 'in ' + diff + ' day' + (diff === 1 ? '' : 's') : Math.abs(diff) + ' day' + (diff === -1 ? '' : 's') + ' ago');
+          return '<div class="util-cal-row' + (k === todayKey ? ' is-today' : '') + '">' +
+              '<span class="util-cal-row-name"><i class="bi bi-bullseye"></i>' + esc(p.name || 'Untitled') + '</span>' +
+              '<span class="util-cal-row-when">' + esc(niceDate(k)) + ' · ' + when + '</span>' +
+              '<button class="util-btn" data-cal-clear="' + esc(p.id) + '" title="Clear this target"><i class="bi bi-x-lg"></i></button>' +
+            '</div>';
+        }).join('')
+      : '<div class="util-note">No project has a target date yet. Pick one above.</div>';
+  }
+
+  function paintPins(){
+    const list = pins().slice().sort();
+    pinEl.innerHTML = list.length
+      ? list.map(function(k){
+          const diff = daysTo(k);
+          const when = diff === 0 ? 'today' : (diff > 0 ? 'in ' + diff + 'd' : Math.abs(diff) + 'd ago');
+          return '<div class="util-cal-row' + (k === todayKey ? ' is-today' : '') + '">' +
+              '<span class="util-cal-row-name"><i class="bi bi-pin-angle-fill"></i>' + esc(niceDate(k)) + '</span>' +
+              '<span class="util-cal-row-when">' + when + '</span>' +
+              '<button class="util-btn" data-cal-unpin="' + k + '" title="Unpin"><i class="bi bi-x-lg"></i></button>' +
+            '</div>';
+        }).join('')
+      : '<div class="util-note">Click any day above to pin it — a deadline, a submission, a birthday.</div>';
+  }
+
+  function paint(){ paintGrid(); paintSet(); paintTargets(); paintPins(); }
+
+  /* keep the project select in step with what is chosen */
+  host.addEventListener('change', function(e){
+    const s = e.target.closest('[data-cal-proj]');
+    if(s) picked = s.value;
+  });
+
   host.addEventListener('click', function(e){
-    const b = e.target.closest('[data-cal]');
+    const t = e.target;
+
+    const day = t.closest('[data-cal-pin]');
+    if(day){ togglePin(day.dataset.calPin); paint(); return; }
+
+    const unpin = t.closest('[data-cal-unpin]');
+    if(unpin){ togglePin(unpin.dataset.calUnpin); paint(); return; }
+
+    const clear = t.closest('[data-cal-clear]');
+    if(clear){
+      const p = projects().filter(function(x){ return x.id === clear.dataset.calClear; })[0];
+      if(p){ delete p.targetDate; if(typeof save === 'function') save(); if(typeof toast === 'function') toast('Target cleared'); }
+      paint();
+      return;
+    }
+
+    const set = t.closest('[data-cal-set]');
+    if(set){
+      const sel   = host.querySelector('[data-cal-proj]');
+      const dateEl= host.querySelector('[data-cal-date]');
+      const id    = sel && sel.value;
+      const k     = dateEl && dateEl.value;
+      const p     = projects().filter(function(x){ return x.id === id; })[0];
+      if(!p){ toast('Pick a project first', 'warn'); return; }
+      if(!k){ toast('Pick a date first', 'warn'); return; }
+      p.targetDate = k;
+      if(!p.targetLabel) p.targetLabel = '';
+      if(typeof save === 'function') save();
+      if(typeof toast === 'function') toast((p.name || 'Project') + ' → ' + niceDate(k));
+      paint();
+      return;
+    }
+
+    const b = t.closest('[data-cal]');
     if(!b) return;
     if(b.dataset.cal === 'today'){ view = new Date(); view.setDate(1); }
     else view.setMonth(view.getMonth() + parseInt(b.dataset.cal, 10));
-    paint();
+    paintGrid();
   });
 
   paint();
@@ -669,6 +817,192 @@ UTIL_TOOLS.pick = function(host){
     itemEl.textContent = lines[Math.floor(Math.random() * lines.length)];
     itemEl.style.color = 'var(--accent-2)';
   };
+};
+
+/* ── Repeated words — the words a draft leans on too hard ── */
+UTIL_TOOLS.repeat = function(host){
+  const STOP = ('the a an and or but of to in on at for with is was were be been being it its it’s that this these those '
+    + 'he she they them his her their you your i me my we our as by from not no so if then than there here what which who '
+    + 'when where why how all any both each few more most other some such only own same too very can will just don should now')
+    .split(' ');
+  const stop = {};
+  STOP.forEach(function(w){ stop[w] = 1; });
+
+  host.innerHTML = `
+    <div class="util-row" style="gap:6px;margin-bottom:8px;">
+      <button class="util-btn primary" data-rep="editor"><i class="bi bi-file-text"></i> Scan the editor</button>
+      <button class="util-btn" data-rep="sel"><i class="bi bi-textarea-t"></i> Scan the selection</button>
+    </div>
+    <div class="util-row" style="gap:6px;margin-bottom:8px;">
+      <select class="util-inp" data-rep-min>
+        <option value="4">4+ times</option>
+        <option value="6" selected>6+ times</option>
+        <option value="10">10+ times</option>
+        <option value="15">15+ times</option>
+      </select>
+      <select class="util-inp" data-rep-len>
+        <option value="3">3+ letters</option>
+        <option value="5" selected>5+ letters</option>
+        <option value="7">7+ letters</option>
+      </select>
+    </div>
+    <div class="util-note" style="margin-bottom:6px;">The words below repeat a lot — a clue that a sentence can be tightened.</div>
+    <div id="utilRepOut" class="util-rep"></div>`;
+
+  const out = host.querySelector('#utilRepOut');
+
+  const source = function(which){
+    if(which === 'sel'){
+      try{ return String(window.getSelection() || ''); }catch(e){ return ''; }
+    }
+    const ed = document.getElementById('editor');
+    return ed ? (ed.innerText || ed.textContent || '') : '';
+  };
+
+  const scan = function(which){
+    const text = source(which);
+    if(!text.trim()){ out.innerHTML = '<div class="util-note">Nothing to scan — write or select some text first.</div>'; return; }
+    const min = parseInt((host.querySelector('[data-rep-min]') || {}).value || '6', 10);
+    const len = parseInt((host.querySelector('[data-rep-len]') || {}).value || '5', 10);
+
+    const counts = {};
+    (text.toLowerCase().match(/[a-zà-ÿ’'-]+/g) || []).forEach(function(w){
+      const t = w.replace(/^[’'-]+|[’'-]+$/g, '');
+      if(t.length < len || stop[t]) return;
+      counts[t] = (counts[t] || 0) + 1;
+    });
+    const rows = Object.keys(counts).filter(function(w){ return counts[w] >= min; })
+      .sort(function(a, b){ return counts[b] - counts[a] || a.localeCompare(b); })
+      .slice(0, 60);
+
+    const words = (text.trim().match(/\S+/g) || []).length;
+    if(!rows.length){
+      out.innerHTML = '<div class="util-note">No word repeats ' + min + '+ times in ' + words.toLocaleString() + ' words. Clean.</div>';
+      return;
+    }
+    out.innerHTML = '<div class="util-rep-head">' + rows.length + ' words in ' + words.toLocaleString() + ' words</div>'
+      + rows.map(function(w){
+          const pct = Math.round((counts[w] / words) * 10000) / 100;
+          return '<button type="button" class="util-rep-row" data-rep-find="' + esc(w) + '" title="Count every match in the text">'
+            + '<span>' + esc(w) + '</span>'
+            + '<span class="util-rep-bar"><i style="width:' + Math.min(100, Math.max(6, pct * 12)) + '%"></i></span>'
+            + '<span class="util-rep-n">' + counts[w] + '×</span>'
+            + '</button>';
+        }).join('');
+  };
+
+  host.addEventListener('click', function(e){
+    const row = e.target.closest('[data-rep]');
+    if(row){ scan(row.dataset.rep); return; }
+    const find = e.target.closest('[data-rep-find]');
+    if(!find) return;
+    const word = find.dataset.repFind;
+    const ed = document.getElementById('editor');
+    if(!ed) return;
+    const text = ed.innerText || '';
+    const hits = (text.match(new RegExp('\\b' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi')) || []).length;
+    if(typeof toast === 'function') toast('“' + word + '” appears ' + hits + '×');
+  });
+
+  scan('editor');
+};
+
+/* ── Name generator — names for people and places, built offline ── */
+UTIL_TOOLS.names = function(host){
+  const GIVEN = {
+    english: ['Ada','Bram','Clara','Dorian','Edith','Felix','Greta','Hugo','Iris','Jonas','Kira','Lorne','Mira','Nell','Otto','Perrin','Quinn','Rosalind','Soren','Tamsin','Ulric','Vesna','Wren','Yara'],
+    indian:  ['Aarav','Anaya','Bhavesh','Chitra','Devika','Ishaan','Jaya','Kabir','Leela','Mihir','Naina','Omkar','Priya','Rohan','Sanya','Tejas','Uma','Varun','Yash','Zoya'],
+    slavic:  ['Aleksy','Bohdan','Cveta','Dragan','Elena','Fyodor','Goran','Ivana','Katarina','Luka','Milena','Nikolai','Oksana','Petar','Radka','Svetlana','Tomas','Vera','Zoran'],
+    japanese:['Akari','Daichi','Emi','Haruki','Isamu','Jun','Kaede','Kenji','Mio','Nao','Ren','Sakura','Takeshi','Yui']
+  };
+  const FAMILY = {
+    english: ['Ashcroft','Bellamy','Carrow','Dunmore','Ellery','Fairweather','Grimshaw','Hollis','Ives','Larkspur','Merrick','Norwood','Pemberton','Quill','Ravenscroft','Thorne'],
+    indian:  ['Agarwal','Bhatt','Chatterjee','Deshmukh','Iyer','Joshi','Kapoor','Mehta','Nair','Patel','Rao','Sharma','Singh','Verma'],
+    slavic:  ['Andric','Baranov','Chernov','Dragunov','Filipovic','Horvat','Ivanov','Kovac','Morozov','Novak','Petrovic','Sokolov','Vasiliev'],
+    japanese:['Aoki','Fujimoto','Hasegawa','Ishikawa','Kobayashi','Matsuda','Nakamura','Okada','Sato','Takahashi','Yamamoto']
+  };
+  const PLACES = {
+    A: ['Ash','Amber','Arden','Alder'],  B: ['Brack','Brindle','Black','Bramble'],
+    C: ['Cold','Cinder','Crane','Copper'], D: ['Dun','Duskmere','Drake','Dove'],
+    E: ['Ever','Ember','Elm','Elder'], F: ['Fen','Frost','Fallow','Fox'],
+    G: ['Grey','Gale','Granite','Glass'], H: ['Harrow','Hollow','Hazel','Hearth'],
+    I: ['Iron','Ivy','Isle','Ink'], J: ['Juniper','Jade','Jarrow','Jet'],
+    K: ['Kestrel','Kite','Kell','Karrow'], L: ['Lark','Lantern','Low','Linden'],
+    M: ['Marrow','Mist','Moss','Mill'], N: ['Nettle','North','Night','Nook'],
+    O: ['Oak','Orin','Owl','Ochre'], P: ['Pine','Pike','Pell','Pyre'],
+    Q: ['Quarry','Quill','Quiet','Quest'], R: ['Rook','Rush','Ridge','Raven'],
+    S: ['Salt','Storm','Slate','Sparrow'], T: ['Thorn','Tide','Tallow','Tarn'],
+    U: ['Umber','Ulla','Und','Ursa'], V: ['Vale','Vesper','Vine','Voss'],
+    W: ['Willow','Wick','Winter','Wold'], X: ['Xan','Xero','Xis','Xul'],
+    Y: ['Yew','Yarn','Yarrow','Yonder'], Z: ['Zephyr','Zinc','Zora','Zell']
+  };
+  const PLACE_SUF = ['field','ford','gate','hall','haven','hold','mere','moor','port','reach','ridge','stead','stone','vale','wick','wood'];
+  const TITLE = ['Captain','Doctor','Father','Lady','Lord','Major','Mother','Sergeant','Sister','Widow','Master','Madam'];
+  const EPITHET = ['the Quiet','the Younger','the Unready','of the Marsh','the Grey','Twice-Born','the Kind','the Last','who Waits','the Bright'];
+
+  const pickOne = a => a[Math.floor(Math.random() * a.length)];
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+  let culture = 'english';
+
+  host.innerHTML = `
+    <div class="util-row" style="gap:6px;margin-bottom:8px;">
+      <select class="util-inp" data-nm-culture>
+        <option value="english">English</option>
+        <option value="indian">Indian</option>
+        <option value="slavic">Slavic</option>
+        <option value="japanese">Japanese</option>
+      </select>
+      <button class="util-btn primary" data-nm="person"><i class="bi bi-person"></i> Person</button>
+      <button class="util-btn" data-nm="place"><i class="bi bi-geo-alt"></i> Place</button>
+      <button class="util-btn" data-nm="title"><i class="bi bi-award"></i> Title</button>
+    </div>
+    <div class="util-note" style="margin-bottom:6px;">Click a name to copy it. Everything is generated on this machine.</div>
+    <div id="utilNmOut" class="util-rep"></div>`;
+
+  const out = host.querySelector('#utilNmOut');
+
+  const person = function(){
+    const g = pickOne(GIVEN[culture]), f = pickOne(FAMILY[culture]);
+    let n = g + ' ' + f;
+    if(Math.random() < 0.18) n = pickOne(TITLE) + ' ' + n;
+    if(Math.random() < 0.16) n = n + ' ' + pickOne(EPITHET);
+    return n;
+  };
+  const place = function(){
+    const letter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+    const head = pickOne(PLACES[letter] || PLACES.A);
+    return Math.random() < 0.5 ? cap(head) + pickOne(PLACE_SUF) : cap(head) + ' ' + pickOne(['Cross','Bay','Hill','Row','End','Bridge','Court','Green']);
+  };
+
+  const fill = function(kind){
+    const rows = [];
+    for(let i = 0; i < 12; i++) rows.push(kind === 'place' ? place() : (kind === 'title' ? pickOne(TITLE) + ' ' + person() : person()));
+    out.innerHTML = rows.map(function(n){
+      return '<button type="button" class="util-rep-row" data-nm-copy="' + esc(n) + '" title="Copy">'
+        + '<span>' + esc(n) + '</span><span class="util-rep-n"><i class="bi bi-clipboard"></i></span></button>';
+    }).join('');
+  };
+
+  host.addEventListener('change', function(e){
+    const s = e.target.closest('[data-nm-culture]');
+    if(s){ culture = s.value; fill('person'); }
+  });
+
+  host.addEventListener('click', function(e){
+    const b = e.target.closest('[data-nm]');
+    if(b){ fill(b.dataset.nm); return; }
+    const copy = e.target.closest('[data-nm-copy]');
+    if(copy){
+      const txt = copy.dataset.nmCopy;
+      const copyText = (typeof window.copyText === 'function') ? window.copyText : null;
+      if(copyText) copyText(txt);
+      else { try{ navigator.clipboard.writeText(txt); }catch(x){} }
+      if(typeof toast === 'function') toast('Copied “' + txt + '”');
+    }
+  });
+
+  fill('person');
 };
 
 /* ═══════════════════════════════════════════════════════════

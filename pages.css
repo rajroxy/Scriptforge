@@ -133,7 +133,7 @@
 }
 
 /* Mode-specific editor fonts */
-[data-mode="screenplay"] .write-doc{font-family:'Courier Prime',monospace;font-size:14.5px;line-height:1.55;max-width:680px;}
+[data-mode="screenplay"] .write-doc{font-family:'Courier Prime',monospace;font-size:var(--doc-size);line-height:1.55;max-width:680px;}
 
 /* Screenplay elements */
 .write-doc .scene-heading{

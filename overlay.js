@@ -461,13 +461,39 @@ window.overlayShow   = overlayShow;
   window.addEventListener('resize', () => { if(overlayCfg().open) overlayGeometry(); });
 })();
 
-function overlaySwap(){
+/* What the pane is really showing. The pane is the same origin, so its own
+   S.page is the truth — a click inside the pane moves it without telling
+   o.page, and a swap must trade places with the page you can actually see. */
+function overlayPanePage(){
   const o = overlayCfg();
-  const panePage = o.page, mainPage = S.page;
-  if(!panePage || String(panePage).indexOf('player:') === 0) return;
-  overlayGo(mainPage);   // pane shows what the app had
-  goPage(panePage);      // app shows what the pane had
+  let page = o.page;
+  try{
+    const frame = overlayEls().frame;
+    const w = frame && frame.contentWindow;
+    const live = w && w.S && w.S.page;
+    if(live) page = String(live);
+  }catch(e){ /* the pane may still be loading — o.page is the fallback */ }
+  return page;
+}
+
+function overlaySwap(){
+  const panePage = overlayPanePage();
+  const mainPage = S.page;
+  if(!panePage || String(panePage).indexOf('player:') === 0){
+    if(typeof toast === 'function') toast('The pane is on a player — swap works with pages', 'warn');
+    return;
+  }
+  if(panePage === mainPage){
+    if(typeof toast === 'function') toast('The pane is already on ' + overlayTitleFor(mainPage));
+    return;
+  }
+  if(typeof goPage !== 'function') return;
+
+  /* the pane takes what the app had; the app takes what the pane had */
+  overlayGo(mainPage);
+  goPage(panePage);
   save();
+  if(typeof toast === 'function') toast('Swapped — ' + overlayTitleFor(panePage) + ' is on the app screen');
 }
 
 // ═══ Wiring ═══

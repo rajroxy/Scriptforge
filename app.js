@@ -1250,7 +1250,8 @@ window.openCommandPalette = openCommandPalette;
 
 // Shortcut key per FAB view (Inspire is the “Idea” page)
 const CMD_PAGE_KEYS = {
-  inspire:'id', draft:'df', outline:'ol', plan:'pl', manuscript:'ms', bible:'bl', kanban:'kb'
+  inspire:'id', draft:'df', outline:'ol', plan:'pl', manuscript:'ms', bible:'bl', kanban:'kb',
+  mindmap:'cv'
 };
 
 // No fixed page commands — the box mirrors the current mode’s FAB menu.
@@ -1376,15 +1377,11 @@ function runCmdByKey(key){
 
 // Keyboard: Enter runs first match, Up/Down navigates
 document.addEventListener('keydown', e => {
-    // Trigger: Super (Meta) or Shift+`
+    // Trigger: Shift+` only
   // Disabled on Dashboard and Statistics
   const onDashboardOrStats = (S.page === 'home' || S.page === 'stats');
 
-  if(!onDashboardOrStats && e.key === 'Meta' && !e.ctrlKey && !e.altKey && !e.shiftKey){
-    e.preventDefault();
-    openCmdBox();
-    return;
-  }
+  /* Shift + ` is the only way in — Super no longer opens the box */
   if(!onDashboardOrStats && e.shiftKey && e.key === '~'){
     e.preventDefault();
     openCmdBox();

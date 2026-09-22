@@ -416,7 +416,7 @@ html body .ov-guide-tool span{ color:var(--ink-3) !important; }
 
 /* ═══════════════════════════════════════════════════════════
    OUTLINE — one panel, exactly like the Draft list: the toolbar
-   sits inside the panel at the top, the chapter list fills the
+   is the page's own bar above it, the chapter list fills the
    middle, and the chevron pager is the panel's footer.
    ═══════════════════════════════════════════════════════════ */
 html body #page-outline .ol-wrap{
@@ -425,7 +425,7 @@ html body #page-outline .ol-wrap{
   min-width:0 !important;
   width:auto !important;
   max-width:none !important;
-  margin:12px 16px 14px !important;
+  margin:10px 16px 14px !important;
   padding:0 !important;
   box-sizing:border-box !important;
   display:flex !important;
@@ -439,11 +439,8 @@ html body #page-outline .ol-wrap > .page-head.ol-head{
   flex:0 0 auto !important;
   flex-wrap:nowrap !important;
   align-items:center !important;
-  justify-content:space-between !important;
   gap:8px !important;
-  margin:0 !important;
   padding:8px 10px !important;
-  border-bottom:1px solid var(--line-2) !important;
   background:transparent !important;
 }
 html body #page-outline .ol-panel{
@@ -520,7 +517,7 @@ html body #page-plan .plan-wrap{
   min-width:0 !important;
   width:auto !important;
   max-width:none !important;
-  margin:12px 16px 14px !important;
+  margin:10px 16px 14px !important;
   box-sizing:border-box !important;
   display:flex !important;
   flex-direction:column !important;
@@ -533,12 +530,7 @@ html body #page-plan .plan-head{
   flex:0 0 auto !important;
   flex-wrap:nowrap !important;
   align-items:center !important;
-  justify-content:space-between !important;
   gap:8px !important;
-  margin:0 !important;
-  padding:8px 10px !important;
-  border-bottom:1px solid var(--line-2) !important;
-  background:transparent !important;
 }
 html body #page-plan .plan-tools{
   display:flex !important;

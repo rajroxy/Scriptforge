@@ -40,6 +40,7 @@ PLUGINS.openWebSearch = function(){
           <button class="chip" data-ws-src="idiom"><i class="bi bi-chat-quote"></i> Idioms</button>
           <button class="chip" data-ws-src="quote"><i class="bi bi-quote"></i> Quotes</button>
           <button class="chip" data-ws-src="images"><i class="bi bi-image"></i> Images</button>
+          <button class="chip" data-ws-src="books"><i class="bi bi-book-half"></i> Books</button>
         </div>
         <div id="wsResults">
           Type a query and click a source. Results appear here — never leaves the app.
@@ -79,6 +80,7 @@ PLUGINS.runSearch = async function(src){
     if(src === 'wolf') return PLUGINS.renderWolfram(q, box);
     if(src === 'idiom') return PLUGINS.renderIdioms(q, box);
     if(src === 'quote') return PLUGINS.renderQuotes(q, box);
+    if(src === 'books') return PLUGINS.renderBooks(q, box);
     return PLUGINS.renderDDG(q, box);
   }catch(e){
     box.innerHTML = `<div style="color:var(--err);">${esc(e.message)}</div>`;
@@ -210,6 +212,47 @@ PLUGINS.renderWolfram = async function(q, box){
     <div style="font-size:13px;font-weight:600;color:var(--ink-3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Wolfram result</div>
     <div style="font-size:17px;line-height:1.6;color:var(--ink);">${esc(txt)}</div>
   `;
+};
+
+/* ── Public-domain books — Project Gutenberg, through the free Gutendex API.
+   Search a title, an author or a subject, keep the book as a reference. ── */
+PLUGINS.renderBooks = async function(q, box){
+  const r = await fetch('https://gutendex.com/books?search=' + encodeURIComponent(q));
+  if(!r.ok) throw new Error('Book search failed');
+  const d = await r.json();
+  const list = (d.results || []).slice(0, 8);
+  if(!list.length){ box.innerHTML = '<div class="muted">No public-domain book matched that.</div>'; return; }
+
+  box.innerHTML = '<div style="font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-4);margin-bottom:8px;">Project Gutenberg</div>'
+    + list.map(function(b){
+        const author = (b.authors && b.authors[0] && b.authors[0].name) || 'Unknown';
+        const page   = 'https://www.gutenberg.org/ebooks/' + b.id;
+        return '<div style="padding:9px 0;border-top:1px solid var(--line);">'
+          + '<div style="font-weight:600;color:var(--ink);">' + esc(b.title) + '</div>'
+          + '<div class="muted" style="font-size:11.5px;margin:2px 0 6px;">' + esc(author)
+          + (b.download_count ? ' · ' + b.download_count.toLocaleString() + ' downloads' : '') + '</div>'
+          + '<div style="display:flex;gap:10px;align-items:center;">'
+          +   '<button class="btn btn-ghost" data-gut-save="' + b.id + '"><i class="bi bi-bookmark-plus"></i> Save as reference</button>'
+          +   '<a href="' + page + '" target="_blank" rel="noopener" style="color:var(--info);display:flex;align-items:center;gap:4px;font-size:11.5px;"><i class="bi bi-box-arrow-up-right"></i> Read it</a>'
+          + '</div></div>';
+      }).join('');
+
+  box.querySelectorAll('[data-gut-save]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const id = btn.dataset.gutSave;
+      const item = list.filter(function(b){ return String(b.id) === String(id); })[0];
+      if(!item) return;
+      const author = (item.authors && item.authors[0] && item.authors[0].name) || 'Unknown';
+      const page   = 'https://www.gutenberg.org/ebooks/' + item.id;
+      const d0 = (typeof D === 'function') ? D() : null;
+      if(!d0) return;
+      if(!Array.isArray(d0.references)) d0.references = [];
+      d0.references.push({ id: uid(), type:'url', title: item.title + ' — ' + author, url: page, content:'', created: Date.now() });
+      if(typeof save === 'function') save();
+      if(typeof toast === 'function') toast('Reference saved');
+      closeModal();
+    });
+  });
 };
 
 PLUGINS.renderIdioms = async function(q, box){

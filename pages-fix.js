@@ -168,12 +168,12 @@
       if(!root || !root.querySelector) return;
 
       const wrap  = root.querySelector('.ol-wrap');
-      const head  = root.querySelector('.page-head.ol-head');
       const panel = root.querySelector('.ol-panel');
       if(!wrap || !panel){ drop(root); return; }
 
-      /* the toolbar lives inside the panel, above the list */
-      if(head && head.parentElement !== wrap) wrap.insertBefore(head, panel);
+      /* The toolbar is the page's own bar now — the same box Draft and Idea
+         wear — so it stays at page level and the panel holds only the list
+         and its chevron footer. */
 
       const rows = Array.prototype.slice.call(panel.querySelectorAll('.ol-node'))
         .filter(function(r){ return r.parentElement === panel; });
@@ -434,7 +434,7 @@
       +       '<button class="ol-btn" data-idea="save" title="Keep this prompt"><i class="bi bi-bookmark-plus"></i> Save</button>'
       +     '</div>'
       +   '</div>'
-      +   '<div class="idea-card" id="inspireBox"></div>'
+      +   '<div class="idea-cards" id="inspireBox"></div>'
       + '</section>'
       + '<aside class="idea-side">'
       +   '<div class="idea-side-head"><i class="bi bi-bookmark"></i><span>Saved prompts</span><em id="ideaCount">0</em></div>'
@@ -670,13 +670,13 @@
     const w  = p.offsetWidth  || 236;
     const h  = p.offsetHeight || 220;
 
-    let left = r.right + 10;                     /* just to the right of the button */
-    if(left + w > vw - 8) left = r.left;         /* no room → line up with it */
-    if(left + w > vw - 8) left = vw - w - 8;     /* still no room → pin to the edge */
+    /* always drop straight below the T button, left-aligned with it */
+    let left = r.left;
+    if(left + w > vw - 8) left = vw - w - 8;     /* pin to the right edge if needed */
 
-    let top = r.top;                             /* level with the button */
-    if(top + h > vh - 8) top = r.bottom + 8;     /* no room beside it → drop under it */
-    if(top + h > vh - 8) top = Math.max(8, vh - h - 8);
+    let top = r.bottom + 6;
+    if(top + h > vh - 8) top = r.top - h - 6;    /* no room below → open above it */
+    if(top < 8) top = Math.max(8, vh - h - 8);
 
     p.style.left = Math.max(8, Math.round(left)) + 'px';
     p.style.top  = Math.max(8, Math.round(top))  + 'px';
@@ -900,7 +900,7 @@
       get:function(){ return !!(S.config.plugins && S.config.plugins.hinglish); },
       set:function(v){ S.config.plugins = S.config.plugins || {}; S.config.plugins.hinglish = v; },
       apply:null },
-    { icon:'fonts',        name:'Intermixing',           desc:'Three fonts in rotation while you type',
+    { icon:'fonts',        name:'Intermixing',           desc:'Your three fonts take turns as you type',
       get:function(){ return !!S.config.expMixedFonts; },
       set:function(v){ S.config.expMixedFonts = v; },
       apply:function(){ applyCfg('expMixedFonts'); } }
@@ -951,19 +951,23 @@
                 return '<option value="'+f.name+'"'+(f.name===cur?' selected':'')+'>'+f.name+'</option>';
               }).join('');
         };
-        const sc = S.config.mixedFontScope || 'word';
+        /* three ways only, in this order: letter · word · sentence */
+        const SCOPES = ['letter','word','sentence'];
+        let sc = S.config.mixedFontScope;
+        if(SCOPES.indexOf(sc) < 0) sc = 'letter';
+        if(sc !== S.config.mixedFontScope) S.config.mixedFontScope = sc;
         const sel4 = function(v){ return sc === v ? ' selected' : ''; };
         return '<span class="sf-adv-sub-label">Intermixing</span>'
+          + '<p class="sf-adv-sub-note">Your three fonts take turns as you type.</p>'
           + [0,1,2].map(function(i){
               return '<div class="sf-adv-sub-row"><label>Font '+(i+1)+'</label>'
                 + '<select class="sel" data-adv-font="'+i+'">'+opts(S.config.mixedFonts[i])+'</select></div>';
             }).join('')
           + '<div class="sf-adv-sub-row"><label>Rotate by</label>'
           + '<select class="sel" data-adv-scope="1">'
-          + '<option value="word"'+sel4('word')+'>Word by word</option>'
-          + '<option value="sentence"'+sel4('sentence')+'>Sentence by sentence</option>'
           + '<option value="letter"'+sel4('letter')+'>Letter randomisation</option>'
-          + '<option value="random"'+sel4('random')+'>Random from the three</option>'
+          + '<option value="word"'+sel4('word')+'>Word randomisation</option>'
+          + '<option value="sentence"'+sel4('sentence')+'>Sentence randomisation</option>'
           + '</select></div>';
       } }
   ];
@@ -981,7 +985,7 @@
     panel.id = 'sfAdv';
     panel.hidden = true;
     panel.innerHTML =
-      '<div class="sf-adv-head"><i class="bi bi-sliders"></i><span>Advanced settings</span></div>'
+      '<div class="sf-adv-head"><i class="bi bi-sliders"></i><span></span></div>'
       + '<div class="sf-adv-body">' + ROWS.map(function(r, i){
           const sub = SUBS[i] ? SUBS[i].html() : '';
           return '<button type="button" class="sf-adv-row' + (openSub[i] ? ' open' : '') + '" data-adv="' + i + '">'
@@ -1116,8 +1120,11 @@
       S.config.mixedFonts[fi] = t.value;
       saveCfg();
     } else if(t.dataset.advScope){
-      S.config.mixedFontScope = t.value;
+      /* only the three real modes — “random from the three” is gone */
+      const ok = ['letter','word','sentence'];
+      S.config.mixedFontScope = ok.indexOf(t.value) >= 0 ? t.value : 'word';
       saveCfg();
+      if(typeof renderChapterControls === 'function'){ try{ renderChapterControls(); }catch(err){} }
     }
   }, true);
 
@@ -1245,9 +1252,10 @@
   };
 
   PAGE_RENDERERS.plan = function(root){
+    /* The head is the page's own bar — the same box Draft and Idea wear —
+       and it sits above the board card, not inside it. */
     root.innerHTML =
-      '<div class="plan-wrap">'
-      + '<div class="page-head ol-head plan-head">'
+      '<div class="page-head ol-head plan-head">'
       +   '<div class="ol-head-left">'
       +     '<button class="ol-btn ol-btn-icon" data-typop="plan" title="Font, size and leading"><i class="bi bi-fonts"></i></button>'
       +     '<button class="ol-btn" data-act="add-beat" title="Add a beat card"><i class="bi bi-plus-lg"></i> Add beat</button>'
@@ -1258,7 +1266,8 @@
       +     '<button class="ol-btn" data-act="clear-beats" title="Remove every beat"><i class="bi bi-eraser"></i> Clear</button>'
       +   '</div>'
       + '</div>'
-      + '<div class="beat-board" id="beatList"></div>'
+      + '<div class="plan-wrap">'
+      +   '<div class="beat-board" id="beatList"></div>'
       + '</div>';
 
     renderBeats();

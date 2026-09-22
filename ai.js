@@ -119,7 +119,7 @@ function showResult(title, sub, content){
         <span class="gt-title"><i class="bi bi-stars"></i> ${esc(title)}</span>
         ${sub ? `<span class="gt-sub">${esc(sub)}</span>` : ''}
         <span class="gt-meta">${words ? words + ' words' : ''}</span>
-        <button class="icon-btn gt-x" data-act="result-close" title="Close (Esc)"><i class="bi bi-x-lg"></i></button>
+        <button class="gt-x" data-result-close="1" title="Close"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="gt-body">${esc(content) || '<span class="gt-loading">Working…</span>'}</div>
       <div class="gt-foot">
@@ -134,6 +134,14 @@ function showResult(title, sub, content){
   `;
 
   root.appendChild(scrim);
+
+  /* the sheet closes from its own bi-x-lg, like every other panel here */
+  const x = scrim.querySelector('[data-result-close]');
+  if(x) x.addEventListener('click', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    closeResult();
+  });
 }
 
 function closeResult(){

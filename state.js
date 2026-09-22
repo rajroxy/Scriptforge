@@ -40,12 +40,12 @@ const MODES = [
     categories: [
       { id: 'fiction',    name: 'Fiction',     icon: 'book-half',    desc: 'Screenplays and scripts' },
     ],
-    editorViews:    ['draft', 'outline', 'plan', 'manuscript', 'kanban', 'bible'],
+    /* a script has no Outline page — the Fountain source IS the outline */
+    editorViews:    ['draft', 'plan', 'manuscript', 'kanban', 'bible'],
     fabGroups: [
       { label:'Views', views:[
         { id:'inspire',    name:'Idea',      icon:'lightbulb-fill' },
         { id:'draft',      name:'Draft',     icon:'lightbulb' },
-        { id:'outline',    name:'Outline',   icon:'list-nested' },
         { id:'plan',       name:'Plan',      icon:'list-check' },
         { id:'manuscript', name:'Script',    icon:'file-earmark-text' }
       ]},
@@ -375,6 +375,22 @@ const AI_PROVIDERS = [
     keyLabel:'Scaleway API key', keyHint:'Free public beta at console.scaleway.com', keyPh:'…',
     about:'Free public beta on European-hosted models.',
     models:[{id:'llama-3.3-70b-instruct',n:'Llama 3.3 70B'},{id:'qwen2.5-coder-32b-instruct',n:'Qwen2.5 Coder 32B'}] },
+  { id:'nvidia', name:'NVIDIA NIM — free developer credits', group:'Free API tiers', base:'https://integrate.api.nvidia.com/v1',
+    keyLabel:'NVIDIA API key', keyHint:'Free at build.nvidia.com (1000 credits)', keyPh:'nvapi-…',
+    about:'Free credits with a NVIDIA developer account — strong open models.',
+    models:[{id:'meta/llama-3.3-70b-instruct',n:'Llama 3.3 70B'},{id:'nvidia/llama-3.3-nemotron-super-49b-v1',n:'Nemotron Super 49B'},{id:'deepseek-ai/deepseek-r1',n:'DeepSeek R1'},{id:'meta/llama-3.1-8b-instruct',n:'Llama 3.1 8B'}] },
+  { id:'nebius', name:'Nebius AI Studio — free credits', group:'Free API tiers', base:'https://api.studio.nebius.com/v1',
+    keyLabel:'Nebius API key', keyHint:'Free credits at studio.nebius.com', keyPh:'…',
+    about:'Free starting credits on fast open models.',
+    models:[{id:'meta-llama/Llama-3.3-70B-Instruct',n:'Llama 3.3 70B'},{id:'Qwen/Qwen3-235B-A22B',n:'Qwen3 235B'},{id:'deepseek-ai/DeepSeek-V3',n:'DeepSeek V3'}] },
+  { id:'hyperbolic', name:'Hyperbolic — free credits', group:'Free API tiers', base:'https://api.hyperbolic.xyz/v1',
+    keyLabel:'Hyperbolic API key', keyHint:'Free credits at app.hyperbolic.xyz', keyPh:'…',
+    about:'Free credits for open models, no card needed to start.',
+    models:[{id:'meta-llama/Llama-3.3-70B-Instruct',n:'Llama 3.3 70B'},{id:'Qwen/Qwen2.5-72B-Instruct',n:'Qwen2.5 72B'},{id:'deepseek-ai/DeepSeek-V3',n:'DeepSeek V3'}] },
+  { id:'chutes', name:'Chutes — free daily quota', group:'Free API tiers', base:'https://llm.chutes.ai/v1',
+    keyLabel:'Chutes API key', keyHint:'Free daily requests at chutes.ai', keyPh:'cpk_…',
+    about:'Free daily quota on large open models.',
+    models:[{id:'deepseek-ai/DeepSeek-V3-0324',n:'DeepSeek V3'},{id:'Qwen/Qwen3-235B-A22B',n:'Qwen3 235B'},{id:'meta-llama/Llama-3.3-70B-Instruct',n:'Llama 3.3 70B'}] },
   { id:'cloudflare', name:'Cloudflare Workers AI — free daily allowance', group:'Free API tiers', base:'https://api.cloudflare.com/client/v4/accounts/YOUR_ACCOUNT_ID/ai/v1', custom:true,
     keyLabel:'Cloudflare API token', keyHint:'Free daily neurons at dash.cloudflare.com — put your account id in the endpoint', keyPh:'…',
     about:'Free daily allowance. Swap YOUR_ACCOUNT_ID for your Cloudflare account id.',
@@ -572,7 +588,7 @@ const S = {
     expOverlay:false,         // floating overlay screen instead of the docked split screen
     expMixedFonts:false,      // rotate three fonts while typing
     mixedFonts:['','',''],    // the three fonts ('' = the editor's own font)
-    mixedFontScope:'word',    // 'word' | 'sentence' | 'random'
+    mixedFontScope:'letter',  // 'letter' | 'word' | 'sentence'
     mixedFontPick:0,          // click a Font chip, then type: that font is applied
     expOrganize:false,        // "Organize my words" action in the AI panel + right-click menu
     expHinglish:false,        // Hinglish -> Hindi / English entries inside the Translate option
@@ -582,7 +598,7 @@ const S = {
     letterSpacing:0, wordSpacing:0, paraSpacing:14,
     fontWeight:'400', textAlign:'left',
     editorWidth:'760px', canvasPad:48,
-    autoSave:true, autoVersion:true, spellCheck:false, smartQuotes:false,
+    autoSave:true, autoVersion:true, autoJson:true, spellCheck:false, smartQuotes:false,
     ghostText:true, suggestionChips:true, autocomplete:true,
     focusMode:false,
     uiLang:'en', uiRtl:false,      // interface language (Settings → Language)
@@ -598,7 +614,8 @@ const S = {
     uiScale:1, layout:'classic',
     pickerSources:['editor','chapters','notes','ideas','bible','drafts','references'],
     defaultExport:'md', includeMetadata:true, pageSize:'A4', pageMargins:25,
-    authorName:'', authorEmail:''
+    authorName:'', authorEmail:'',
+    userName:''                /* the name the app greets you by (welcome.js) */
   },
       modes:{},
       mode:'novel',

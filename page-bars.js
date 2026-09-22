@@ -1,0 +1,123 @@
+/* ═══════════════════════════════════════════════════════════
+   ScriptForge — page bars
+
+   One bar for every page, the same box the Idea page uses:
+
+     Draft    · New draft · Fix grammar · Improve      (build here)
+     Outline  · T · New chapter · New subchapter       … Expand / Collapse
+     Plan     · T · Add beat                           … Add act / scene / Clear
+     Bible    · T · New entry                          … category tabs
+     Kanban   · T · New list                           … Reset board
+     Canvas   · New card · Fit                         … zoom · Clear
+
+   Draft has no header of its own, so its bar is built here. The other
+   five already have a header row — that row is renamed into a bar: it
+   gets the bar classes and a small label in front, and every page keeps
+   its own buttons (nothing is re-wired, the handlers are delegated).
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── the five pages whose own header row becomes a bar ── */
+(function(){
+  const HEADS = {
+    outline: { label:'Outline', icon:'list-nested' },
+    plan:    { label:'Plan',    icon:'list-check' },
+    bible:   { label:'Bible',   icon:'journal-bookmark' },
+    kanban:  { label:'Kanban',  icon:'kanban' },
+    mindmap: { label:'Canvas',  icon:'diagram-3' }
+  };
+
+  const bar = function(page){
+    const root = document.getElementById('page-' + page);
+    if(!root) return;
+    const head = root.querySelector('.page-head');
+    if(!head) return;
+
+    head.classList.add('sf-bar-page');
+    /* the page's own title block is not part of a bar */
+    Array.prototype.forEach.call(head.querySelectorAll('.page-title, .page-sub'), function(el){
+      el.style.display = 'none';
+    });
+
+    /* the page's name is not written on the bar — the bar holds the
+       page's own buttons and nothing else */
+    Array.prototype.forEach.call(head.querySelectorAll('.sf-bar-label'), function(el){ el.remove(); });
+  };
+
+  const sweep = function(){ Object.keys(HEADS).forEach(bar); };
+
+  let raf = 0;
+  const schedule = function(){
+    if(raf) return;
+    raf = requestAnimationFrame(function(){ raf = 0; sweep(); });
+  };
+
+  if(typeof MutationObserver === 'function' && document.body){
+    new MutationObserver(schedule).observe(document.body, { childList:true, subtree:true });
+  }
+  window.addEventListener('resize', schedule);
+  document.addEventListener('click', schedule, true);
+  if(document.body) schedule();
+  else document.addEventListener('DOMContentLoaded', schedule);
+})();
+
+(function(){
+  const PAGE = 'draft';
+  const ACTS = [
+    { icon:'plus-lg', t:'New draft',    act:'click:[data-act="add-draft"]' },
+    { icon:'magic',   t:'Fix grammar',  act:'ai:fixGrammar' },
+    { icon:'stars',   t:'Improve',      act:'ai:improve' }
+  ];
+
+  const build = function(){
+    const bar = document.createElement('div');
+    bar.className = 'sf-bar';
+    bar.dataset.sfBar = PAGE;
+    bar.innerHTML =
+      ACTS.map(function(a){
+          return '<button class="ol-btn" data-sfbar="' + a.act + '">'
+               + '<i class="bi bi-' + a.icon + '"></i> ' + a.t + '</button>';
+        }).join('');
+    return bar;
+  };
+
+  const apply = function(){
+    const page = (typeof S !== 'undefined' && S.page) || '';
+    const root = document.getElementById('page-' + page);
+
+    /* the bar only ever lives on the active page */
+    Array.prototype.slice.call(document.querySelectorAll('.sf-bar')).forEach(function(b){
+      if(page !== PAGE || b.parentElement !== root) b.remove();
+    });
+    if(page !== PAGE || !root) return;
+    if(root.querySelector(':scope > .sf-bar')) return;
+    root.insertBefore(build(), root.firstChild);
+  };
+
+  let raf = 0;
+  const schedule = function(){
+    if(raf) return;
+    raf = requestAnimationFrame(function(){ raf = 0; apply(); });
+  };
+
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest('[data-sfbar]');
+    if(!btn) return;
+    e.preventDefault();
+    const what = btn.dataset.sfbar;
+    if(what.indexOf('ai:') === 0){
+      const fn = what.slice(3);
+      if(window.AI_FNS && window.AI_FNS[fn]) window.AI_FNS[fn]();
+      else if(typeof toast === 'function') toast('That action is not available here', 'warn');
+      return;
+    }
+    const target = document.querySelector(what.slice(6));
+    if(target) target.click();
+  }, true);
+
+  if(typeof MutationObserver === 'function' && document.body){
+    new MutationObserver(schedule).observe(document.body, { childList:true, subtree:true });
+  }
+  window.addEventListener('resize', schedule);
+  if(document.body) schedule();
+  else document.addEventListener('DOMContentLoaded', schedule);
+})();

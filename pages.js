@@ -858,8 +858,8 @@ function typoOpen(page, anchor){
   let left = vw - w - 16, top = 74;
   if(anchor && anchor.getBoundingClientRect){
     const r = anchor.getBoundingClientRect();
-    /* open just to the right of the button instead of left-aligned under it */
-    left = r.right + 10; top = r.bottom + 8;
+    /* open under the button, left-aligned with it */
+    left = r.left; top = r.bottom + 6;
   }
   p.style.left = Math.max(8, Math.min(left, vw - w - 8)) + 'px';
   p.style.top  = Math.max(8, Math.min(top,  vh - h - 8)) + 'px';
@@ -931,8 +931,7 @@ PAGE_RENDERERS.outline = function(root){
 
   if(!chapters.length){
     list.innerHTML = '<div class="ol-empty"><i class="bi bi-list-nested"></i>'
-      + '<div>No ' + L.ch.toLowerCase() + 's yet</div>'
-      + '<button class="ol-btn ol-btn-primary" data-ol="add">Create the first one</button></div>';
+      + '<div>No ' + L.ch.toLowerCase() + 's yet</div></div>';
   } else {
     list.innerHTML = chapters.map(function(c, i){
       const kids = c.children || [];

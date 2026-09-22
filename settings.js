@@ -6,6 +6,12 @@
 const SETTINGS = {};
 
 // ═══ Open settings modal ═══
+// ═══ Open settings straight on a named tab (used by plugin panels' back button) ═══
+SETTINGS.openTab = function(tab){
+  SETTINGS.open();
+  if(tab && typeof renderSetTab === 'function') renderSetTab(tab);
+};
+
 SETTINGS.open = function(){
   const root = $('modalRoot');
   root.innerHTML = '';
@@ -21,7 +27,6 @@ SETTINGS.open = function(){
       <div class="set-main">
         <div class="modal-head">
           <span class="set-head-actions" style="display:flex;align-items:center;">
-            <span class="set-esc" title="Press Escape to close">esc</span>
             <button class="icon-btn v-close" data-act="set-close">
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
     <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -32,7 +37,7 @@ SETTINGS.open = function(){
         <div class="modal-body" id="setBody"></div>
         <div class="modal-foot">
           <button class="btn btn-ghost" data-act="set-close">Close</button>
-          <button class="btn btn-primary" data-act="set-save"><i class="bi bi-check-lg"></i> Save</button>
+          <button class="btn btn-primary" data-act="set-save">Save</button>
         </div>
       </div>
     </div>
@@ -49,7 +54,8 @@ SETTINGS.open = function(){
     {id:'language',     icon:'translate',      label:'Language'},
     {id:'sound',        icon:'volume-up',      label:'Sound'},
     {divider:true},
-    {id:'plugins',      icon:'puzzle',         label:'Plugins'}
+    {id:'plugins',      icon:'puzzle',         label:'Plugins'},
+    {divider:true}
   ];
   const tabBar = $('setTabs');
   tabs.forEach(t => {
@@ -372,19 +378,27 @@ function buildThemeGrid(){
   const grid = document.createElement('div');
   grid.className = 'grid-auto';
 
+  /* light mode shows its own nine palettes; dark mode shows its nine */
+  const isLight = (typeof window.sfThemeMode === 'function') && window.sfThemeMode() === 'light';
+  const list = (isLight && typeof window.sfLightThemes === 'function')
+    ? window.sfLightThemes()
+    : THEMES;
+  const active = isLight ? (S.config.themeLight || 'paper') : (S.config.theme || 'night');
+
   const paint = () => {
     grid.querySelectorAll('[data-theme-pick]').forEach(x =>
-      x.classList.toggle('on', x.dataset.themePick === (S.config.theme || 'night')));
+      x.classList.toggle('on', x.dataset.themePick === active));
   };
 
-  THEMES.forEach(t => {
+  list.forEach(t => {
+    const sw = (typeof window.sfThemeSwatch === 'function') ? window.sfThemeSwatch(t) : { c1:t.c1, c2:t.c2 };
     const tile = document.createElement('div');
-    tile.className = 'tile' + (t.id === (S.config.theme || 'night') ? ' on' : '');
+    tile.className = 'tile' + (t.id === active ? ' on' : '');
     tile.dataset.themePick = t.id;
     tile.innerHTML = `
       <div style="display:flex;height:40px;border-radius:8px;overflow:hidden;margin-bottom:8px;border:1px solid var(--line-2);">
-        <div style="flex:1;background:${t.c1}"></div>
-        <div style="flex:1;background:${t.c2}"></div>
+        <div style="flex:1;background:${sw.c1}"></div>
+        <div style="flex:1;background:${sw.c2}"></div>
       </div>
       <div style="font-size:11.5px;font-weight:600;">${t.name}</div>
       <div style="font-size:10.5px;color:var(--ink-4);margin-top:3px;line-height:1.4;">${t.note || ''}</div>
@@ -396,6 +410,17 @@ function buildThemeGrid(){
     const el = e.target.closest('[data-theme-pick]');
     if(!el) return;
     const id = el.dataset.themePick;
+
+    if(isLight){
+      S.config.themeLight = id;
+      applyThemeVars(id);
+      save();
+      paint();
+      const lt = (typeof window.sfLightThemeById === 'function') ? window.sfLightThemeById(id) : null;
+      toast('Theme: ' + ((lt && lt.name) || id));
+      return;
+    }
+
     setTheme(id);
     paint();
     toast('Theme: ' + themeById(resolveThemeId(id)).name);
@@ -408,8 +433,26 @@ function buildThemeGrid(){
 // ═══ APPEARANCE ═══
 SETTINGS.renderers.appearance = function(root){
 
-  // ── COLOR THEME — dark palettes built for long writing sessions ──
+  // ── COLOR THEME — nine dark palettes and nine light palettes.
+  //    The Light / Dark switch sits right of the card title and swaps the grid.
   const c0 = card('Color theme', 'palette2');
+  const modes = document.createElement('div');
+  modes.className = 'chips set-head-chips';
+  const modeOn = (typeof window.sfThemeMode === 'function') ? window.sfThemeMode() : 'dark';
+  [['dark','Dark'],['light','Light']].forEach(function(p){
+    const b = document.createElement('button');
+    b.className = 'chip' + (modeOn === p[0] ? ' active' : '');
+    b.dataset.themeModePick = p[0];
+    b.innerHTML = '<i class="bi bi-' + (p[0] === 'dark' ? 'moon-stars' : 'sun') + '"></i> ' + p[1];
+    b.onclick = function(){
+      if(typeof window.setThemeMode === 'function') window.setThemeMode(p[0]);
+      if(typeof window.toast === 'function') toast(p[1] + ' mode');
+      renderSetTab('appearance');
+    };
+    modes.appendChild(b);
+  });
+  const c0title = c0.querySelector('.set-card-title');
+  if(c0title) c0title.appendChild(modes); else c0.appendChild(modes);
   c0.appendChild(buildThemeGrid());
   root.appendChild(c0);
 
@@ -466,6 +509,27 @@ SETTINGS.renderers.appearance = function(root){
     save();
   };
   cFont.appendChild(row('App font', 'Typeface used across the whole interface', appFontSel));
+
+  /* the writing face's size and spacing live beside the face itself —
+     Typography keeps the behaviour switches, not a second font setting */
+  const metric = function(label, key, min, max, step, unit){
+    const inp = document.createElement('input');
+    inp.type = 'range'; inp.className = 'rng';
+    inp.min = min; inp.max = max; inp.step = step;
+    inp.value = S.config[key];
+    const val = document.createElement('span');
+    val.className = 'rng-val';
+    val.textContent = S.config[key] + unit;
+    inp.oninput = function(){
+      S.config[key] = parseFloat(inp.value);
+      val.textContent = S.config[key] + unit;
+      applyConfig(key);
+      save();
+    };
+    cFont.appendChild(row(label, '', [inp, val]));
+  };
+  metric('Font size', 'fontSize', 12, 40, .5, 'px');
+
   root.appendChild(cFont);
 
   // ── ANIMATION ──
@@ -528,10 +592,27 @@ SETTINGS.renderers.general = function(root){
   bindToggle(autoSave, 'autoSave');
   c1.appendChild(row('Auto-save', 'Save changes every few seconds', autoSave));
 
+  /* Auto-snapshot also keeps the JSON copy on disk: one switch, both jobs */
   const autoVer = document.createElement('div');
   autoVer.className = 'tgl';
   bindToggle(autoVer, 'autoVersion');
-  c1.appendChild(row('Auto-snapshot', 'Save a snapshot every 10 minutes', autoVer));
+
+  const verFile = document.createElement('button');
+  verFile.className = 'btn btn-ghost';
+  verFile.innerHTML = '<i class="bi bi-folder2-open"></i> ' +
+    ((window.SF_AUTO && SF_AUTO.where) ? SF_AUTO.where() : 'Downloads');
+  verFile.onclick = function(){
+    if(window.SF_AUTO && typeof SF_AUTO.link === 'function') SF_AUTO.link();
+    else toast('File access is not available in this browser', 'warn');
+  };
+  c1.appendChild(row('Auto-snapshot',
+    'A restorable snapshot, and this same JSON file rewritten every 10 seconds as you write',
+    [verFile, autoVer]));
+
+  /* switching it on asks for the file once, so nothing lands as "(1)" or "(2)" */
+  autoVer.addEventListener('click', function(){
+    if(S.config.autoVersion && window.SF_AUTO && typeof SF_AUTO.link === 'function' && !SF_AUTO.linked()) SF_AUTO.link();
+  });
 
   root.appendChild(c1);
 
@@ -727,77 +808,8 @@ function buildModelDropdown(){
 }
 
 SETTINGS.renderers.type = function(root){
-  const c1 = card('Font', 'fonts');
-  const size = document.createElement('input');
-  size.type = 'range'; size.className = 'rng';
-  size.min = 12; size.max = 40; size.step = .5;
-  size.value = S.config.fontSize;
-  const sval = document.createElement('span');
-  sval.className = 'rng-val';
-  sval.textContent = S.config.fontSize + 'px';
-  size.oninput = () => {
-    S.config.fontSize = parseFloat(size.value);
-    sval.textContent = S.config.fontSize + 'px';
-    applyConfig('fontSize');
-  };
-  c1.appendChild(row('Size', '', [size, sval]));
-
-  const lh = document.createElement('input');
-  lh.type = 'range'; lh.className = 'rng';
-  lh.min = 1.2; lh.max = 2.6; lh.step = .05;
-  lh.value = S.config.lineHeight;
-  const lval = document.createElement('span');
-  lval.className = 'rng-val';
-  lval.textContent = S.config.lineHeight;
-  lh.oninput = () => {
-    S.config.lineHeight = parseFloat(lh.value);
-    lval.textContent = S.config.lineHeight;
-    applyConfig('lineHeight');
-  };
-  c1.appendChild(row('Line height', '', [lh, lval]));
-
-  const trk = document.createElement('input');
-  trk.type = 'range'; trk.className = 'rng';
-  trk.min = -2; trk.max = 6; trk.step = .1;
-  trk.value = S.config.letterSpacing;
-  const trkVal = document.createElement('span');
-  trkVal.className = 'rng-val';
-  trkVal.textContent = S.config.letterSpacing + 'px';
-  trk.oninput = () => {
-    S.config.letterSpacing = parseFloat(trk.value);
-    trkVal.textContent = S.config.letterSpacing + 'px';
-    applyConfig('letterSpacing');
-  };
-  c1.appendChild(row('Letter spacing', '', [trk, trkVal]));
-
-  const wrd = document.createElement('input');
-  wrd.type = 'range'; wrd.className = 'rng';
-  wrd.min = -2; wrd.max = 10; wrd.step = .5;
-  wrd.value = S.config.wordSpacing;
-  const wrdVal = document.createElement('span');
-  wrdVal.className = 'rng-val';
-  wrdVal.textContent = S.config.wordSpacing + 'px';
-  wrd.oninput = () => {
-    S.config.wordSpacing = parseFloat(wrd.value);
-    wrdVal.textContent = S.config.wordSpacing + 'px';
-    applyConfig('wordSpacing');
-  };
-  c1.appendChild(row('Word spacing', '', [wrd, wrdVal]));
-
-  const par = document.createElement('input');
-  par.type = 'range'; par.className = 'rng';
-  par.min = 0; par.max = 40; par.step = 1;
-  par.value = S.config.paraSpacing;
-  const parVal = document.createElement('span');
-  parVal.className = 'rng-val';
-  parVal.textContent = S.config.paraSpacing + 'px';
-  par.oninput = () => {
-    S.config.paraSpacing = parseInt(par.value);
-    parVal.textContent = S.config.paraSpacing + 'px';
-    applyConfig('paraSpacing');
-  };
-  c1.appendChild(row('Paragraph spacing', '', [par, parVal]));
-  root.appendChild(c1);
+  /* the font itself — face, size and spacing — lives in Appearance now;
+     Typography is behaviour, not a second font setting. */
 
   /* ── Writing — behaviour that used to sit in Editor / Experimental ── */
   const c2 = card('Writing', 'pencil');
@@ -851,45 +863,151 @@ SETTINGS.renderers.type = function(root){
 };
 
 SETTINGS.renderers.plugins = function(root){
-  const plugins = [
-    {k:'dictionary', name:'Dictionary lookup', desc:'Free dictionary API (no key)'},
-    {k:'thesaurus', name:'Thesaurus & rhymes', desc:'Datamuse API (no key)'},
-    {k:'voice', name:'Voice dictation', desc:'Speak instead of type',
-      action:{ label:'Start dictation', icon:'mic', run:function(){
-        if(S.config.plugins.voice === false){ toast('Turn Voice dictation on first', 'warn'); return; }
-        if(!(window.PLUGINS && PLUGINS.toggleVoice)){ toast('Voice not available', 'err'); return; }
-        closeModal();
-        PLUGINS.toggleVoice();
-      }}},
-    {k:'tts', name:'Text-to-speech', desc:'Read the editor or your selection aloud',
-      action:{ label:'Read aloud', icon:'volume-up', run:function(){
-        if(S.config.plugins.tts === false){ toast('Turn Text-to-speech on first', 'warn'); return; }
-        if(!(window.PLUGINS && PLUGINS.speakEditor)){ toast('Speech not available', 'err'); return; }
-        PLUGINS.speakEditor();
-      }}}
+  /* the word the writer has selected, so a lookup opens on it */
+  const pickedWord = function(){
+    try{
+      const sel = window.getSelection();
+      const txt = sel ? String(sel).trim() : '';
+      return txt.split(/\s+/)[0] || '';
+    }catch(e){ return ''; }
+  };
+
+  /* open the plugin's own floating panel, pre-filled with the selection */
+  const openTool = function(src, fallbackMessage){
+    const word = pickedWord();
+
+    /* the floating panel (plugin-panels.js) — one card per plugin */
+    if(window.SF_PLUGINS && SF_PLUGINS.open){
+      closeModal();
+      SF_PLUGINS.open(src, word);
+      return;
+    }
+    if(!(window.PLUGINS && PLUGINS.openWebSearch)){
+      toast(fallbackMessage || 'That tool is not available', 'err');
+      return;
+    }
+    closeModal();
+    PLUGINS.openWebSearch();
+    const q = document.getElementById('wsQuery');
+    if(q && word){ q.value = word; q.focus(); }
+    const chip = document.querySelector('[data-ws-src="' + src + '"]');
+    if(chip){
+      if(!chip.classList.contains('on')) chip.click();
+      else if(word) PLUGINS.runSearch(src);
+    }
+  };
+
+  const on = function(k){ return S.config.plugins[k] !== false; };
+  const need = function(k, name){
+    if(on(k)) return true;
+    toast('Turn ' + name + ' on first', 'warn');
+    return false;
+  };
+
+  /* ── the plugins, grouped the way the rest of Settings is grouped ──
+     Only tools that are not already in the app live here: the Calculator
+     (Utilities → Calculator), the word goal (Utilities → Word goal) and
+     the reading-time readout (status bar) had their own homes. ── */
+  const GROUPS = [
+    { title:'Research', icon:'search',
+      note:'Look something up without leaving the page. Results render inline.',
+      items:[
+        { k:'websearch',  name:'Web search',         src:'ddg',    icon:'search',
+          desc:'DuckDuckGo results, in a panel of its own' },
+        { k:'wikipedia',  name:'Wikipedia',          src:'wiki',   icon:'book',
+          desc:'Summaries from the free encyclopedia' },
+        { k:'imagesearch',name:'Image search',       src:'images', icon:'image',
+          desc:'Pictures from Wikimedia Commons' },
+        { k:'quotes',     name:'Quotes',             src:'quote',  icon:'quote',
+          desc:'Lines worth stealing, with sources' },
+        { k:'books',      name:'Public-domain books', src:'books', icon:'book-half',
+          desc:'Search Project Gutenberg and keep what you find' }
+      ] },
+    { title:'Words', icon:'book',
+      note:'Definitions and word-finding for the sentence in front of you.',
+      items:[
+        { k:'dictionary', name:'Dictionary',         src:'dict',  icon:'file-text',
+          desc:'Definitions, phonetics, examples' },
+        { k:'thesaurus',  name:'Thesaurus & rhymes', src:'thes',  icon:'shuffle',
+          desc:'Synonyms, antonyms, rhymes' },
+        { k:'idioms',     name:'Idioms',             src:'idiom', icon:'chat-quote',
+          desc:'What a phrase actually means' }
+      ] },
+    { title:'Voice & reading', icon:'volume-up',
+      note:'Dictate instead of type, and have the page read back to you.',
+      items:[
+        { k:'voice',      name:'Voice dictation',    icon:'mic',
+          desc:'Speak instead of type',
+          run:function(){
+            if(!need('voice', 'Voice dictation')) return;
+            if(!(window.PLUGINS && PLUGINS.toggleVoice)){ toast('Voice is not available', 'err'); return; }
+            closeModal(); PLUGINS.toggleVoice();
+          } },
+        { k:'tts',        name:'Text-to-speech',     icon:'volume-up',
+          desc:'Read the editor or your selection aloud',
+          run:function(){
+            if(!need('tts', 'Text-to-speech')) return;
+            if(!(window.PLUGINS && PLUGINS.speakEditor)){ toast('Speech is not available', 'err'); return; }
+            PLUGINS.speakEditor();
+          } },
+        { k:'hinglish',   name:'Live transliteration', icon:'keyboard',
+          desc:'Type Hinglish, get Devanagari as you go',
+          run:function(){
+            if(!need('hinglish', 'Live transliteration')) return;
+            if(!(window.PLUGINS && PLUGINS.openLiveBar)){ toast('The live bar is not available', 'err'); return; }
+            closeModal(); PLUGINS.openLiveBar();
+          } }
+      ] }
   ];
-  const c1 = card('Available plugins', 'puzzle');
-  plugins.forEach(p => {
-    const t = document.createElement('div');
-    t.className = 'tgl';
-    t.classList.toggle('on', S.config.plugins[p.k] !== false);
-    t.onclick = () => {
-      S.config.plugins[p.k] = !S.config.plugins[p.k];
-      t.classList.toggle('on', S.config.plugins[p.k]);
-      save();
-    };
-    if(p.action){
+
+  /* one switch per plugin, and the whole row opens that plugin's own
+     floating panel — nothing to configure past on / off. */
+  GROUPS.forEach(function(g){
+    const c = card(g.title, g.icon);
+    if(g.note){
+      const n = document.createElement('div');
+      n.className = 'tiny muted';
+      n.style.margin = '-2px 0 6px';
+      n.textContent = g.note;
+      c.appendChild(n);
+    }
+    g.items.forEach(function(p){
+      const t = document.createElement('div');
+      t.className = 'tgl';
+      t.classList.toggle('on', on(p.k));
+      t.onclick = function(e){
+        e.stopPropagation();
+        S.config.plugins[p.k] = !on(p.k);
+        t.classList.toggle('on', S.config.plugins[p.k]);
+        save();
+      };
+
+      const open = function(){
+        if(p.run){ p.run(); return; }
+        if(!need(p.k, p.name)) return;
+        if(window.SF_PLUGINS && SF_PLUGINS.open){ closeModal(); SF_PLUGINS.open(p.src); return; }
+        closeModal();
+        if(window.PLUGINS && PLUGINS.openWebSearch){
+          PLUGINS.openWebSearch();
+          const chip = document.querySelector('[data-ws-src="' + p.src + '"]');
+          if(chip) chip.click();
+        }
+      };
+
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'btn btn-ghost';
-      btn.innerHTML = '<i class="bi bi-' + p.action.icon + '"></i> ' + p.action.label;
-      btn.onclick = p.action.run;
-      c1.appendChild(row(p.name, p.desc, [t, btn]));
-    } else {
-      c1.appendChild(row(p.name, p.desc, t));
-    }
+      btn.title = 'Open ' + p.name;
+      btn.innerHTML = '<i class="bi bi-' + (p.icon || 'box-arrow-up-right') + '"></i> Open';
+      btn.onclick = open;
+
+      const r = row(p.name, p.desc, [t, btn]);
+      r.style.cursor = 'pointer';
+      r.addEventListener('click', function(e){ if(e.target.closest('.tgl, button')) return; open(); });
+      c.appendChild(r);
+    });
+    root.appendChild(c);
   });
-  root.appendChild(c1);
 };
 
 // ═══ LANGUAGE — the interface language, the language you write in, and
@@ -951,17 +1069,7 @@ SETTINGS.renderers.language = function(root){
     toast('Writing language set');
   };
   wr.appendChild(row('You write in', 'Used for spell check, the dictionary and the AI context.', wrSel));
-
-  const sp = document.createElement('div');
-  sp.className = 'tgl';
-  sp.classList.toggle('on', !!S.config.spellCheck);
-  sp.onclick = function(){
-    S.config.spellCheck = !S.config.spellCheck;
-    sp.classList.toggle('on', S.config.spellCheck);
-    save();
-    if(typeof applyAllConfig === 'function') applyAllConfig();
-  };
-  wr.appendChild(row('Spell check', 'Underlines a word the writing language does not know.', sp));
+  /* spell check lives in Typography only — not twice */
   root.appendChild(wr);
 
   // ── the language AI answers in ──
