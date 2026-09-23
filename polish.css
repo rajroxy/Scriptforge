@@ -287,6 +287,11 @@ html body .sf-ctx{
   position:fixed !important;
   z-index:1500 !important;
   min-width:216px !important;
+  /* the manuscript's menu carries the naming jobs, the writing actions and
+     the language actions — it scrolls rather than running off a short screen */
+  max-height:calc(100vh - 24px) !important;
+  overflow-y:auto !important;
+  overscroll-behavior:contain;
   padding:5px !important;
   background:var(--surface-1, var(--surface-2)) !important;
   border:1px solid var(--line-2) !important;

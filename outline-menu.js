@@ -55,16 +55,38 @@
     { fn:'olSubTitles',     icon:'signpost-2',    label:'Subchapter titles' },
     { fn:'olSubSubs',       icon:'text-indent-left', label:'Subchapter subtitles' }
   ];
+  /* the writing actions — the same ones the editor's own menu carries, so the
+     manuscript's right-click says the same thing wherever you click it */
+  const TEXT_ACTIONS = [
+    { fn:'fixGrammar', icon:'magic',               label:'Fix grammar' },
+    { fn:'improve',    icon:'stars',               label:'Improve' },
+    { fn:'rewrite',    icon:'arrow-repeat',        label:'Rewrite' },
+    { fn:'continue',   icon:'arrow-right-circle',  label:'Continue writing' },
+    { fn:'expand',     icon:'arrows-angle-expand', label:'Expand' },
+    { fn:'summarize',  icon:'card-text',           label:'Summarize' }
+  ];
+  const LANGUAGE = [
+    { fn:'translate',        icon:'translate', label:'Translate' },
+    { fn:'hinglishToHindi',  icon:'translate', label:'Hinglish → हिन्दी' },
+    { fn:'hinglishToEnglish',icon:'translate', label:'Hinglish → English' }
+  ];
+
   const ITEMS = {
     outline: NAMING.concat([
       null,
       { fn:'olStructure', icon:'list-nested', label:'Check the order' }
     ]),
-    manuscript: NAMING.concat([
-      null,
-      { fn:'msSceneHeading', icon:'film', label:'Scene headings' },
-      { fn:'olStructure',    icon:'list-nested', label:'Check the order' }
-    ])
+    /* the manuscript is the writing page, so it also carries the writing and
+       the language actions, the way the editor's menu does */
+    manuscript: NAMING.concat(
+      [ null,
+        { fn:'msSceneHeading', icon:'film', label:'Scene headings' },
+        { fn:'olStructure',    icon:'list-nested', label:'Check the order' },
+        null ],
+      TEXT_ACTIONS,
+      [ null ],
+      LANGUAGE
+    )
   };
 
   /* the ids each host page answers to, in the order they are checked.

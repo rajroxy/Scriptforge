@@ -246,7 +246,23 @@
     };
   }
 
-  /* the menu itself: page options, then a hairline, then Translate */
+  /* the writing actions every page keeps — the same six the editor's own
+     right-click menu carries, so the two menus never disagree */
+  const TEXT_ACTIONS = [
+    { fn:'fixGrammar', icon:'magic',               label:'Fix grammar' },
+    { fn:'improve',    icon:'stars',               label:'Improve' },
+    { fn:'rewrite',    icon:'arrow-repeat',        label:'Rewrite' },
+    { fn:'continue',   icon:'arrow-right-circle',  label:'Continue' },
+    { fn:'expand',     icon:'arrows-angle-expand', label:'Expand' },
+    { fn:'summarize',  icon:'card-text',           label:'Summarize' }
+  ];
+  const textChips = function(){
+    return TEXT_ACTIONS.map(function(a){
+      return '<button class="ai-chip" data-ai="' + a.fn + '"><i class="bi bi-' + a.icon + '"></i> ' + a.label + '</button>';
+    }).join('');
+  };
+
+  /* the menu itself: page options, then the writing actions, then Translate */
   window.renderFabAI = function(){
     const body = document.getElementById('fabAIBody');
     if(!body) return;
@@ -268,10 +284,11 @@
               ? '<div class="fab-ai-ask"><input class="ai-input" data-fabai-input placeholder="Ask about a character, place or event…">'
                 + '<button class="ai-chip primary" data-fabai-ask><i class="bi bi-send"></i></button></div>'
               : '')
+          + '<div class="fab-ai-sec">Text</div>' + textChips()
         : defs.map(function(a){
             return '<button class="ai-chip" data-ai="' + a.fn + '"><i class="bi bi-' + a.icon + '"></i> ' + a.label + '</button>';
           }).join(''))
-      + '<div class="fab-ai-sec">Text</div>'
+      + '<div class="fab-ai-sec">' + (opts ? 'Language' : 'Text') + '</div>'
       + '<button class="ai-chip" data-ai="translate"><i class="bi bi-translate"></i> Translate</button>';
   };
 

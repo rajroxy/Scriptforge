@@ -1005,11 +1005,16 @@ function onCtx(e){
     <button class="menu-item" data-cmd="underline"><i class="mi-icon bi bi-type-underline"></i>Underline</button>
     <div class="menu-sep"></div>
     <button class="menu-item" data-ai="fixGrammar"><i class="mi-icon bi bi-magic"></i>Fix grammar</button>
+    <button class="menu-item" data-ai="improve"><i class="mi-icon bi bi-stars"></i>Improve</button>
+    <button class="menu-item" data-ai="rewrite"><i class="mi-icon bi bi-arrow-repeat"></i>Rewrite</button>
+    <button class="menu-item" data-ai="continue"><i class="mi-icon bi bi-arrow-right-circle"></i>Continue writing</button>
+    <button class="menu-item" data-ai="expand"><i class="mi-icon bi bi-arrows-angle-expand"></i>Expand</button>
+    <button class="menu-item" data-ai="summarize"><i class="mi-icon bi bi-card-text"></i>Summarize</button>
+    ${S.config.expOrganize ? '<button class="menu-item" data-ai="organize"><i class="mi-icon bi bi-list-nested"></i>Organise my words</button>' : ''}
+    <div class="menu-sep"></div>
     <button class="menu-item" data-ai="translate"><i class="mi-icon bi bi-translate"></i>Translate</button>
     <button class="menu-item" data-ai="hinglishToHindi"><i class="mi-icon bi bi-translate"></i>Hinglish → हिन्दी</button>
     <button class="menu-item" data-ai="hinglishToEnglish"><i class="mi-icon bi bi-translate"></i>Hinglish → English</button>
-    <button class="menu-item" data-ai="improve"><i class="mi-icon bi bi-stars"></i>Improve</button>
-    ${S.config.expOrganize ? '<button class="menu-item" data-ai="organize"><i class="mi-icon bi bi-list-nested"></i>Organise my words</button>' : ''}
     ${isWritingPage() ? `
     <div class="menu-sep"></div>
     <button class="menu-item" data-ai="msChapterTitles"><i class="mi-icon bi bi-bookmark-fill"></i>Chapter titles</button>
