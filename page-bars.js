@@ -61,14 +61,15 @@
 })();
 
 (function(){
-  const PAGE = 'draft';
-  /* Two buttons, one slot: New draft while you are writing, and the AI chat
-     button in its place while the chat (or any AI panel) is on screen — the
-     bar itself never leaves. New draft calls the app's own action directly:
-     the old delegated click pointed at a + this bar had already replaced. */
+  const PAGE = 'draft';   /* Two buttons, one slot: New draft while you are writing, and New Chat in
+     its place while the chat (or any AI panel) is on screen — the bar itself
+     never leaves. New draft calls the app's own action directly: the old
+     delegated click pointed at a + this bar had already replaced. New Chat
+     is where a chat is started now, so the chat card carries no + of its
+     own. */
   const ACTS = [
     { icon:'plus-lg',    t:'New draft', act:'tools:addDraft' },
-    { icon:'chat-dots',  t:'AI chat',   act:'chat:toggle' }
+    { icon:'chat-dots',  t:'New Chat',  act:'chat:new' }
   ];
 
   const build = function(){
@@ -126,6 +127,12 @@
       if(!DC){ toast && toast('The draft chat is not available here', 'warn'); return; }
       const on = !!(document.querySelector('#page-draft.dc-on') ||
                     document.querySelector('#page-draft [data-dc="1"]'));
+      if(fn === 'new'){
+        if(!on && DC.open) DC.open();      /* the chat view has to exist first */
+        if(DC.newChat) DC.newChat();
+        if(DC.render) DC.render();
+        return;
+      }
       if(fn === 'toggle'){ if(on && DC.close) DC.close(); else if(DC.open) DC.open(); }
       else if(fn === 'open' && DC.open) DC.open();
       return;

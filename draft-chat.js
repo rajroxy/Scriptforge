@@ -268,9 +268,8 @@
   function chatMarkup(){
     return '' +
         '<aside class="draft-list">' +
-      '<div class="draft-list-head">' +
-        '<button class="icon-btn-sm" data-dc="new" title="New chat"><i class="bi bi-plus-lg"></i></button>' +
-      '</div>' +
+      /* the bar's New Chat button starts a chat — the card carries no + */
+      '<div class="draft-list-head"></div>' +
       '<div class="draft-rows" id="dcList"></div>' +
       '<footer class="dc-pager">' +
         '<button class="dc-pager-btn" data-dc-page="-1" title="Previous"><i class="bi bi-chevron-left"></i></button>' +
