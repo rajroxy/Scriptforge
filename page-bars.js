@@ -62,12 +62,13 @@
 
 (function(){
   const PAGE = 'draft';
-  /* the draft bar carries one button: the writing actions live in the
-     right-click menu, and the draft chat has its own. It calls the app's own
-     New draft directly — the old delegated click pointed at a + this bar had
-     already replaced. */
+  /* Two buttons, one slot: New draft while you are writing, and the AI chat
+     button in its place while the chat (or any AI panel) is on screen — the
+     bar itself never leaves. New draft calls the app's own action directly:
+     the old delegated click pointed at a + this bar had already replaced. */
   const ACTS = [
-    { icon:'plus-lg', t:'New draft', act:'tools:addDraft' }
+    { icon:'plus-lg',    t:'New draft', act:'tools:addDraft' },
+    { icon:'chat-dots',  t:'AI chat',   act:'chat:toggle' }
   ];
 
   const build = function(){
@@ -117,6 +118,16 @@
       const T = window.TOOLS;
       if(T && typeof T[fn] === 'function') T[fn]();
       else if(typeof toast === 'function') toast('That action is not available here', 'warn');
+      return;
+    }
+    if(what.indexOf('chat:') === 0){
+      const fn = what.slice(5);
+      const DC = window.DraftChat;
+      if(!DC){ toast && toast('The draft chat is not available here', 'warn'); return; }
+      const on = !!(document.querySelector('#page-draft.dc-on') ||
+                    document.querySelector('#page-draft [data-dc="1"]'));
+      if(fn === 'toggle'){ if(on && DC.close) DC.close(); else if(DC.open) DC.open(); }
+      else if(fn === 'open' && DC.open) DC.open();
       return;
     }
     const target = document.querySelector(what.slice(6));

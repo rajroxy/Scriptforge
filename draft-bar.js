@@ -1,14 +1,12 @@
 /* ═══════════════════════════════════════════════════════════
    Draft — the bar's three buttons
 
-   · New draft stays on the left; Fix grammar and Improve sit on the
-     right, where the writing actions belong.
+   · New draft is the bar while you are writing. It calls the app's own
+     New draft action; the writing actions live in the right-click menu.
    · While an AI panel is on screen — the right-click assistant, the
-     draft chat, or the AI result sheet — every button in the bar steps
-     out of the way, so the panel has the page to itself. The bar comes
-     back the moment the panel closes.
-   · Whenever the draft page is showing, nothing else in its bar is
-     allowed through either.
+     draft chat, or the AI result sheet — the bar stays, New draft steps
+     aside, and the AI chat button takes its place in the same slot.
+     Everything is back the moment the panel closes.
 
    The buttons are the app's own; this only places and hides them.
    ═══════════════════════════════════════════════════════════ */
