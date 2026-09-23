@@ -543,45 +543,25 @@ html body #page-plan .plan-actions .plan-btn-clear:hover{
 }
 
 /* ═══════════════════════════════════════════════════════════
-   THE MANUSCRIPT'S FAB LINE
-   Icon library and Find & replace sit immediately left of the pen FAB,
-   on the same 32px line as it, instead of at the far ends of the two
-   toolbars. Built by polish.js on writing pages only.
-   ═══════════════════════════════════════════════════════════ */
-html body #manFabRow{
-  position:fixed !important;
-  top:6px !important;
-  right:44px !important;
-  z-index:999 !important;
-  display:flex !important;
-  align-items:center !important;
-  gap:6px !important;
-}
-html body #manFabRow .man-fabbtn{
-  width:32px !important;
-  height:32px !important;
-  display:flex !important;
-  align-items:center !important;
-  justify-content:center !important;
-  background:var(--surface-2) !important;
-  border:1px solid var(--line-2) !important;
-  border-radius:var(--r-sm, 4px) !important;
-  color:var(--ink-3) !important;
-  font-size:13px !important;
-  cursor:pointer !important;
-  padding:0 !important;
-}
-html body #manFabRow .man-fabbtn:hover{
-  background:var(--surface-3) !important;
-  border-color:var(--line-3, var(--line-2)) !important;
-  color:var(--ink) !important;
-}
-/* focus mode takes the FAB away — this line goes with it */
-html body.focus #manFabRow{ display:none !important; }
-
-/* ═══════════════════════════════════════════════════════════
    THE MANUSCRIPT'S TOOLBAR DETAILS
+   Icon library and Find & replace keep their places at the ends of the
+   two rows, in the FAB's own column: the pen FAB is a 32px button 6px
+   from the right edge, so its centre is 22px in — each row's last icon
+   is padded to put its centre on that same 22px line.
    ═══════════════════════════════════════════════════════════ */
+html body .write-toolbar{
+  padding-right:calc(22px - var(--ctl-sm, 28px) / 2) !important;
+}
+html body .chapter-controls{
+  padding-right:calc(22px - var(--ctl-sm, 28px) / 2) !important;
+}
+
+/* The chapter strip's first hairline stands in the column of the toolbar's
+   divider before Bold. polish.js measures the live layout and writes the
+   offset into --sf-sep-x, so the two lines read as one. */
+html body .chapter-controls .cc-sep{
+  margin-left:var(--sf-sep-x, 8px) !important;
+}
 /* The colour chips are boxes like every other icon — the toolbar's greys
    around them, with the colour as a small chip inside. */
 html body .tb-swatch{
@@ -604,9 +584,8 @@ html body .tb-swatch .tb-swatch-fill{
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.16) !important;
 }
 
-/* The chapter strip's hairlines are the toolbar's hairlines: the divider
-   left of the notes icon reads as the same line as the one before Bold,
-   instead of a short stub of its own. */
+/* The chapter strip's hairlines are the toolbar's hairlines: full-height
+   lines in the same colour, instead of short stubs of their own. */
 html body .cc-sep{
   width:1px !important;
   height:100% !important;
@@ -614,6 +593,14 @@ html body .cc-sep{
   margin:0 8px !important;
   background:var(--line) !important;
   align-self:stretch !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DRAFT — the writing pane's head is part of the card, not a row
+   with a rule under it: the hairline is gone.
+   ═══════════════════════════════════════════════════════════ */
+html body #page-draft .draft-pane-head{
+  border-bottom:0 !important;
 }
 
 /* ═══════════════════════════════════════════════════════════

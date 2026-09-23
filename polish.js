@@ -120,7 +120,7 @@
     statsLabel();
     promptPage();
     draftTypo();
-    manFabRow();
+    alignStripDivider();
   };
 
   let raf = 0;
@@ -134,39 +134,32 @@
     new MutationObserver(schedule).observe(document.body, { childList:true, subtree:true });
   }
 
-  /* Icon library and Find & replace — the manuscript keeps both, but on the
-     FAB's own line at the top right rather than at the far ends of the two
-     toolbars. They carry the same data-act the app listens for, so the app's
-     own handlers open the icon library and the find bar. Only on a writing
-     page; removed again the moment you leave one. */
-  const FAB_ROW = [
-    { act:'icon-lib',  icon:'emoji-smile', title:'Icon library' },
-    { act:'find-open', icon:'search',      title:'Find & replace (Ctrl+F)' }
-  ];
-  const manFabRow = function(){
-    let writing = false;
-    try{
-      writing = (typeof isWritingPage === 'function')
-        ? isWritingPage()
-        : ['manuscript','write','chapters','scenes','episodes','acts','stanzas','verses']
-            .indexOf(S.page) >= 0;
-    }catch(e){ writing = false; }
+  /* The chapter strip's first hairline belongs to the same column as the
+     toolbar's divider before Bold — measured from the live layout, so it
+     holds at every window size. The rule that reads it sits in polish.css
+     (margin-left:var(--sf-sep-x)); the value is written here. */
+  const alignStripDivider = function(){
+    const strip = document.getElementById('chapterControls');
+    const toolbar = document.getElementById('writeToolbar');
+    if(!strip || !toolbar) return;
+    const sep = strip.querySelector('.cc-sep');
+    const bold = toolbar.querySelector('[data-cmd="bold"]');
+    if(!sep || !bold) return;
+    const group = bold.closest('.tb-group') || bold.parentElement;
+    if(!group) return;
 
-    let row = document.getElementById('manFabRow');
-    if(!writing){
-      if(row) row.remove();
-      return;
-    }
-    if(row) return;
+    /* the divider sits in the right border of the group before Bold */
+    const before = group.previousElementSibling;
+    const line = before ? before.getBoundingClientRect().right
+                        : group.getBoundingClientRect().left;
 
-    row = document.createElement('div');
-    row.id = 'manFabRow';
-    row.className = 'man-fabrow';
-    row.innerHTML = FAB_ROW.map(function(b){
-      return '<button class="man-fabbtn" data-act="' + b.act + '" title="' + esc(b.title) + '">'
-           + '<i class="bi bi-' + b.icon + '"></i></button>';
-    }).join('');
-    document.body.appendChild(row);
+    /* measure from the rule's own resting place, so each pass is absolute */
+    sep.style.setProperty('--sf-sep-x', '8px');
+    const base = sep.getBoundingClientRect().left;
+    if(!isFinite(base) || !isFinite(line)) return;
+
+    const want = Math.max(-260, Math.min(260, Math.round(line - base + 8)));
+    sep.style.setProperty('--sf-sep-x', want + 'px');
   };
 
   /* ═══ 3 · FAB AI — the manuscript and the canvas ═══ */
@@ -325,24 +318,15 @@
   /* The build this file is, written quietly onto the document element — it
      matches the polish.js version in index.html and is what the reload guard
      below compares. Nothing is drawn on screen for it. */
-  const BUILD = 'v18';
+  const BUILD = 'v19';
 
-  /* This app is a single page that never reloads itself, so a tab left open
-     keeps running the code it was opened with — fixes included. When the build
-     on the server is not the one this tab last ran, take the new one: once per
-     tab, and only just after the page has settled, so nothing is mid-keystroke.
-     The app autosaves on every edit, so a reload here cannot lose writing. */
+  /* The build this tab last ran is remembered, but the app no longer reloads
+     itself onto a new one: that came up as the app loading twice on boot.
+     A fresh load already asks for the new files — every script and stylesheet
+     carries its own version in index.html — so this is a note, not a trigger. */
   try{
     const KEY = 'sf_build_seen';
-    const seen = localStorage.getItem(KEY);
-    const took = sessionStorage.getItem('sf_build_taken');
-    if(seen && seen !== BUILD && !took){
-      localStorage.setItem(KEY, BUILD);
-      sessionStorage.setItem('sf_build_taken', BUILD);
-      setTimeout(function(){ location.reload(); }, 1200);
-    } else if(seen !== BUILD){
-      localStorage.setItem(KEY, BUILD);
-    }
+    if(localStorage.getItem(KEY) !== BUILD) localStorage.setItem(KEY, BUILD);
   }catch(e){}
 
   const stampBuild = function(){
