@@ -3,7 +3,7 @@
 
    One bar for every page, the same box the Idea page uses:
 
-     Draft    · New draft                              (build here)
+     Draft    · New draft · New Chat                   (build here)
      Outline  · T · New chapter · New subchapter       … Expand / Collapse
      Plan     · T · Add beat                           … Add act / scene / Clear
      Bible    · T · New entry                          … category tabs
@@ -61,13 +61,14 @@
 })();
 
 (function(){
-  const PAGE = 'draft';   /* The bar holds New draft and nothing else — New Chat lives inside the
-     chat itself, where a chat is actually started. New draft calls the app's
-     own action directly: the old delegated click pointed at a + this bar had
-     already replaced. While an AI panel or the chat is up, New draft steps
-     aside and the bar stays. */
+  const PAGE = 'draft';   /* The bar holds New draft while you are writing, and New Chat while
+     the draft chat is up — the same slot, one at a time. New draft calls the
+     app's own action directly: the old delegated click pointed at a + this bar
+     had already replaced. While an AI panel or the chat is up, the bar stays
+     and New draft steps aside. */
   const ACTS = [
-    { icon:'plus-lg', t:'New draft', act:'tools:addDraft' }
+    { icon:'plus-lg',   t:'New draft', act:'tools:addDraft' },
+    { icon:'chat-dots', t:'New Chat',  act:'chat:new', chat:true }
   ];
 
   const build = function(){
@@ -76,7 +77,7 @@
     bar.dataset.sfBar = PAGE;
     bar.innerHTML =
       ACTS.map(function(a){
-          return '<button class="ol-btn" data-sfbar="' + a.act + '">'
+          return '<button class="ol-btn"' + (a.chat ? ' data-sfbar-chat="1"' : '') + ' data-sfbar="' + a.act + '">'
                + '<i class="bi bi-' + a.icon + '"></i> ' + a.t + '</button>';
         }).join('');
     return bar;

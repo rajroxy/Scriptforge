@@ -215,8 +215,8 @@ html body .sfpp-text p:first-child{ color:var(--ink) !important; }
 
 /* ═══════════════════════════════════════════════════════════
    Draft bar — the bar stays put and holds New draft. The moment the
-   draft chat (or any AI panel) is on screen, New draft steps aside.
-   New Chat is not in this bar: it sits inside the chat itself.
+   draft chat (or any AI panel) is on screen, New draft steps aside;
+   while the chat itself is up, New Chat takes the same slot.
    The id is doubled on purpose: the layout layer forces this bar to
    display:flex with the same id doubled, and both are !important.
    ═══════════════════════════════════════════════════════════ */
@@ -225,10 +225,11 @@ html body.sf-ai-open #page-draft#page-draft .sf-bar [data-sfbar="tools:addDraft"
   display:none !important;
 }
 
-/* New Chat, in the chat's own left card */
-html body #page-draft .draft-list-head .draft-newchat{
-  width:100% !important;
-  justify-content:center !important;
+/* New Chat rides in New draft's slot — and only while the draft chat is the
+   thing on screen, which draft-bar.js marks on the body. */
+html body #page-draft .sf-bar [data-sfbar="chat:new"]{ display:none !important; }
+html body.sf-chat-open #page-draft .sf-bar [data-sfbar="chat:new"]{
+  display:inline-flex !important;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -539,4 +540,94 @@ html body #page-plan .plan-actions .plan-btn-clear:hover{
   background:color-mix(in srgb, #d9534f 14%, var(--surface-3)) !important;
   border-color:#d9534f !important;
   color:#d9534f !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THE MANUSCRIPT'S FAB LINE
+   Icon library and Find & replace sit immediately left of the pen FAB,
+   on the same 32px line as it, instead of at the far ends of the two
+   toolbars. Built by polish.js on writing pages only.
+   ═══════════════════════════════════════════════════════════ */
+html body #manFabRow{
+  position:fixed !important;
+  top:6px !important;
+  right:44px !important;
+  z-index:999 !important;
+  display:flex !important;
+  align-items:center !important;
+  gap:6px !important;
+}
+html body #manFabRow .man-fabbtn{
+  width:32px !important;
+  height:32px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  background:var(--surface-2) !important;
+  border:1px solid var(--line-2) !important;
+  border-radius:var(--r-sm, 4px) !important;
+  color:var(--ink-3) !important;
+  font-size:13px !important;
+  cursor:pointer !important;
+  padding:0 !important;
+}
+html body #manFabRow .man-fabbtn:hover{
+  background:var(--surface-3) !important;
+  border-color:var(--line-3, var(--line-2)) !important;
+  color:var(--ink) !important;
+}
+/* focus mode takes the FAB away — this line goes with it */
+html body.focus #manFabRow{ display:none !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   THE MANUSCRIPT'S TOOLBAR DETAILS
+   ═══════════════════════════════════════════════════════════ */
+/* The colour chips are boxes like every other icon — the toolbar's greys
+   around them, with the colour as a small chip inside. */
+html body .tb-swatch{
+  width:var(--ctl-sm, 28px) !important;
+  height:var(--ctl-sm, 28px) !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  background:var(--surface-2) !important;
+  border:0 !important;
+  border-radius:var(--r-sm, 4px) !important;
+  box-shadow:none !important;
+  overflow:visible !important;
+}
+html body .tb-swatch:hover{ background:var(--surface-3) !important; }
+html body .tb-swatch .tb-swatch-fill{
+  position:absolute !important;
+  inset:5px !important;
+  border-radius:3px !important;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.16) !important;
+}
+
+/* The chapter strip's hairlines are the toolbar's hairlines: the divider
+   left of the notes icon reads as the same line as the one before Bold,
+   instead of a short stub of its own. */
+html body .cc-sep{
+  width:1px !important;
+  height:100% !important;
+  min-height:18px !important;
+  margin:0 8px !important;
+  background:var(--line) !important;
+  align-self:stretch !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   OUTLINE · BIBLE — the chevron pager is the way through these
+   lists, so the scroller keeps working with no scrollbar drawn
+   over the panel.
+   ═══════════════════════════════════════════════════════════ */
+html body #page-outline .ol-panel,
+html body #page-bible .bb-rows{
+  scrollbar-width:none !important;
+  -ms-overflow-style:none !important;
+}
+html body #page-outline .ol-panel::-webkit-scrollbar,
+html body #page-bible .bb-rows::-webkit-scrollbar{
+  display:none !important;
+  width:0 !important;
 }

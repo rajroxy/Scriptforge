@@ -268,10 +268,8 @@
   function chatMarkup(){
     return '' +
         '<aside class="draft-list">' +
-      /* New Chat belongs here, in the chat itself — never beside New draft */
-      '<div class="draft-list-head">' +
-        '<button class="ol-btn draft-newchat" data-dc="new" title="Start a new chat"><i class="bi bi-plus-lg"></i> New Chat</button>' +
-      '</div>' +
+      /* New Chat is not in this card: it takes New draft's slot in the bar,
+         and the click is handled there (data-sfbar="chat:new") */
       '<div class="draft-rows" id="dcList"></div>' +
       '<footer class="dc-pager">' +
         '<button class="dc-pager-btn" data-dc-page="-1" title="Previous"><i class="bi bi-chevron-left"></i></button>' +

@@ -120,6 +120,7 @@
     statsLabel();
     promptPage();
     draftTypo();
+    manFabRow();
   };
 
   let raf = 0;
@@ -132,6 +133,41 @@
   if(typeof MutationObserver === 'function' && document.body){
     new MutationObserver(schedule).observe(document.body, { childList:true, subtree:true });
   }
+
+  /* Icon library and Find & replace — the manuscript keeps both, but on the
+     FAB's own line at the top right rather than at the far ends of the two
+     toolbars. They carry the same data-act the app listens for, so the app's
+     own handlers open the icon library and the find bar. Only on a writing
+     page; removed again the moment you leave one. */
+  const FAB_ROW = [
+    { act:'icon-lib',  icon:'emoji-smile', title:'Icon library' },
+    { act:'find-open', icon:'search',      title:'Find & replace (Ctrl+F)' }
+  ];
+  const manFabRow = function(){
+    let writing = false;
+    try{
+      writing = (typeof isWritingPage === 'function')
+        ? isWritingPage()
+        : ['manuscript','write','chapters','scenes','episodes','acts','stanzas','verses']
+            .indexOf(S.page) >= 0;
+    }catch(e){ writing = false; }
+
+    let row = document.getElementById('manFabRow');
+    if(!writing){
+      if(row) row.remove();
+      return;
+    }
+    if(row) return;
+
+    row = document.createElement('div');
+    row.id = 'manFabRow';
+    row.className = 'man-fabrow';
+    row.innerHTML = FAB_ROW.map(function(b){
+      return '<button class="man-fabbtn" data-act="' + b.act + '" title="' + esc(b.title) + '">'
+           + '<i class="bi bi-' + b.icon + '"></i></button>';
+    }).join('');
+    document.body.appendChild(row);
+  };
 
   /* ═══ 3 · FAB AI — the manuscript and the canvas ═══ */
   /* The draft page's Typography button sits at the left of its bar, before
@@ -289,7 +325,7 @@
   /* The build this file is, written quietly onto the document element — it
      matches the polish.js version in index.html and is what the reload guard
      below compares. Nothing is drawn on screen for it. */
-  const BUILD = 'v17';
+  const BUILD = 'v18';
 
   /* This app is a single page that never reloads itself, so a tab left open
      keeps running the code it was opened with — fixes included. When the build

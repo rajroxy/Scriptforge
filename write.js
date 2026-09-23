@@ -321,8 +321,7 @@ function renderChapterControls(){
         ${chapters.map(ch => `<option value="${ch.id}" ${ch.id === (parent && parent.id) ? 'selected' : ''}>${esc(ch.title || 'Untitled')}</option>`).join('')}
       </select>
     </div>
-    <span class="cc-sep"></span>
-        <div class="chapter-control">
+    <div class="chapter-control">
       <select class="tb-select" data-subchapter-select title="${L.sub}">
         ${((parent && parent.children) || []).map(ch => `<option value="${ch.id}" ${ch.id === (current && current.id) ? 'selected' : ''}>${esc(ch.title || 'Untitled')}</option>`).join('')}
       </select>
@@ -345,8 +344,6 @@ function renderChapterControls(){
       ${S.config.expOverlay
         ? '<button class="icon-btn-sm" data-act="overlay-open" title="Overlay screen"><i class="bi bi-layout-split"></i></button>'
         : ''}
-      <span class="cc-sep"></span>
-      <button class="icon-btn-sm" data-act="find-open" title="Find &amp; replace (Ctrl+F)"><i class="bi bi-search"></i></button>
     </div>`;
 
   // chapter + subchapter selects → the Settings-style stats dropdown card
@@ -754,10 +751,9 @@ function renderToolbar(){
     </div>
 
     <!-- divider lives in the Shift + / panel now (Shift + @ · Insert · Rule) -->
-
-
-      <button class="tb-btn tb-push-right" data-act="icon-lib" title="Icon library"><i class="bi bi-emoji-smile"></i></button>
-    </div>
+    <!-- Icon library and Find &amp; replace ride on the FAB's own line, top
+         right — see polish.js (the .man-fabrow). Both keep their data-act, so
+         the app's own handlers still run them. -->
   `;
   paintSwatches();
 }
