@@ -458,65 +458,38 @@ html body #page-plan .plan-actions [data-act="plan-all"]{ position:relative !imp
    Prompt me on the left, one button at the right end of the bar that
    opens Genres · Tags · Themes in a panel.
    ═══════════════════════════════════════════════════════════ */
-html body #page-inspire .idea-bar{ gap:10px !important; }
-html body #page-inspire .idea-bar-left{ flex:0 0 auto !important; margin-right:auto !important; }
+html body #page-inspire .idea-bar{ gap:14px !important; }
+/* the bar's own Prompt me is off the top bar — the right-click panel has it */
+html body #page-inspire .idea-bar-left{ flex:0 0 auto !important; }
+html body #page-inspire .idea-bar [data-idea="prompt"],
+html body #page-inspire .idea-bar [data-ic-prompt]{ display:none !important; }
 
-html body #page-inspire .idea-filters{
-  position:relative !important;
-  flex:0 0 auto !important;
-  margin-left:auto !important;
+/* Themes then Tags on the left, Genres at the right end of the card's bar */
+html body #page-inspire .idea-picks{
+  display:flex !important;
+  align-items:center !important;
+  gap:18px !important;
+  flex:1 1 auto !important;
+  min-width:0 !important;
 }
-html body #page-inspire .idea-filters-btn{
+html body #page-inspire .idea-pick{
   display:inline-flex !important;
   align-items:center !important;
-  gap:7px !important;
-  max-width:320px !important;
+  gap:6px !important;
+  flex:0 0 auto !important;
+  min-width:0 !important;
 }
-html body #page-inspire .idea-filters-val{
-  overflow:hidden !important;
-  text-overflow:ellipsis !important;
-  white-space:nowrap !important;
-  font-size:12px !important;
-}
-html body #page-inspire .idea-filters-caret{ font-size:10px !important; opacity:.7 !important; }
-html body #page-inspire .idea-filters.on .idea-filters-btn{
-  background:var(--surface-4) !important;
-  color:var(--ink) !important;
-}
-html body #page-inspire .idea-filters.on .idea-filters-btn i{ color:var(--accent-2, var(--accent)) !important; }
-
-/* the panel the button opens */
-html body #page-inspire .idea-filters-pop{
-  position:absolute !important;
-  top:calc(100% + 6px) !important;
-  right:0 !important;
-  z-index:40 !important;
-  width:252px !important;
-  padding:10px !important;
-  display:flex !important;
-  flex-direction:column !important;
-  gap:9px !important;
-  background:var(--surface-1) !important;
-  border:1px solid var(--line-2) !important;
-  border-radius:var(--r-lg, 8px) !important;
-  box-shadow:var(--e-4, var(--e-3)) !important;
-}
-html body #page-inspire .idea-filters-pop[hidden]{ display:none !important; }
-html body #page-inspire .idea-filters-pop .idea-pick{
-  display:flex !important;
-  flex-direction:column !important;
-  align-items:stretch !important;
-  gap:4px !important;
-}
-html body #page-inspire .idea-filters-pop .idea-pick > span{
+html body #page-inspire .idea-pick.idea-pick-end{ margin-left:auto !important; }
+html body #page-inspire .idea-pick > span{
   font-size:9.5px !important;
   font-weight:600 !important;
   letter-spacing:.08em !important;
   text-transform:uppercase !important;
   color:var(--ink-4) !important;
+  white-space:nowrap !important;
 }
-html body #page-inspire .idea-filters-pop .idea-pick select{ width:100% !important; }
-html body #page-inspire .idea-filters-pop .dd-card{ width:100% !important; }
+html body #page-inspire .idea-pick .dd-card{ flex:0 0 auto !important; min-width:132px !important; max-width:190px !important; }
+html body #page-inspire .idea-pick select{ max-width:190px !important; }
 
 /* ═══════════════════════════════════════════════════════════
    The right-click AI panel's build tag — a quiet word in the head

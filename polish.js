@@ -182,9 +182,13 @@
        layer may have put there */
     ['manuscript', 'write', 'chapters', 'scenes', 'episodes', 'acts', 'stanzas', 'verses']
       .forEach(function(k){ delete SF_FAB_AI[k]; });
-    /* the prompt page keeps its Prompt me button in its own bar, so its
-       right-click carries the writing actions and nothing else */
-    ['inspire', 'idea'].forEach(function(k){ delete SF_FAB_AI[k]; });
+    /* the prompt page's right-click panel carries one option — Prompt me.
+       The bar's own button is only kept in the document for this to click,
+       since the generator lives in the page's own closure. */
+    ['inspire', 'idea'].forEach(function(k){
+      SF_FAB_AI[k] = [{ fn:'ideaPromptMe', icon:'lightbulb-fill', label:'Prompt me',
+                        desc:'A fresh prompt built from this project' }];
+    });
   }
 
   /* What the page on screen offers. For the canvas this file owns the list, so
@@ -198,6 +202,23 @@
   };
 
   const F = window.AI_FNS || (window.AI_FNS = {});
+
+  /* Prompt me on the prompt page. The generator belongs to the page's own
+     code, so this clicks its button — from anywhere in the app, landing on
+     the prompt page first if needed. */
+  F.ideaPromptMe = function(){
+    const find = function(){
+      return document.querySelector('#page-inspire [data-idea="prompt"], #page-inspire [data-ic-prompt]');
+    };
+    const b = find();
+    if(b){ b.click(); return; }
+    if(typeof goPage === 'function'){
+      goPage('inspire');
+      setTimeout(function(){ const n = find(); if(n) n.click(); }, 140);
+      return;
+    }
+    if(typeof toast === 'function') toast('Open the Idea page to use this', 'warn');
+  };
 
   F.mmGrow = function(){
     ask('Growing the canvas', 'Canvas',
@@ -254,7 +275,7 @@
   /* A build tag in the panel's head, so "am I on the new build?" is one
      glance instead of a guess. This matches the polish.js version in
      index.html. */
-  const BUILD = 'v12';
+  const BUILD = 'v13';
 
   /* This app is a single page that never reloads itself, so a tab left open
      keeps running the code it was opened with — fixes included. When the build
@@ -357,82 +378,36 @@
     if(!S.config.ideaAI) S.config.ideaAI = {};
     const cfg = S.config.ideaAI;
 
-    /* One button at the right end of the bar; the three pickers live in the
-       panel it opens, so the bar stays a bar. */
+    /* the three pickers sit in the bar itself: Themes then Tags on the left,
+       Genres at the right end of the card's top bar */
     const box = document.createElement('div');
-    box.className = 'idea-filters';
+    box.className = 'idea-picks';
     box.setAttribute('data-sf-picks', '1');
     box.innerHTML =
-      '<button type="button" class="ol-btn idea-filters-btn" data-sf-filters-toggle'
-      + ' aria-haspopup="true" title="Genres, tags and themes for the prompts">'
-      +   '<i class="bi bi-funnel"></i>'
-      +   '<span class="idea-filters-val">Genres · Tags · Themes</span>'
-      +   '<i class="bi bi-chevron-down idea-filters-caret"></i>'
-      + '</button>'
-      + '<div class="idea-filters-pop" data-sf-filters-pop hidden>'
-      +   [['genre', 'Genres', GENRES, cfg.genre],
-           ['tag',   'Tags',   TAGS,   cfg.tag],
-           ['theme', 'Themes', THEMES, cfg.theme]]
+      [['theme', 'Themes', THEMES, cfg.theme, ''],
+       ['tag',   'Tags',   TAGS,   cfg.tag,   ''],
+       ['genre', 'Genres', GENRES, cfg.genre, ' idea-pick-end']]
         .map(function(p){
-          return '<label class="idea-pick">'
+          return '<label class="idea-pick' + p[4] + '">'
             + '<span>' + p[1] + '</span>'
             + '<select class="sel" data-sf-pick="' + p[0] + '">'
             + p[2].map(function(v){
                 return '<option value="' + esc(v) + '"' + ((p[3] || p[2][0]) === v ? ' selected' : '') + '>' + esc(v) + '</option>';
               }).join('')
             + '</select></label>';
-        }).join('')
-      + '</div>';
+        }).join('');
 
-    /* the right end of the bar */
     bar.appendChild(box);
-
-    const pop   = box.querySelector('[data-sf-filters-pop]');
-    const label = box.querySelector('.idea-filters-val');
-
-    /* what the button reads: the choices, or what it is for when none are set */
-    const paint = function(){
-      const c = S.config.ideaAI || {};
-      const chosen = [c.genre, c.tag, c.theme].filter(function(v){
-        return v && String(v).indexOf('Any') !== 0;
-      });
-      box.classList.toggle('on', chosen.length > 0);
-      if(label){
-        label.textContent = chosen.length
-          ? chosen.join(' · ')
-          : 'Genres · Tags · Themes';
-      }
-    };
-
-    const setOpen = function(open){
-      pop.hidden = !open;
-      box.classList.toggle('open', !!open);
-      if(open && typeof window.enhanceSelects === 'function') window.enhanceSelects(pop);
-    };
-
-    paint();
-
-    box.addEventListener('click', function(e){
-      if(e.target.closest('[data-sf-filters-toggle]')) setOpen(pop.hidden);
-    }, true);
 
     box.addEventListener('change', function(e){
       const sel = e.target.closest('[data-sf-pick]');
       if(!sel) return;
       S.config.ideaAI[sel.dataset.sfPick] = sel.value;
       if(typeof save === 'function') save();
-      paint();
       if(typeof toast === 'function') toast(sel.value.indexOf('Any') === 0 ? 'Cleared' : sel.value);
     }, true);
 
-    /* clicking anywhere else, or Escape, puts the panel away */
-    document.addEventListener('click', function(e){
-      if(!e.target.closest || e.target.closest('[data-sf-filters]')) return;
-      setOpen(false);
-    }, true);
-    document.addEventListener('keydown', function(e){
-      if(e.key === 'Escape') setOpen(false);
-    }, true);
+    if(typeof window.enhanceSelects === 'function') window.enhanceSelects(box);
   }
 
   /* the choices ride along with the project brief the AI already gets */
