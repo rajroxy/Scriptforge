@@ -275,7 +275,7 @@
   /* A build tag in the panel's head, so "am I on the new build?" is one
      glance instead of a guess. This matches the polish.js version in
      index.html. */
-  const BUILD = 'v13';
+  const BUILD = 'v14';
 
   /* This app is a single page that never reloads itself, so a tab left open
      keeps running the code it was opened with — fixes included. When the build
@@ -315,6 +315,19 @@
     if(!body) return;
     const defs = (typeof SF_FAB_DEFAULT !== 'undefined' && SF_FAB_DEFAULT) ? SF_FAB_DEFAULT : TEXT_ACTIONS;
     const opts = pageOptions();
+
+    /* The prompt page's panel is Prompt me and nothing else: no writing
+       actions, no language actions, no section headings, and no subtitle
+       under the option — just the one row. */
+    if((S.page === 'inspire' || S.page === 'idea') && opts && opts.length){
+      body.innerHTML = opts.map(function(o){
+        return '<button class="fab-ai-opt" data-fabai="' + o.fn + '" title="' + esc(o.desc) + '">'
+          + '<span class="fa-ic"><i class="bi bi-' + o.icon + '"></i></span>'
+          + '<span class="fa-txt"><b>' + esc(o.label) + '</b></span>'
+          + '</button>';
+      }).join('');
+      return;
+    }
 
     const line = function(o){
       return '<button class="fab-ai-opt" data-fabai="' + o.fn + '" title="' + esc(o.desc) + '">'
