@@ -47,6 +47,7 @@ SETTINGS.open = function(){
      const tabs = [
     {divider:true},
     {id:'ai',           icon:'stars',          label:'AI Assistance'},
+    {id:'plugins',      icon:'puzzle',         label:'Plugins'},
     {divider:true},
     {id:'general',      icon:'gear',           label:'General'},
     {id:'appearance',   icon:'palette',        label:'Appearance'},
@@ -54,7 +55,7 @@ SETTINGS.open = function(){
     {id:'language',     icon:'translate',      label:'Language'},
     {id:'sound',        icon:'volume-up',      label:'Sound'},
     {divider:true},
-    {id:'plugins',      icon:'puzzle',         label:'Plugins'},
+    {id:'custom',       icon:'sliders',        label:'Custom'},
     {divider:true}
   ];
   const tabBar = $('setTabs');
@@ -277,7 +278,13 @@ function applyConfig(key){
       break;
     case 'fontSize':
       root.style.setProperty('--doc-size', c.fontSize + 'px');
-      const e2 = $('editor'); if(e2) e2.style.fontSize = c.fontSize + 'px';
+      /* every writing surface, not only the manuscript: the draft/editor
+         panes carry their own element, and a repaint re-creates it, so
+         the token above plus this sweep is what actually lands */
+      Array.prototype.forEach.call(
+        document.querySelectorAll('#editor, .write-doc, .editor-doc, .sf-split-doc, .sf-split-editor'),
+        function(el){ el.style.fontSize = c.fontSize + 'px'; }
+      );
       break;
     case 'lineHeight':
       root.style.setProperty('--doc-line', c.lineHeight);
@@ -304,6 +311,21 @@ function applyConfig(key){
       document.body.classList.toggle('eye-comfort', !!c.eyeComfort);
       root.style.setProperty('--eye-amount', eyeComfortAlpha());
       break;
+    case 'uiStyle':
+    case 'iconPack':
+      // the interface style and the icon set live as two marks on <html>,
+      // and the sheets are scoped to them (see styles-pack.js / .css)
+      if(typeof window.sfApplyUiStyle === 'function') window.sfApplyUiStyle();
+      break;
+    case 'uiBrightness': {
+      // how bright the whole interface is. 100% is the app untouched, and at
+      // 100% the filter is not applied at all — so a writer who never touches
+      // this slider gets exactly the app that was there before it existed.
+      const b = Math.max(40, Math.min(160, Number(c.uiBrightness) || 100));
+      root.style.setProperty('--ui-bright', String(b / 100));
+      document.body.classList.toggle('ui-bright', b !== 100);
+      break;
+    }
     case 'expOverlay':
       // the editor toolbar carries one pane button: the docked split screen
       // normally, the floating overlay when this is on
@@ -347,7 +369,7 @@ function applyAllConfig(){
   rs.setProperty('--border-opacity', 1);
   rs.setProperty('--backdrop-blur', '0px');
   ['theme','font','uiFont','fontSize','lineHeight','letterSpacing','wordSpacing','paraSpacing','editorWidth','uiScale','eyeComfort',
-   'expMixedFonts','expOverlay'].forEach(applyConfig);
+   'uiBrightness','uiStyle','iconPack','expMixedFonts','expOverlay'].forEach(applyConfig);
   if(typeof applyVisualizerAlign === 'function') applyVisualizerAlign();
 }
 
@@ -435,24 +457,10 @@ SETTINGS.renderers.appearance = function(root){
 
   // ── COLOR THEME — nine dark palettes and nine light palettes.
   //    The Light / Dark switch sits right of the card title and swaps the grid.
+  /* Every theme here is a dark one and the app runs dark, always — the
+     Light / Dark switch is gone, and setThemeMode is pinned in
+     final-fix.js so nothing stored from before can bring light back. */
   const c0 = card('Color theme', 'palette2');
-  const modes = document.createElement('div');
-  modes.className = 'chips set-head-chips';
-  const modeOn = (typeof window.sfThemeMode === 'function') ? window.sfThemeMode() : 'dark';
-  [['dark','Dark'],['light','Light']].forEach(function(p){
-    const b = document.createElement('button');
-    b.className = 'chip' + (modeOn === p[0] ? ' active' : '');
-    b.dataset.themeModePick = p[0];
-    b.innerHTML = '<i class="bi bi-' + (p[0] === 'dark' ? 'moon-stars' : 'sun') + '"></i> ' + p[1];
-    b.onclick = function(){
-      if(typeof window.setThemeMode === 'function') window.setThemeMode(p[0]);
-      if(typeof window.toast === 'function') toast(p[1] + ' mode');
-      renderSetTab('appearance');
-    };
-    modes.appendChild(b);
-  });
-  const c0title = c0.querySelector('.set-card-title');
-  if(c0title) c0title.appendChild(modes); else c0.appendChild(modes);
   c0.appendChild(buildThemeGrid());
   root.appendChild(c0);
 
@@ -480,10 +488,40 @@ SETTINGS.renderers.appearance = function(root){
   };
   cEye.appendChild(row('Filter strength', 'How warm the filter is (0 = off)', [eyeRng, eyeVal]));
 
+  // ── BRIGHTNESS — dim or lift the WHOLE interface, every theme included.
+  //    100% is the app exactly as it is; below dims, above lifts.
+  const brRng = document.createElement('input');
+  brRng.type = 'range';
+  brRng.className = 'rng';
+  brRng.min = '40'; brRng.max = '160'; brRng.step = '5';
+  brRng.value = S.config.uiBrightness ?? 100;
+  const brVal = document.createElement('span');
+  brVal.className = 'rng-val';
+  brVal.textContent = (S.config.uiBrightness ?? 100) + '%';
+  brRng.oninput = function(){
+    S.config.uiBrightness = parseInt(brRng.value, 10) || 100;
+    brVal.textContent = S.config.uiBrightness + '%';
+    applyConfig('uiBrightness');
+    save();
+  };
+  const brReset = document.createElement('button');
+  brReset.type = 'button';
+  brReset.className = 'btn btn-ghost';
+  brReset.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i>';
+  brReset.title = 'Reset to 100%';
+  brReset.onclick = function(){
+    S.config.uiBrightness = 100;
+    brRng.value = 100;
+    brVal.textContent = '100%';
+    applyConfig('uiBrightness');
+    save();
+  };
+  cEye.appendChild(row('Brightness', 'Dim or lift the whole interface (100% = untouched)', [brRng, brVal, brReset]));
+
   const eyeHint = document.createElement('div');
   eyeHint.className = 'tiny muted';
   eyeHint.style.marginTop = '4px';
-  eyeHint.textContent = 'Layers over every theme and every light-on-dark surface — including the overlay screen and the players.';
+  eyeHint.textContent = 'Both layer over every theme and every light-on-dark surface — including the overlay screen and the players. Eye comfort tints warm; Brightness dims or lifts the whole interface.';
   cEye.appendChild(eyeHint);
   root.appendChild(cEye);
 
@@ -530,6 +568,14 @@ SETTINGS.renderers.appearance = function(root){
   };
   metric('Font size', 'fontSize', 12, 40, .5, 'px');
 
+  /* A sample line under the size slider, drawn in the writing face at the
+     size you just picked: a size you cannot see is a size you cannot tell
+     apart from a broken one. final-fix.js keeps it in step. */
+  const sizeSample = document.createElement('div');
+  sizeSample.className = 'font-size-sample';
+  sizeSample.textContent = 'The rain has not stopped for a week.';
+  cFont.appendChild(sizeSample);
+
   root.appendChild(cFont);
 
   // ── ANIMATION ──
@@ -574,6 +620,17 @@ SETTINGS.renderers.appearance = function(root){
 
   root.appendChild(c8);
 
+  /* ── INTERFACE STYLE — there is one, and it is the app's own.
+     Flutter (Material 3) used to be offered beside it; it is gone, so
+     nothing can re-style a page, a bar, a card, a panel, a menu, a field
+     or a row any more. Modern is what the app has always been: the CSS in
+     theme.css / layout.css / pages.css, and nothing else. (styles-pack.js
+     still stamps the mark, which is why nothing has to change there.)
+
+     The icon set is Bootstrap Icons alone, shipped in the app
+     (vendor/bootstrap-icons) — the markup is written against it, there is
+     nothing to pick and nothing is fetched. */
+
 };
 
 // ═══ APPLY THEME IMMEDIATELY ═══
@@ -586,6 +643,32 @@ function applyThemeNow(){
 window.applyThemeNow = applyThemeNow;
 
 SETTINGS.renderers.general = function(root){
+  /* ── YOUR NAME ──
+     The dashboard greets the writer by it (welcome.js), and it signs the
+     exports. It can be typed here, or handed in with a ?name= link, or
+     picked up from GitHub — all three write the same setting. */
+  const cName = card('Your name', 'person-badge');
+  const nameInp = document.createElement('input');
+  nameInp.type = 'text';
+  nameInp.className = 'inp';
+  nameInp.maxLength = 40;
+  nameInp.placeholder = 'Your name';
+  nameInp.value = S.config.userName || '';
+  nameInp.style.minWidth = '200px';
+  const nameSet = function(){
+    const typed = String(nameInp.value || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    S.config.userName = typed;
+    if(typed && !String(S.config.authorName || '').trim()) S.config.authorName = typed;
+    save();
+    /* the greeting follows immediately — no reload, no page change */
+    try{ if(typeof window.sfWelcomeRefresh === 'function') window.sfWelcomeRefresh(); }catch(e){}
+    if(typeof toast === 'function') toast(typed ? 'The app will greet you as ' + typed : 'The greeting is back to plain “Welcome back”');
+  };
+  nameInp.onchange = nameSet;
+  nameInp.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); nameSet(); nameInp.blur(); } });
+  cName.appendChild(row('Your name', 'Shown under “Welcome back” on the dashboard, and used to sign your exports', nameInp));
+  root.appendChild(cName);
+
   const c1 = card('Core', 'gear');
   const autoSave = document.createElement('div');
   autoSave.className = 'tgl';
@@ -597,13 +680,20 @@ SETTINGS.renderers.general = function(root){
   autoVer.className = 'tgl';
   bindToggle(autoVer, 'autoVersion');
 
+  /* ONE button. It saves a copy of the project file now — into the linked
+     folder (one file per project, rewritten) when there is one, and as a
+     download when the browser will not give the app a folder. “Choose
+     folder” and “Download a copy” were the same job under two names. */
   const verFile = document.createElement('button');
   verFile.className = 'btn btn-ghost';
+  /* autosave.js paints this — the label is where the copy actually goes */
+  verFile.setAttribute('data-auto-where', '1');
   verFile.innerHTML = '<i class="bi bi-folder2-open"></i> ' +
-    ((window.SF_AUTO && SF_AUTO.where) ? SF_AUTO.where() : 'Downloads');
+    ((window.SF_AUTO && SF_AUTO.where) ? SF_AUTO.where() : 'Save a copy');
   verFile.onclick = function(){
-    if(window.SF_AUTO && typeof SF_AUTO.link === 'function') SF_AUTO.link();
-    else toast('File access is not available in this browser', 'warn');
+    if(window.SF_AUTO && typeof SF_AUTO.saveNow === 'function') SF_AUTO.saveNow();
+    else if(window.SF_AUTO && typeof SF_AUTO.link === 'function') SF_AUTO.link();
+    else toast('Saving is not available in this browser', 'warn');
   };
   c1.appendChild(row('Auto-snapshot',
     'A restorable snapshot, and this same JSON file rewritten every 10 seconds as you write',
@@ -816,7 +906,6 @@ SETTINGS.renderers.type = function(root){
   classRow(c2, 'Typewriter scroll', 'Keep the cursor vertically centered while typing', 'typewriterMode', 'typewriter-mode');
   classRow(c2, 'Focus dimming', 'Dim everything except the current paragraph', 'focusDim', 'focus-dim');
   cfgRow(c2, 'Live readability', 'Show the Flesch-Kincaid score while typing', 'liveMetrics');
-  cfgRow(c2, 'Dictionary autocomplete', 'Suggest words from an offline dictionary', 'dictSuggest');
   root.appendChild(c2);
 
   /* ── Typing ── */
@@ -857,10 +946,235 @@ SETTINGS.renderers.type = function(root){
 
   /* ── Autocomplete ── */
   const c4 = card('Autocomplete', 'magic');
+  cfgRow(c4, 'Word suggestions', 'Complete the word as you type, from your own text — Tab or → takes it', 'autocomplete');
   cfgRow(c4, 'AI ghost text', 'Show the AI continuation as you pause', 'ghostText');
   cfgRow(c4, 'Suggestion chips', 'Quick actions along the bottom', 'suggestionChips');
   root.appendChild(c4);
 };
+
+/* ═══ Custom → Right-click menu ═══
+   The AI menu that opens when you right-click the round button is the same
+   seven buttons on every page; this is where you take out the ones you
+   never use. (This card is NOT what the “Right-click” name in the sidebar
+   is about — the Custom page itself holds your own writer switches.) */
+const SF_RC_ACTIONS = [
+  { k:'fixGrammar', label:'Fix grammar',   desc:'Tidy spelling, punctuation and agreement' },
+  { k:'improve',    label:'Improve',       desc:'Rewrite the passage better' },
+  { k:'rewrite',    label:'Rewrite',       desc:'Say the same thing another way' },
+  { k:'continue',   label:'Continue',      desc:'Keep writing from where it stops' },
+  { k:'expand',     label:'Expand',        desc:'Draw out what is already there' },
+  { k:'summarize',  label:'Summarize',     desc:'Condense the passage' }
+];
+
+function sfRightClick(){
+  if(!S.config.rightClick || typeof S.config.rightClick !== 'object') S.config.rightClick = {};
+  const rc = S.config.rightClick;
+  if(!rc.actions || typeof rc.actions !== 'object') rc.actions = {};
+  if(typeof rc.translate   !== 'boolean') rc.translate   = true;
+  if(typeof rc.pageOptions !== 'boolean') rc.pageOptions = true;
+  if(typeof rc.chat         !== 'boolean') rc.chat        = true;
+  return rc;
+}
+window.sfRightClick = sfRightClick;
+window.sfRcOn = function(k){ return sfRightClick().actions[k] !== false; };
+
+SETTINGS.renderers.custom = function(root){
+  const rc = sfRightClick();
+
+  /* ═══ YOUR SWITCHES ═══
+     Overlay · Remixing · What you like · Intermixing. They used to live in
+     the little panel that opens when you right-click the Settings button;
+     they are Settings of their own now, with their controls beside them. */
+  const applyCfg = function(k){ try{ if(typeof applyConfig === 'function') applyConfig(k); }catch(e){} };
+  const wrap = function(){ const d = document.createElement('div'); d.className = 'cust-inline'; return d; };
+  const tgl = function(on, fn){
+    const t = document.createElement('div');
+    t.className = 'tgl';
+    t.classList.toggle('on', !!on);
+    t.onclick = function(e){ e.stopPropagation(); fn(t); };
+    return t;
+  };
+  const sel = function(pairs, value, onPick){
+    const s = document.createElement('select');
+    s.className = 'sel';
+    pairs.forEach(function(p){
+      const o = document.createElement('option');
+      o.value = p[0]; o.textContent = p[1];
+      if(String(p[0]) === String(value)) o.selected = true;
+      s.appendChild(o);
+    });
+    s.onchange = function(){ onPick(s.value); save(); };
+    return s;
+  };
+  const btn = function(icon, label, fn){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-ghost';
+    b.innerHTML = '<i class="bi bi-' + icon + '"></i> ' + label;
+    b.onclick = fn;
+    return b;
+  };
+
+  const c0 = card('Your switches', 'sliders');
+
+  /* Overlay */
+  const ovWrap = wrap();
+  if(!S.config.overlay) S.config.overlay = {};
+  ovWrap.appendChild(sel([[480,'480 px'],[560,'560 px'],[640,'640 px'],[760,'760 px'],[900,'900 px']],
+    S.config.overlay.w || 640,
+    function(v){ S.config.overlay.w = parseInt(v, 10) || 640; if(window.overlayShow) overlayShow(true); }));
+  ovWrap.appendChild(sel([[320,'320 px'],[420,'420 px'],[500,'500 px'],[600,'600 px']],
+    S.config.overlay.h || 420,
+    function(v){ S.config.overlay.h = parseInt(v, 10) || 420; if(window.overlayShow) overlayShow(true); }));
+  ovWrap.appendChild(btn('arrow-clockwise', 'Re-centre', function(){
+    S.config.overlay.x = null; S.config.overlay.y = null;
+    save();
+    if(window.overlayShow) overlayShow(true);
+    toast('Overlay re-centred');
+  }));
+  c0.appendChild(row('Overlay', 'A floating pane over the whole app — width, height and where it sits',
+    [tgl(S.config.expOverlay, function(t){
+        S.config.expOverlay = !S.config.expOverlay;
+        t.classList.toggle('on', !!S.config.expOverlay);
+        applyCfg('expOverlay'); save();
+      }), ovWrap]));
+
+  /* Remixing */
+  c0.appendChild(row('Remixing', 'Tidy your own text into proper paragraphs as you write',
+    [tgl(S.config.expOrganize, function(t){
+        S.config.expOrganize = !S.config.expOrganize;
+        t.classList.toggle('on', !!S.config.expOrganize);
+        save();
+      }),
+     btn('list-nested', 'Organise now', function(){
+       closeModal();
+       if(window.AI_FNS && window.AI_FNS.organize) window.AI_FNS.organize();
+       else toast('Open the editor first', 'warn');
+     })]));
+
+  /* What you like */
+  if(!S.config.plugins) S.config.plugins = {};
+  c0.appendChild(row('What you like', 'Type Hinglish, get Devanagari as you go',
+    [tgl(S.config.plugins.hinglish !== false, function(t){
+        S.config.plugins.hinglish = S.config.plugins.hinglish === false;
+        t.classList.toggle('on', S.config.plugins.hinglish !== false);
+        applyCfg('plugins'); save();
+      }),
+     sel([['devanagari','Hindi (देवनागरी)'],['english','English']],
+         (S.config.liveBarTarget === 'english') ? 'english' : 'devanagari',
+         function(v){ S.config.liveBarTarget = v; })]));
+
+  /* Intermixing — three faces taking turns */
+  if(!Array.isArray(S.config.mixedFonts)) S.config.mixedFonts = ['', '', ''];
+  const mixWrap = wrap();
+  mixWrap.classList.add('cust-mix-wrap');
+  /* the three faces on one line, the rotation on its own line under them */
+  const mixFaces = wrap();
+  /* Hand-written faces (Caveat, Dancing Script — the script/manuscript
+     faces) are left out on purpose: a script face taking its turn mid-word
+     is unreadable, so Intermixing offers the reading faces only. */
+  const fontPairs = [['','Editor font']].concat((window.FONTS || [])
+    .filter(function(f){ return f.g !== 'Hand'; })
+    .map(function(f){ return [f.name, f.name]; }));
+  [0,1,2].forEach(function(i){
+    mixFaces.appendChild(sel(fontPairs, S.config.mixedFonts[i] || '', function(v){
+      S.config.mixedFonts[i] = v;
+      paintMix();
+    }));
+  });
+  mixWrap.appendChild(mixFaces);
+
+  /* A live preview, because a font setting you cannot see is a setting you
+     cannot tell apart from a broken one: the sample line below takes the
+     turns exactly the way your typing will. */
+  const mixPreview = document.createElement('div');
+  mixPreview.className = 'mix-preview';
+  const mixLegend = document.createElement('div');
+  mixLegend.className = 'mix-legend';
+
+  const fontList = function(){ return (window.FONTS || []); };
+  const faceByName = function(name){
+    return fontList().filter(function(x){ return x.name === name; })[0] || null;
+  };
+  function mixStack(name){
+    if(!name) return '';
+    const f = faceByName(name);
+    return f ? f.f : "'" + name + "', serif";
+  }
+  /* The three faces the sample falls back on when a slot is left on
+     “Editor font” (or names something that is no longer in the list): a
+     serif, a sans and a mono, so the sample can never read as one face.
+     A mix you cannot see is exactly what made this setting look broken. */
+  const mixFallback = function(){
+    const first = function(g){ const l = fontList().filter(function(f){ return f.g === g; }); return l[0] ? l[0].name : ''; };
+    return [first('Serif'), first('Sans'), first('Mono')];
+  };
+  const mixFaces3 = function(){
+    const fb = mixFallback();
+    return [0,1,2].map(function(i){
+      const chosen = (S.config.mixedFonts || [])[i];
+      return (chosen && faceByName(chosen)) ? chosen : (fb[i] || 'Editor font');
+    });
+  };
+  function paintMix(){
+    if(!Array.isArray(S.config.mixedFonts)) S.config.mixedFonts = ['', '', ''];
+    const sc = (S.config.mixedFontScope === 'word' || S.config.mixedFontScope === 'sentence')
+      ? S.config.mixedFontScope : 'letter';
+    const faces = mixFaces3();
+    const stackAt = function(i){
+      const s = mixStack(faces[i % 3]);
+      return s ? 'font-family:' + s : 'font-family:inherit';
+    };
+    const one = 'The rain has not stopped for a week.';
+    const two = 'You kept the receipt.';
+    if(sc === 'word'){
+      mixPreview.innerHTML = (one + ' ' + two).split(' ').map(function(w, i){
+        return '<span style="' + stackAt(i) + '">' + w + '</span>';
+      }).join(' ');
+    }else if(sc === 'sentence'){
+      mixPreview.innerHTML = '<span style="' + stackAt(0) + '">' + one + '</span> '
+        + '<span style="' + stackAt(1) + '">' + two + '</span>';
+    }else{
+      mixPreview.innerHTML = one.split('').map(function(ch, i){
+        return '<span style="' + stackAt(i) + '">' + (ch === ' ' ? '&nbsp;' : ch) + '</span>';
+      }).join('');
+    }
+    /* which face is which, so the sample can be read rather than guessed */
+    mixLegend.innerHTML = faces.map(function(n, i){
+      return '<span><b>' + (i + 1) + '</b> ' + esc(n) + '</span>';
+    }).join('');
+    const on = !!S.config.expMixedFonts;
+    mixPreview.classList.toggle('off', !on);
+    mixPreview.setAttribute('title', on
+      ? 'This is what your typing does'
+      : 'Switch Intermixing on to write with it');
+  }
+
+  const scopes = ['letter','word','sentence'];
+  if(scopes.indexOf(S.config.mixedFontScope) < 0) S.config.mixedFontScope = 'letter';
+  const mixScope = wrap();
+  mixScope.appendChild(sel([['letter','Letter randomisation'],['word','Word randomisation'],['sentence','Sentence randomisation']],
+    S.config.mixedFontScope,
+    function(v){ S.config.mixedFontScope = v; paintMix(); }));
+  mixWrap.appendChild(mixScope);
+  mixWrap.appendChild(mixPreview);
+  mixWrap.appendChild(mixLegend);
+  paintMix();
+  c0.appendChild(row('Intermixing', 'Three fonts take turns as you type, in the editor — the preview below shows it',      [tgl(S.config.expMixedFonts, function(t){
+        S.config.expMixedFonts = !S.config.expMixedFonts;
+        t.classList.toggle('on', !!S.config.expMixedFonts);
+        applyCfg('expMixedFonts');
+        paintMix();
+        save();
+      }), mixWrap]));
+  root.appendChild(c0);
+};
+
+/* The round-button menu's switches (its actions, Translate, per-page
+   options, the chat shortcut) are no longer offered in Settings: the
+   panel shows everything the page has. The saved prefs and the
+   sfRightClick() reader stay, so nothing that already chose them
+   changes; there is simply no switch to turn them off any more. */
 
 SETTINGS.renderers.plugins = function(root){
   /* the word the writer has selected, so a lookup opens on it */
@@ -908,21 +1222,10 @@ SETTINGS.renderers.plugins = function(root){
      Only tools that are not already in the app live here: the Calculator
      (Utilities → Calculator), the word goal (Utilities → Word goal) and
      the reading-time readout (status bar) had their own homes. ── */
+  /* The Research group (Web search · Wikipedia · Image search · Quotes ·
+     Public-domain books) is gone — the writer asked for the research
+     plugins out of the app. */
   const GROUPS = [
-    { title:'Research', icon:'search',
-      note:'Look something up without leaving the page. Results render inline.',
-      items:[
-        { k:'websearch',  name:'Web search',         src:'ddg',    icon:'search',
-          desc:'DuckDuckGo results, in a panel of its own' },
-        { k:'wikipedia',  name:'Wikipedia',          src:'wiki',   icon:'book',
-          desc:'Summaries from the free encyclopedia' },
-        { k:'imagesearch',name:'Image search',       src:'images', icon:'image',
-          desc:'Pictures from Wikimedia Commons' },
-        { k:'quotes',     name:'Quotes',             src:'quote',  icon:'quote',
-          desc:'Lines worth stealing, with sources' },
-        { k:'books',      name:'Public-domain books', src:'books', icon:'book-half',
-          desc:'Search Project Gutenberg and keep what you find' }
-      ] },
     { title:'Words', icon:'book',
       note:'Definitions and word-finding for the sentence in front of you.',
       items:[

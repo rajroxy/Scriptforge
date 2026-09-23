@@ -87,8 +87,12 @@
     const page = (typeof S !== 'undefined' && S.page) || '';
     const root = document.getElementById('page-' + page);
 
-    /* the bar only ever lives on the active page */
-    Array.prototype.slice.call(document.querySelectorAll('.sf-bar')).forEach(function(b){
+    /* The bar this file builds only ever lives on its own page. It must
+       NOT touch another layer's bar: the script page builds its own bar
+       with the same .sf-bar class, and a sweep that removed every .sf-bar
+       off this page deleted the script's bar on every repaint. Only the
+       bars carrying data-sf-bar are this file's. */
+    Array.prototype.slice.call(document.querySelectorAll('.sf-bar[data-sf-bar]')).forEach(function(b){
       if(page !== PAGE || b.parentElement !== root) b.remove();
     });
     if(page !== PAGE || !root) return;
@@ -111,6 +115,20 @@
       const fn = what.slice(3);
       if(window.AI_FNS && window.AI_FNS[fn]) window.AI_FNS[fn]();
       else if(typeof toast === 'function') toast('That action is not available here', 'warn');
+      return;
+    }
+    if(what === 'tools:addDraft'){
+      /* New draft goes through the app's OWN action — the one behind the “+”
+         on the page — so the new draft is the selected one and the title is
+         focused, exactly as it is when the page's own button is used. The
+         action is bound to a hidden stand-in; the bar's button only asks. */
+      const ghost = document.createElement('button');
+      ghost.type = 'button';
+      ghost.setAttribute('data-act', 'add-draft');
+      ghost.style.display = 'none';
+      document.body.appendChild(ghost);
+      ghost.click();
+      ghost.remove();
       return;
     }
     if(what.indexOf('tools:') === 0){

@@ -104,6 +104,80 @@
     cards[3].dataset.sfSections = '1';
   };
 
+  /* ═══ KANBAN — a chapter card holds its subchapters
+
+     The board used to draw one card per chapter AND one per subchapter, so
+     a book of twelve chapters was forty loose cards and the structure was
+     nowhere. Now a chapter is the card: its subchapters are listed inside
+     it, each with its own count, and the card's subtitle reads
+     “3 subchapters · 1,204 words”. Both are read from the project on every
+     pass, so they follow whatever the chapter actually holds.
+
+     Every write is compared with what is already on screen first, so the
+     mutation sweep that triggers this can never loop. ─── */
+  const kbFeet = function(){
+    const board = document.getElementById('kbBoard');
+    if(!board) return;
+    const d = (typeof D === 'function') ? D() : null;
+    if(!d || !Array.isArray(d.chapters)) return;
+    if(typeof olWords !== 'function') return;
+
+    const info = {}, childOf = {};
+    d.chapters.forEach(function(c, i){
+      const kids = c.children || [];
+      info[c.id] = {
+        title: c.title || ('Chapter ' + (i + 1)),
+        words: olWords(c.content),
+        kids:  kids.map(function(x, j){
+          childOf[x.id] = true;
+          return { id:x.id, title: x.title || ('Subchapter ' + (j + 1)), words: olWords(x.content) };
+        })
+      };
+    });
+
+    /* a subchapter is not a card of its own any more */
+    Array.prototype.forEach.call(board.querySelectorAll('.kb-card'), function(card){
+      if(childOf[card.dataset.kbCard]) card.remove();
+    });
+
+    Array.prototype.forEach.call(board.querySelectorAll('.kb-card'), function(card){
+      const i = info[card.dataset.kbCard];
+      if(!i) return;
+
+      /* the subchapters, listed under the chapter's own title */
+      const sig = i.kids.map(function(k){ return k.id + '|' + k.title + '|' + k.words; }).join('\u0001');
+      let box = card.querySelector('.kb-subs');
+      if(!box){
+        box = document.createElement('div');
+        box.className = 'kb-subs';
+        const title = card.querySelector('.kb-card-title');
+        if(title && title.parentNode === card) title.after(box);
+        else card.insertBefore(box, card.firstChild);
+      }
+      if(box.dataset.sig !== sig){
+        box.dataset.sig = sig;
+        box.innerHTML = i.kids.length
+          ? i.kids.map(function(k){
+              return '<div class="kb-sub" data-kb-sub="' + esc(k.id) + '">'
+                + '<span class="kb-sub-name">' + esc(k.title) + '</span>'
+                + '<span class="kb-sub-words">' + k.words.toLocaleString() + 'w</span>'
+                + '</div>';
+            }).join('')
+          : '';
+        box.hidden = !i.kids.length;
+      }
+
+      /* the subtitle: how many subchapters, and how many words in all */
+      const span = card.querySelector('.kb-card-foot span');
+      if(span){
+        const n = i.kids.length;
+        const text = (n ? n + (n === 1 ? ' subchapter' : ' subchapters') + ' · ' : '')
+                   + i.words.toLocaleString() + ' words';
+        if(span.textContent !== text) span.textContent = text;
+      }
+    });
+  };
+
   const sweep = function(){
     /* the draft card's + — the bar's own New draft button is the way in now */
     Array.prototype.forEach.call(
@@ -120,7 +194,7 @@
     statsLabel();
     promptPage();
     draftTypo();
-    alignStripDivider();
+    kbFeet();
   };
 
   let raf = 0;
@@ -134,33 +208,12 @@
     new MutationObserver(schedule).observe(document.body, { childList:true, subtree:true });
   }
 
-  /* The chapter strip's first hairline belongs to the same column as the
-     toolbar's divider before Bold — measured from the live layout, so it
-     holds at every window size. The rule that reads it sits in polish.css
-     (margin-left:var(--sf-sep-x)); the value is written here. */
-  const alignStripDivider = function(){
-    const strip = document.getElementById('chapterControls');
-    const toolbar = document.getElementById('writeToolbar');
-    if(!strip || !toolbar) return;
-    const sep = strip.querySelector('.cc-sep');
-    const bold = toolbar.querySelector('[data-cmd="bold"]');
-    if(!sep || !bold) return;
-    const group = bold.closest('.tb-group') || bold.parentElement;
-    if(!group) return;
-
-    /* the divider sits in the right border of the group before Bold */
-    const before = group.previousElementSibling;
-    const line = before ? before.getBoundingClientRect().right
-                        : group.getBoundingClientRect().left;
-
-    /* measure from the rule's own resting place, so each pass is absolute */
-    sep.style.setProperty('--sf-sep-x', '8px');
-    const base = sep.getBoundingClientRect().left;
-    if(!isFinite(base) || !isFinite(line)) return;
-
-    const want = Math.max(-260, Math.min(260, Math.round(line - base + 8)));
-    sep.style.setProperty('--sf-sep-x', want + 'px');
-  };
+  /* The chapter strip's hairlines are placed by chapter-align.js alone.
+     There used to be a second aligner here (a --sf-sep-x margin written on
+     the first hairline) and the two fought over the same element: one moved
+     it with a margin, the other with a transform, and because each measured
+     the other's result the line flipped between two spots on every repaint
+     — which read as a doubled divider beside the note icon. One owner now. */
 
   /* ═══ 3 · FAB AI — the manuscript and the canvas ═══ */
   /* The draft page's Typography button sits at the left of its bar, before
@@ -205,6 +258,13 @@
      carries no naming jobs of its own: those belong to the Outline page, and
      the manuscript's right-click is text and structure-checking only. */
   const EXTRA = {
+    /* the Draft page's own menu. It is a writing page, so its actions are
+       about the draft, not the writing-helpers: those belong to the
+       manuscript and the screenplay (see keepsTextMenu below). */
+    draft: [
+      { fn:'fabDraftChat', icon:'chat-left-text', label:'Open the AI chat',
+        desc:'The draft chat for this project' }
+    ],
     mindmap: [
       { fn:'mmGrow', icon:'diagram-3', label:'Grow this canvas',
         desc:'The next cards and links this map is missing' },
@@ -309,8 +369,32 @@
     { fn:'expand',     icon:'arrows-angle-expand', label:'Expand' },
     { fn:'summarize',  icon:'card-text',           label:'Summarize' }
   ];
-  const textChips = function(){
-    return TEXT_ACTIONS.map(function(a){
+  /* Settings → Custom → Right-click menu decides which are offered at all */
+  const rcOn = function(k){ return (typeof window.sfRcOn === 'function') ? window.sfRcOn(k) : true; };
+  const liveActions = function(){
+    return TEXT_ACTIONS.filter(function(a){ return rcOn(a.fn); });
+  };
+  const rcFlag = function(k){
+    if(typeof window.sfRightClick !== 'function') return true;
+    return window.sfRightClick()[k] !== false;
+  };
+  /* Only the manuscript — and the screenplay, whose writing view is that
+     same page — keep the writing actions and Translate in this menu. Every
+     other page's panel is its own options and nothing else. */
+  const keepsTextMenu = function(){
+    try{
+      if(S.mode === 'screenplay') return true;
+      if(['manuscript', 'script', 'screenplay', 'write'].indexOf(S.page) >= 0) return true;
+    }catch(e){}
+    return false;
+  };
+  /* the Draft page's one option, wired to the chat's own open() */
+  F.fabDraftChat = function(){
+    if(window.DraftChat && typeof window.DraftChat.open === 'function'){ window.DraftChat.open(); return; }
+    if(typeof toast === 'function') toast('Open the Draft page to use the chat', 'warn');
+  };
+  const textChips = function(list){
+    return (list || liveActions()).map(function(a){
       return '<button class="ai-chip" data-ai="' + a.fn + '"><i class="bi bi-' + a.icon + '"></i> ' + a.label + '</button>';
     }).join('');
   };
@@ -318,7 +402,7 @@
   /* The build this file is, written quietly onto the document element — it
      matches the polish.js version in index.html and is what the reload guard
      below compares. Nothing is drawn on screen for it. */
-  const BUILD = 'v19';
+  const BUILD = 'v24';
 
   /* The build this tab last ran is remembered, but the app no longer reloads
      itself onto a new one: that came up as the app loading twice on boot.
@@ -339,7 +423,11 @@
     const body = document.getElementById('fabAIBody');
     if(!body) return;
     const defs = (typeof SF_FAB_DEFAULT !== 'undefined' && SF_FAB_DEFAULT) ? SF_FAB_DEFAULT : TEXT_ACTIONS;
-    const opts = pageOptions();
+    /* the page's own options, and the writing actions, as Settings →
+       AI Assistance → Right-click menu leaves them */
+    const opts = rcFlag('pageOptions') ? pageOptions() : null;
+    const keepsMenu = keepsTextMenu();
+    const acts = keepsMenu ? liveActions() : [];
 
     /* Two panels are their options and nothing else:
          · the prompt page  — Prompt me alone, no headings at all
@@ -361,10 +449,12 @@
       return;
     }
 
+    /* a page option is its label and its icon only — the description is a
+       tooltip, never a subtitle under the row */
     const line = function(o){
       return '<button class="fab-ai-opt" data-fabai="' + o.fn + '" title="' + esc(o.desc) + '">'
         + '<span class="fa-ic"><i class="bi bi-' + o.icon + '"></i></span>'
-        + '<span class="fa-txt"><b>' + esc(o.label) + '</b><em>' + esc(o.desc) + '</em></span>'
+        + '<span class="fa-txt"><b>' + esc(o.label) + '</b></span>'
         + '</button>';
     };
 
@@ -375,12 +465,24 @@
               ? '<div class="fab-ai-ask"><input class="ai-input" data-fabai-input placeholder="Ask about a character, place or event…">'
                 + '<button class="ai-chip primary" data-fabai-ask><i class="bi bi-send"></i></button></div>'
               : '')
-          + '<div class="fab-ai-sec">Text</div>' + textChips()
-        : defs.map(function(a){
-            return '<button class="ai-chip" data-ai="' + a.fn + '"><i class="bi bi-' + a.icon + '"></i> ' + a.label + '</button>';
-          }).join(''))
-      + '<div class="fab-ai-sec">' + (opts ? 'Language' : 'Text') + '</div>'
-      + '<button class="ai-chip" data-ai="translate"><i class="bi bi-translate"></i> Translate</button>';
+          + (acts.length ? '<div class="fab-ai-sec">Text</div>' + textChips(acts) : '')
+        : (keepsMenu && acts.length
+            ? '<div class="fab-ai-sec">Text</div>' + textChips(acts)
+            : defs.filter(function(a){ return rcOn(a.fn); }).map(function(a){
+                return '<button class="ai-chip" data-ai="' + a.fn + '"><i class="bi bi-' + a.icon + '"></i> ' + a.label + '</button>';
+              }).join('')))
+      + ((keepsMenu && rcFlag('translate'))
+          ? '<div class="fab-ai-sec">' + (opts || acts.length ? 'Language' : 'Text') + '</div>'
+            + '<button class="ai-chip" data-ai="translate"><i class="bi bi-translate"></i> Translate</button>'
+          : '');
+
+    /* a page with no options of its own and no writing menu still gets a
+       usable panel rather than a blank one */
+    if(!body.innerHTML){
+      body.innerHTML = defs.filter(function(a){ return rcOn(a.fn); }).map(function(a){
+        return '<button class="ai-chip" data-ai="' + a.fn + '"><i class="bi bi-' + a.icon + '"></i> ' + a.label + '</button>';
+      }).join('');
+    }
   };
 
   /* The panel's own options are handled by the app's listener, which is
@@ -399,17 +501,17 @@
   }, true);
 
   /* ═══ 4 · THE PROMPT PAGE ═══ */
-  const GENRES = ['Any genre','Literary','Thriller','Mystery','Crime','Romance','Fantasy',
+  const GENRES = ['None','Literary','Thriller','Mystery','Crime','Romance','Fantasy',
                   'Science fiction','Horror','Historical','Western','Comedy','Adventure',
                   'Coming of age','Speculative'];
-  const TAGS   = ['Any tag','Slow burn','Heist','Revenge','Family','Found family','Redemption',
+  const TAGS   = ['None','Slow burn','Heist','Revenge','Family','Found family','Redemption',
                   'Survival','Political','Domestic','Supernatural','Road trip','Courtroom',
                   'War','School','Workplace','Enemies to lovers','Second chance',
                   'Secret identity','Underdog','Reluctant hero','Fish out of water',
                   'Locked room','Whodunit','Amnesia','Time loop','Dystopia','Cyberpunk',
                   'Antihero','Small town','Mentor and student','Rivalry','Coming home',
                   'Haunted house','Court intrigue','Deep space','Prison break'];
-  const THEMES = ['Any theme','Love and loss','Power','Identity','Memory','Grief','Freedom',
+  const THEMES = ['None','Love and loss','Power','Identity','Memory','Grief','Freedom',
                   'Betrayal','Hope','Justice','Obsession','Belonging','Time','Faith','Technology',
                   'Duty and desire','Truth and lies','Guilt','Forgiveness','Courage','Loneliness',
                   'Tradition and change','Fate and free will','Ambition','Sacrifice','Legacy',
@@ -458,7 +560,7 @@
       if(!sel) return;
       S.config.ideaAI[sel.dataset.sfPick] = sel.value;
       if(typeof save === 'function') save();
-      if(typeof toast === 'function') toast(sel.value.indexOf('Any') === 0 ? 'Cleared' : sel.value);
+      if(typeof toast === 'function') toast(sel.value === 'None' ? 'Cleared' : sel.value);
     }, true);
 
     if(typeof window.enhanceSelects === 'function') window.enhanceSelects(box);
@@ -473,9 +575,9 @@
       try{
         const c = (S.config && S.config.ideaAI) || {};
         const picks = [];
-        if(c.genre && c.genre.indexOf('Any') !== 0) picks.push('genre: ' + c.genre);
-        if(c.tag   && c.tag.indexOf('Any')   !== 0) picks.push('tags: '  + c.tag);
-        if(c.theme && c.theme.indexOf('Any') !== 0) picks.push('themes: '+ c.theme);
+        if(c.genre && c.genre !== 'None') picks.push('genre: ' + c.genre);
+        if(c.tag   && c.tag   !== 'None') picks.push('tags: '  + c.tag);
+        if(c.theme && c.theme !== 'None') picks.push('themes: '+ c.theme);
         if(picks.length) out += '\n\nCHOSEN ON THE PROMPT PAGE:\n' + picks.join('\n');
       }catch(e){}
       return out;

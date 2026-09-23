@@ -90,11 +90,87 @@
     const head = page.querySelector('h1');
     if(!head) return;
     const name = userName();
-    const want = name ? 'Welcome back, ' + name : 'Welcome back';
-    if(String(head.textContent || '').trim() === want) return;
-    head.textContent = want;
-    if(name) head.setAttribute('title', 'Signed in as ' + name);
-    else head.removeAttribute('title');
+
+    /* TWO LINES: “Welcome back”, and the name UNDER it — never the two run
+       together as one sentence. The name keeps the display face and a step
+       more of the page's own colour, so the dashboard reads as the writer's
+       own desk rather than a generic app. */
+    if(String(head.textContent || '').trim() !== 'Welcome back') head.textContent = 'Welcome back';
+    head.removeAttribute('title');
+
+    let line = page.querySelector('#sfWelcomeName');
+    if(!line){
+      line = document.createElement('div');
+      line.id = 'sfWelcomeName';
+      line.className = 'sf-welcome-name';
+      (head.parentElement || page).appendChild(line);
+    }
+    const want = name || '';
+    if(String(line.textContent || '') !== want) line.textContent = want;
+    line.hidden = !name;
+    if(name) line.setAttribute('title', 'Signed in as ' + name);
+  };
+  /* Settings → General edits the name; the greeting follows at once */
+  window.sfWelcomeRefresh = function(){ try{ paint(); }catch(e){} };
+
+  /* ── the first run: the name, asked for once ──────────────────
+     A download link can carry a name, and so can GitHub or an export — but
+     a writer who simply opened the app has nothing to be greeted by. One
+     small panel asks for it, once, before the dashboard is read. */
+  const GATE_KEY = 'sf6_name_asked';
+  const askedAlready = function(){ try{ return localStorage.getItem(GATE_KEY) === '1'; }catch(e){ return false; } };
+  const markAsked = function(){ try{ localStorage.setItem(GATE_KEY, '1'); }catch(e){} };
+
+  const gate = function(){
+    if(userName() || askedAlready() || window.sfNameGateOpen) return;
+    /* once the app has painted a page at all — whatever page it opened on,
+       so the name is asked for on the way in, not when the dashboard is
+       finally visited */
+    if(!document.querySelector('.page.active')) return;
+    window.sfNameGateOpen = true;
+
+    const box = document.createElement('div');
+    box.className = 'sf-namegate';
+    box.innerHTML =
+        '<div class="sf-namegate-card">'
+      + '<div class="sf-namegate-ic"><i class="bi bi-pen-fill"></i></div>'
+      + '<h2>What should the app call you?</h2>'
+      + '<p>The dashboard greets you by this name and your exports are signed with it. '
+      +   'You can change it whenever you like.</p>'
+      + '<div class="sf-namegate-row">'
+      +   '<input type="text" id="sfNameGateInput" maxlength="40" placeholder="Your name" autocomplete="off" spellcheck="false">'
+      +   '<button type="button" class="btn btn-primary" id="sfNameGateGo">Enter</button>'
+      + '</div>'
+      + '<button type="button" class="sf-namegate-skip" id="sfNameGateSkip">Skip for now</button>'
+      + '</div>';
+    document.body.appendChild(box);
+
+    const input = box.querySelector('#sfNameGateInput');
+    if(input) setTimeout(function(){ try{ input.focus(); }catch(e){} }, 80);
+
+    const done = function(raw){
+      const typed = clean(raw);
+      const c = cfg();
+      if(typed && c){
+        c.userName = typed;
+        if(!clean(c.authorName)) c.authorName = typed;
+        keep();
+      }
+      markAsked();
+      window.sfNameGateOpen = false;
+      box.remove();
+      try{ paint(); }catch(e){}
+      if(typed && typeof toast === 'function') toast('Welcome, ' + typed);
+    };
+
+    const go = box.querySelector('#sfNameGateGo');
+    const skip = box.querySelector('#sfNameGateSkip');
+    if(go) go.addEventListener('click', function(){ done(input ? input.value : ''); });
+    if(skip) skip.addEventListener('click', function(){ done(''); });
+    if(input) input.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){ e.preventDefault(); done(input.value); }
+      else if(e.key === 'Escape'){ e.preventDefault(); done(''); }
+    });
   };
 
   let raf = 0;
@@ -103,6 +179,7 @@
     raf = requestAnimationFrame(function(){
       raf = 0;
       try{ paint(); }catch(e){}
+      try{ gate(); }catch(e){}
     });
   };
 

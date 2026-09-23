@@ -1,0 +1,194 @@
+/* ═══════════════════════════════════════════════════════════
+   ScriptForge — the last sheet
+
+   Loaded after every other stylesheet, so what it says is what the app
+   ends up looking like. Three jobs, and nothing else:
+
+     1 STRAY RULES      no box, hairline or outline round a group of
+                        buttons, and no second card inside the project
+                        row — the leftovers that read as "lines" in the
+                        corners of the app.
+     2 THE CONTROLS     the font-size sample under the slider, the canvas
+                        bar stripped to T · New card, the plan bar's two
+                        groups in the order the writer asked for.
+     3 THE CANVAS       the card an arm is sitting on while you click from
+                        one card to another.
+
+   The interface style is Modern — the app's own CSS — and always will be:
+   styles-pack.css (Flutter / Material 3) is gone from the app, so nothing
+   can add a radius, a border or a shadow the app did not draw itself.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ═══ 1 · STRAY RULES ═══ */
+
+/* the project row is ONE card. The wrap is the card; the row and the body
+   holding the name are content, so nothing between them draws a box. The
+   rule is deliberately not scoped to a style: this must never come back.
+   Backgrounds are left alone, so hover and selected tinting still read. */
+html body :is(.proj-item, .proj-row, .proj-body, .proj-name){
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  outline:none !important;
+}
+html body :is(.proj-item, .proj-row):focus,
+html body :is(.proj-item, .proj-row):focus-visible{ outline:none !important; }
+html body :is(.proj-item-wrap, .proj-item-wrap:hover, .proj-row:hover){
+  border:0 !important; box-shadow:none !important; outline:none !important;
+}
+
+/* A hairline between two groups of buttons is drawn by a border or an
+   outline on the group itself. The bars own their own separators (the
+   toolbar rules in polish.css), so any box round a group is a leftover. */
+html body :is(.ol-head-left, .ol-actions, .sf-bar-end, .mm-actions,
+              .plan-actions, .plan-tools, .draft-list-head, .kb-col-head,
+              .col-head, .set-head-chips, .stats-drops){ outline:none !important; }
+html body :is(.ol-head-left, .ol-actions, .mm-actions, .plan-actions){
+  border:0 !important;
+  box-shadow:none !important;
+  background:transparent !important;
+}
+/* the row-like containers that used to wear a hairline of their own */
+html body :is(.idea-card-row, .stats-cat-item, .sf-story-chip, .page-actions,
+              .read-top, .read-foot, .nb-pub-tabs, .ref-head){
+  outline:none !important;
+}
+
+/* ═══ 2 · THE CONTROLS ═══ */
+
+/* FONT SIZE — the sample line under the slider (Settings → Appearance →
+   Font), drawn in the writing face at the size you just picked, because a
+   size you cannot see is a size you cannot tell from a broken one.
+   final-fix.js keeps it in step with the slider. */
+html body .font-size-sample{
+  margin:6px 0 2px;
+  padding:10px 12px;
+  border:1px solid var(--line-2);
+  border-radius:var(--r-md, 6px);
+  background:var(--surface-2);
+  color:var(--ink-2);
+  font-family:var(--doc-font, inherit);
+  font-size:var(--doc-size, 17px);
+  line-height:var(--doc-line, 1.75);
+  letter-spacing:var(--doc-track, 0);
+  word-spacing:var(--doc-word, 0);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* CANVAS BAR — T and New card, and nothing else. The zoom & fit cluster
+   and Clear are off the bar: no readout is drawn there any more, so no
+   number can ever appear on it. Zooming is the wheel over the canvas and
+   the drag of empty space; Fit · Zoom in · Zoom out · Clear canvas are in
+   the page's own right-click list (final-fix.js). */
+html body #page-mindmap .mm-head .mm-zoomwrap,
+html body #page-mindmap .mm-head [data-mm="clear"],
+html body #page-mindmap .mm-head .mm-zoom,
+html body #page-mindmap .mm-head [data-mm="zoom-label"]{
+  display:none !important;
+}
+
+/* PLAN BAR — T · Add beat on the left, the board cluster at the right */
+html body #page-plan .page-head .ol-head-left{ gap:6px !important; }
+html body #page-plan .page-head .plan-picker{
+  display:flex !important; align-items:center !important; gap:4px !important;
+  margin-left:auto !important;
+}
+html body #page-plan .page-head .plan-board-sel{ min-width:132px !important; }
+
+/* the legend under the Intermixing sample: which face is which */
+html body .mix-legend{
+  display:flex; flex-wrap:wrap; gap:10px;
+  margin-top:6px;
+  font-size:10.5px; color:var(--ink-4);
+}
+html body .mix-legend span{ display:inline-flex; align-items:center; gap:5px; }
+html body .mix-legend b{
+  width:15px; height:15px; flex:0 0 15px;
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:50%;
+  background:var(--surface-3); color:var(--ink-2);
+  font-size:9px; font-weight:700;
+}
+
+/* ═══ THE TOOLBAR DIVIDERS ═══
+   A separator between two groups is the group's own right edge. The bar's
+   children are not all groups — a hidden one, or a bare button, can sit
+   between two of them — so “the last group” is not always the last child,
+   and a trailing hairline with nothing after it is what reads as a line
+   where no line belongs. final-fix.js marks the last VISIBLE group and
+   this is what answers the mark. The height is the bar's own, so every
+   divider in a row lines up. */
+html body :is(.write-toolbar, .toolbar, .tb, .fnt-bar, .sf-bar, .page-head) .tb-group{
+  align-self:stretch !important;
+  height:auto !important;
+  border-right:1px solid var(--line-2) !important;
+}
+html body :is(.write-toolbar, .toolbar, .tb, .fnt-bar, .sf-bar, .page-head) .tb-group.sf-tb-last{
+  border-right:0 !important;
+}
+
+/* ═══ 2b · THE COMMAND BOX ═══
+   A little smaller: it is a shortcut launcher, not a page. */
+html body .cmd-box{
+  width:360px !important;
+  max-height:360px !important;
+}
+html body .cmd-box .cmd-head{ padding:10px 12px !important; }
+html body .cmd-box .cmd-input{ font-size:12.5px !important; }
+
+/* ═══ 2c · WORKSPACES ON THE ROUND BUTTON ═══
+   The button's third job: with the pointer on it, ← → or a wheel notch
+   moves to the next workspace (workspaces.js). The badge says which one
+   you are in; it is only there while you are on the button, so the button
+   stays the button the rest of the time. */
+html body .fab-wrap .fab-ws-badge{
+  position:absolute;
+  right:14px; bottom:12px;
+  min-width:26px; height:16px;
+  padding:0 5px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:999px;
+  background:var(--surface-3, rgba(0,0,0,.28));
+  color:var(--ink-2);
+  font-size:9.5px; font-weight:700; letter-spacing:.03em;
+  pointer-events:none;
+  opacity:0;
+  transform:translateY(3px);
+  transition:opacity 160ms var(--ease), transform 160ms var(--ease);
+  z-index:2;
+}
+html body .fab-wrap.ws-hover .fab-ws-badge{ opacity:1; transform:translateY(0); }
+
+/* the page says which way you moved, and the button answers it */
+@keyframes sfWsFwd{
+  from{ transform:translateX(14px); opacity:.35; }
+  to  { transform:translateX(0);    opacity:1; }
+}
+@keyframes sfWsBack{
+  from{ transform:translateX(-14px); opacity:.35; }
+  to  { transform:translateX(0);     opacity:1; }
+}
+html body #stage.ws-slide-fwd{ animation:sfWsFwd 420ms var(--ease) both; }
+html body #stage.ws-slide-back{ animation:sfWsBack 420ms var(--ease) both; }
+html body .fab-wrap.ws-slide-fwd .fab-mark{ animation:sfWsFwd 420ms var(--ease) both; }
+html body .fab-wrap.ws-slide-back .fab-mark{ animation:sfWsBack 420ms var(--ease) both; }
+/* the preference for less motion wins, as it does everywhere else */
+html body.reduce-motion #stage.ws-slide-fwd,
+html body.reduce-motion #stage.ws-slide-back,
+html body.reduce-motion .fab-wrap.ws-slide-fwd .fab-mark,
+html body.reduce-motion .fab-wrap.ws-slide-back .fab-mark{ animation:none !important; }
+
+/* ═══ 3 · THE CANVAS ═══ */
+
+/* the card an arm is sitting on, and its dot — which stays visible while
+   the arm is on, so the next click is obvious */
+html body #page-mindmap .mm-node.mm-armed{
+  box-shadow:inset 0 0 0 1px var(--accent, var(--ink-3)), 0 10px 24px rgba(0,0,0,.20) !important;
+}
+html body #page-mindmap .mm-node.mm-armed .mm-port{
+  opacity:1 !important;
+  background:var(--accent, var(--ink)) !important;
+}
+html body #page-mindmap .mm-node .mm-port{ cursor:crosshair !important; }

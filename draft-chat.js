@@ -125,13 +125,88 @@
   const DC_LENGTH = {
     short:{label:'Short',text:'Keep every reply short — one to three sentences.'},
     medium:{label:'Medium',text:'Keep replies to a short paragraph.'},
-    long:{label:'Long',text:'Give as much detail as the question needs.'}
+    long:{label:'Long',text:'Give as much detail as the question needs.'},
+    briefest:{label:'Briefest',text:'Answer in as few words as will do — a line at most.'},
+    essay:{label:'Essay',text:'Take the room you need — several paragraphs are fine when the question deserves them.'}
+  };
+  /* ── HOW each reply is shaped — separate from what it is for (the reply
+     mode). These are the knobs beside Reply length: shape, depth, whether
+     to quote the draft, and how a reply ends. ── */
+  const DC_FORMAT = {
+    prose:{label:'Prose',text:'Write replies as plain prose, in sentences and paragraphs.'},
+    bullets:{label:'Bullets',text:'Shape replies as short bullet points.'},
+    steps:{label:'Numbered steps',text:'Shape replies as a numbered list of steps to take.'},
+    mixed:{label:'Mixed',text:'Use whichever shape fits: prose for the thought, a short list for the things to do.'},
+    script:{label:'Dialogue / script',text:'When you write example text, set it out as stage or screen text — speaker, line, direction.'}
+  };
+  /* ── PROSE STYLE — how much figure and scenery the answer carries.
+     This is for writers working against the default register: the house
+     style of most assistants is metaphor on metaphor with the weather doing
+     the work of a feeling, and a writer whose book has none of that gets an
+     answer written in a voice that is not theirs. “Director” and “Bare” turn
+     it off. ── */
+  const DC_PROSE = {
+    natural:  { label:'As it comes', text:'' },
+    direct:   { label:'Direct',
+      text:'WRITE DIRECTLY. Do not use metaphor or simile, and do not reach for figurative language at all unless the writer used one first. Say the thing rather than describing around it. Plain nouns and plain verbs.' },
+    bare:     { label:'Bare — no imagery or scenery',
+      text:'WRITE BARE. No metaphor, no simile, no environmental or weather description, no atmosphere, no mood-painting, no setting as emotion. Nothing decorative. Only what a person does, says, notices and thinks — stated, not dressed.' },
+    concrete: { label:'Concrete detail',
+      text:'Work in concrete physical detail rather than atmosphere. Anything that is not doing work in the scene does not belong in the answer.' },
+    lyrical:  { label:'Lyrical',
+      text:'Lyrical, image-led writing is welcome here: figures, weather and atmosphere may carry the feeling, as long as the meaning stays clear.' }
+  };
+  const DC_PROSE_ORDER = ['natural', 'direct', 'bare', 'concrete', 'lyrical'];
+
+  const DC_DETAIL = {
+    essentials:{label:'Essentials',text:'Give only the essentials — the one thing that matters most, and nothing else.'},
+    balanced:{label:'Balanced',text:'Cover the main thing and any real consequence of it, then stop.'},
+    thorough:{label:'Thorough',text:'Be thorough — cover the alternatives and the reasoning behind each point.'},
+    close:{label:'Close reading',text:'Work close to the words on the page. Quote short phrases and say what each one is doing.'}
+  };
+  const DC_EXAMPLES = {
+    none:{label:'None',text:'Do not invent example lines or passages unless asked for one.'},
+    quote:{label:'Quote my draft',text:'When you make a point, quote the exact words from the draft it applies to.'},
+    variants:{label:'Show alternatives',text:'Where a choice is possible, show two or three alternative lines side by side.'},
+    rewrite:{label:'Rewrite a sample',text:'After your note, rewrite a short sample so the point is visible in the prose.'}
+  };
+  const DC_CLOSING = {
+    none:{label:'Nothing after',text:'End the reply on its last point. No summary line, no offer of further help.'},
+    nextstep:{label:'One next step',text:'End with a single plain sentence naming the next thing to do, with no question in it.'},
+    options:{label:'Offer options',text:'End with two or three short options for where to go next, as separate lines.'},
+    hold:{label:'Wait for me',text:'End by leaving the decision with the writer — no suggestions, no next steps.'}
   };
    const DC_LANGS = {
     auto:{label:'Auto (match the draft)'},
     en:{label:'English'},
     hi:{label:'Hindi (हिन्दी)'}
   };
+
+  /* HOW THE AI ANSWERS — what each reply is for. The chosen mode is the last
+     word in the prompt, so it overrides the character's own habits (the
+     reader persona, for one, likes to ask questions; Conversation keeps it
+     conversational, Editor turns the same voice into notes). */
+  const DC_MODES = {
+    conversation: { label:'Conversation', icon:'chat-dots',
+      text:'Your reply mode is CONVERSATION: talk like a person having a conversation about the writing. Answer what was asked, plainly and at the length asked for. Ask a question only when you genuinely need one — never as a stock opening.' },
+    editor:       { label:'Editor', icon:'pencil-square',
+      text:'Your reply mode is EDITOR: give notes and make fixes. Structure a reply as what works, what does not, and the smallest change that would help. Quote the actual words you mean. Be specific, never vague, and never rewrite more than was asked for.' },
+    proofreader:  { label:'Proofreader', icon:'spellcheck',
+      text:'Your reply mode is PROOFREADER: grammar, spelling, punctuation and typos only. List each correction as “was → now”, briefly. Do not touch style, structure or word choice, and do not comment on the story.' },
+    ideas:        { label:'Idea partner', icon:'lightbulb',
+      text:'Your reply mode is IDEA PARTNER: offer ideas. Give several different options, bold and varied, without judging which is practical or commercial. No notes, no corrections — ideas only.' },
+    devilsAdvocate: { label:'Devil’s advocate', icon:'shield-exclamation',
+      text:'Your reply mode is DEVIL’S ADVOCATE: argue against the choices in front of you. Take the opposite case seriously and say what a hostile reader would say, so the writer can see the weak spots. Argue, do not rewrite.' },
+    continuity:   { label:'Continuity check', icon:'diagram-3',
+      text:'Your reply mode is CONTINUITY CHECK: compare what is on the page with the project details you were given — names, timeline, bible, plan. Report only contradictions, repeated information or missing setups, as plain lines, with the two places that disagree.' },
+    continuation: { label:'Continuation', icon:'arrow-right-circle',
+      text:'Your reply mode is CONTINUATION: write the next passage of the draft in the writer’s own voice and register. Return the prose itself, nothing else — no preamble, no notes after it.' },
+    summary:      { label:'Summary', icon:'card-text',
+      text:'Your reply mode is SUMMARY: condense what you were given. Plain, short, in the writer’s own terms — no new ideas, no notes.' }
+  };
+  const DC_MODE_ORDER = ['conversation', 'editor', 'proofreader', 'ideas',
+                         'devilsAdvocate', 'continuity', 'continuation', 'summary'];
+  const DC_MODE_ICON = 'chat-dots';
   
 
   const DC_PRESET_PROVIDER = { free:'groq', paid:'openai', local:'ollama' };
@@ -144,7 +219,13 @@
     if(!DC_LEVELS[c.level]) c.level = 'intermediate';
     if(!DC_TONES[c.tone])   c.tone  = 'friendly';
     if(!DC_LENGTH[c.length]) c.length = 'medium';
+    if(!DC_FORMAT[c.format])   c.format   = 'prose';
+    if(!DC_PROSE[c.prose])     c.prose    = 'natural';
+    if(!DC_DETAIL[c.detail])   c.detail   = 'balanced';
+    if(!DC_EXAMPLES[c.examples]) c.examples = 'none';
+    if(!DC_CLOSING[c.closing]) c.closing  = 'none';
     if(!DC_LANGS[c.lang])    c.lang   = 'auto';
+    if(!DC_MODES[c.mode])    c.mode   = 'conversation';   /* talk, not a wall of questions */
     if(typeof c.custom !== 'string') c.custom = '';
     if(typeof c.critique !== 'boolean') c.critique = false;
     return c;
@@ -155,22 +236,52 @@
   const dcOn       = () => _dcOpen;
   const settingsOn = () => _dcSettings;
 
-  /* ── chat-only AI config (separate from Settings → AI) ── */
+  /* ── chat-only AI config (its own, separate from Settings → AI) ──
+     The chat gets its own copy of the connection ONCE — so it works the
+     moment it is opened — and from then on the two never touch again:
+     changing the chat's provider, key, endpoint, model, temperature or
+     token cap leaves Settings → AI exactly as it was, and the other way
+     round. (`aiKeys` / `aiBases` / `modelByProvider` are only ever read
+     here, while seeding.) ── */
   function chatCfg(){
     if(!S.config.chatAI || typeof S.config.chatAI !== 'object') S.config.chatAI = {};
     const c = S.config.chatAI;
-    if(!c.provider) c.provider = S.config.provider || 'groq';
-    if(!c.keys   || typeof c.keys   !== 'object') c.keys   = {};
-    if(!c.bases  || typeof c.bases  !== 'object') c.bases  = {};
-    if(!c.models || typeof c.models !== 'object') c.models = {};
-    if(c.temperature == null) c.temperature = (S.config.temperature != null ? S.config.temperature : 0.7);
-    if(c.maxTokens   == null) c.maxTokens   = (S.config.maxTokens   != null ? S.config.maxTokens   : 1024);
+
+    const empty = function(o){ return !o || typeof o !== 'object' || !Object.keys(o).length; };
+    if(!c.seeded){
+      c.seeded = true;
+      if(!c.provider) c.provider = S.config.provider || 'groq';
+      if(empty(c.keys))   c.keys   = Object.assign({}, S.config.aiKeys || {});
+      if(empty(c.bases))  c.bases  = Object.assign({}, S.config.aiBases || {});
+      if(empty(c.models)) c.models = Object.assign({}, S.config.modelByProvider || {});
+      ['groq','gemini','openrouter'].forEach(function(p){
+        const legacy = S.config[p + 'Key'];
+        if(legacy && !c.keys[p]) c.keys[p] = legacy;
+      });
+      if(c.temperature == null) c.temperature = (S.config.temperature != null ? S.config.temperature : 0.7);
+      if(c.maxTokens   == null) c.maxTokens   = (S.config.maxTokens   != null ? S.config.maxTokens   : 1024);
+      if(!c.available || typeof c.available !== 'object') c.available = {};
+      try{ save(); }catch(e){}
+    }
+
+    if(!c.provider) c.provider = 'groq';
+    if(!c.keys    || typeof c.keys    !== 'object') c.keys    = {};
+    if(!c.bases   || typeof c.bases   !== 'object') c.bases   = {};
+    if(!c.models  || typeof c.models  !== 'object') c.models  = {};
+    if(c.temperature == null) c.temperature = 0.7;
+    if(c.maxTokens   == null) c.maxTokens   = 1024;
     return c;
   }
   function chatProvider(){ return aiProvider(chatCfg().provider); }
-  function chatKeyFor(id){ const c = chatCfg(), p = id || c.provider; return c.keys[p]   || aiKeyFor(p); }
-  function chatBaseFor(id){ const c = chatCfg(), p = id || c.provider; return c.bases[p]  || aiBaseFor(p); }
-  function chatModelFor(id){ const c = chatCfg(), p = id || c.provider; return c.models[p] || aiModelFor(p); }
+  /* the chat's own values only — no falling back into Settings → AI */
+  function chatKeyFor(id){ const c = chatCfg(), p = id || c.provider; return c.keys[p]   || ''; }
+  function chatBaseFor(id){ const c = chatCfg(), p = id || c.provider; return c.bases[p]  || aiProvider(p).base || ''; }
+  function chatModelFor(id){
+    const c = chatCfg(), p = id || c.provider;
+    if(c.models[p]) return c.models[p];
+    const def = aiProvider(p).models || [];
+    return def[0] ? def[0].id : '';
+  }
 
        async function chatCallAI(prompt, images){
     const c = chatCfg(), p = aiProvider(c.provider), key = chatKeyFor();
@@ -271,22 +382,15 @@
       /* New Chat is not in this card: it takes New draft's slot in the bar,
          and the click is handled there (data-sfbar="chat:new") */
       '<div class="draft-rows" id="dcList"></div>' +
-      '<footer class="dc-pager">' +
-        '<button class="dc-pager-btn" data-dc-page="-1" title="Previous"><i class="bi bi-chevron-left"></i></button>' +
-        '<span class="dc-pager-range" id="dcRange">0</span>' +
-        '<button class="dc-pager-btn" data-dc-page="1" title="Next"><i class="bi bi-chevron-right"></i></button>' +
-      '</footer>' +
     '</aside>' +
 
+    /* no head on the pane: the chat's one settings button lives in the
+       top bar's right corner now (see draft-bar.js) */
     '<section class="draft-pane">' +
-      '<header class="draft-pane-head">' +
-        '<span class="draft-list-acts">' +
-          '<button class="icon-btn-sm" data-dc="settings" title="Chat AI settings"><i class="bi bi-sliders"></i></button>' +
-        '</span>' +
-      '</header>' +
       '<div class="dc-msgs" id="dcMsgs"></div>' +
       '<div class="dc-files" id="dcFiles" hidden></div>' +
       '<div class="dc-input-row">' +
+        '<button class="icon-btn-sm dc-ibtn dc-mode" data-dc="mode" title="Reply mode"><i class="bi bi-chat-dots"></i></button>' +
         '<button class="icon-btn-sm dc-ibtn" data-dc="attach" title="Attach files"><i class="bi bi-paperclip"></i></button>' +
         '<textarea class="dc-input" id="dcInput" rows="1" placeholder="Message the AI…  (Enter to send · Shift+Enter for a new line)"></textarea>' +
         '<button class="icon-btn-sm dc-ibtn" data-dc="mic" title="Voice input"><i class="bi bi-mic"></i></button>' +
@@ -309,27 +413,19 @@
     if(!h) return 8;
     return Math.max(1, Math.floor(h / (_dcRowH || 34)));
   }
+  /* every chat, in its own scrolling column — no chevron pager here or on
+     the Draft page the chat rides in */
   function renderList(){
     const box = q('#dcList'); if(!box) return;
     const list = chats(), cur = activeChat();
-    const per = dcPerPage();
-    const pages = Math.max(1, Math.ceil(list.length / per));
-    _dcPage = Math.max(0, Math.min(_dcPage, pages - 1));
-    const from = _dcPage * per;
-    box.innerHTML = list.slice(from, from + per).length
-      ? list.slice(from, from + per).map(function(c){
+    box.innerHTML = list.length
+      ? list.map(function(c){
           const title = c.title || (c.messages[0] ? c.messages[0].text : 'New chat');
           return '<div class="draft-row' + (cur && c.id === cur.id ? ' on' : '') + '" data-dc-open="' + esc(c.id) + '">' +
             '<span class="draft-row-title">' + esc(title.slice(0, 42)) + '</span>' + rowActions(c.id) + '</div>';
         }).join('')
       : '<div class="draft-empty">No chats yet</div>';
     if(!_dcRowH){ const r0 = box.querySelector('.draft-row'); if(r0) _dcRowH = r0.offsetHeight + 2; }
-    const range = document.getElementById('dcRange');
-    if(range) range.textContent = list.length ? ((from + 1) + '–' + Math.min(from + per, list.length)) : '0';
-    const prev = document.querySelector('[data-dc-page="-1"]');
-    const next = document.querySelector('[data-dc-page="1"]');
-    if(prev) prev.disabled = _dcPage <= 0;
-    if(next) next.disabled = _dcPage >= pages - 1;
   }
 
   function msgHtml(m, i){
@@ -358,7 +454,7 @@
     if(t) t.textContent = (c && (c.title || (c.messages[0] && c.messages[0].text))) || 'New chat';
   }
   function renderAll(){
-    renderList(); renderMsgs(); renderFiles();
+    renderList(); renderMsgs(); renderFiles(); modePaint();
     const inp = q('#dcInput'); if(inp) inp.disabled = !activeChat();
   }
 
@@ -424,6 +520,24 @@
   }
   function micPaint(on){ const b = q('[data-dc="mic"]'); if(b) b.classList.toggle('on', !!on); }
 
+  /* ── the reply mode, in the chat's own toolbar ── */
+  function modePaint(){
+    const b = q('[data-dc="mode"]'); if(!b) return;
+    const m = DC_MODES[dcCfg().mode] || DC_MODES.conversation;
+    const i = b.querySelector('i');
+    if(i) i.className = 'bi bi-' + m.icon;
+    b.classList.toggle('on', dcCfg().mode !== 'conversation');
+    b.title = 'Reply mode: ' + m.label + ' — click for the next one';
+  }
+  function modeCycle(){
+    const cfg = dcCfg();
+    const i = DC_MODE_ORDER.indexOf(cfg.mode);
+    cfg.mode = DC_MODE_ORDER[(i + 1) % DC_MODE_ORDER.length];
+    save();
+    modePaint();
+    if(typeof toast === 'function') toast('Chat mode · ' + (DC_MODES[cfg.mode] || {}).label);
+  }
+
   /* ── prompt ── */
   function currentDraftBody(){
     const b = document.getElementById('draftBody');
@@ -445,8 +559,18 @@
       (DC_LEVELS[cfg.level] || {}).text || '',
       (DC_TONES[cfg.tone] || {}).text || '',
       (DC_LENGTH[cfg.length] || {}).text || '',
+      (DC_FORMAT[cfg.format] || {}).text || '',
+      (DC_PROSE[cfg.prose] || {}).text || '',
+      (DC_DETAIL[cfg.detail] || {}).text || '',
+      (DC_EXAMPLES[cfg.examples] || {}).text || '',
+      (DC_CLOSING[cfg.closing] || {}).text || '',
       cfg.critique ? 'You may offer critique proactively.' : 'Do not criticise unless explicitly asked.',
-      (cfg.persona !== 'custom' && cfg.custom.trim() ? 'Extra instructions: ' + cfg.custom.trim() : '')
+      (cfg.persona !== 'custom' && cfg.custom.trim() ? 'Extra instructions: ' + cfg.custom.trim() : ''),
+      /* the register this writer works in, the same line every other AI
+         request carries (Settings → AI → Story type) */
+      ((typeof window.sfStoryStyleLine === 'function') ? window.sfStoryStyleLine() : ''),
+      /* last word: the mode decides whether you ask, listen or talk */
+      ((DC_MODES[cfg.mode] || DC_MODES.conversation).text + ' This reply mode overrides anything above that says otherwise.')
     ].filter(Boolean).join(' ');
     const hist = c.messages.slice(-KEEP).map(m => (m.role === 'user' ? 'Writer: ' : 'Assistant: ') + m.text).join('\n');
     const body = currentDraftBody();
@@ -557,6 +681,7 @@
       if(t.closest('[data-dc="send"]')){ send(); return; }
       if(t.closest('[data-dc="attach"]')){ pickFiles(); return; }
       if(t.closest('[data-dc="mic"]')){ micToggle(); return; }
+      if(t.closest('[data-dc="mode"]')){ modeCycle(); return; }
 
       const uf = t.closest('[data-dc-unfile]'); if(uf){ _files.splice(parseInt(uf.dataset.dcUnfile, 10), 1); renderFiles(); return; }
       const pg = t.closest('[data-dc-page]');   if(pg){ _dcPage = Math.max(0, _dcPage + (parseInt(pg.dataset.dcPage, 10) || 0)); renderList(); return; }
@@ -643,6 +768,7 @@
     else if(_dcSetSection === 'assistant') buildAssistant(body);
     else buildReplies(body);
     if(typeof enhanceSelects === 'function') enhanceSelects(body);
+    if(_dcSetSection === 'assistant') modePaint();
   }
 
   function buildConnection(body, root){
@@ -722,6 +848,18 @@
 
   function buildAssistant(body){
     const cfg = dcCfg();
+    const cm = card('How the AI answers', 'chat-left-text');
+    cm.appendChild(selRow('Reply mode', 'What each answer is for — talk, edit, proofread, ideas, challenge…', DC_MODES, cfg.mode, 'mode'));
+    body.appendChild(cm);
+
+    /* the register this writer works in — the same choice as Settings → AI,
+       carried by every reply */
+    if(typeof window.sfStoryChips === 'function'){
+      const cs = card('Story type', 'bookmark-star');
+      cs.appendChild(row('What you are writing', 'Tragedy, avant-garde, emotional — the AI keeps to it', window.sfStoryChips()));
+      body.appendChild(cs);
+    }
+
     const c = card('Assistant profile', 'personality');
     c.appendChild(selRow('Character', 'How the AI behaves in this mode', charsFor(), cfg.persona, 'persona'));
     c.appendChild(selRow('Experience level', 'How much jargon to use', DC_LEVELS, cfg.level, 'level'));
@@ -746,7 +884,12 @@
     const cfg = dcCfg(), ai = chatCfg();
     const c = card('Replies', 'chat-left-text');
     c.appendChild(selRow('Reply language', 'The language the AI answers in', DC_LANGS, cfg.lang, 'lang'));
-    c.appendChild(selRow('Reply length', 'Short · Medium · Long', DC_LENGTH, cfg.length, 'length'));
+    c.appendChild(selRow('Reply length', 'Briefest · Short · Medium · Long · Essay', DC_LENGTH, cfg.length, 'length'));
+    c.appendChild(selRow('Reply shape', 'Prose, bullets, numbered steps, mixed, script layout', DC_FORMAT, cfg.format, 'format'));
+    c.appendChild(selRow('Prose style', 'Direct and bare drop the metaphor and the scenery; lyrical lets them carry the feeling', DC_PROSE, cfg.prose, 'prose'));
+    c.appendChild(selRow('Depth', 'How far to go: essentials, balanced, thorough, close reading', DC_DETAIL, cfg.detail, 'detail'));
+    c.appendChild(selRow('Examples', 'Whether to quote your draft, show alternatives or rewrite a sample', DC_EXAMPLES, cfg.examples, 'examples'));
+    c.appendChild(selRow('How it ends', 'Nothing after · one next step · offer options · wait for you', DC_CLOSING, cfg.closing, 'closing'));
     const temp = document.createElement('input'); temp.type = 'range'; temp.className = 'rng'; temp.min = 0; temp.max = 100;
     temp.value = Math.round(ai.temperature * 100);
     const tempVal = document.createElement('span'); tempVal.className = 'tiny muted'; tempVal.textContent = temp.value + '%';
@@ -815,6 +958,7 @@
   let gestureAt = 0;
   function fabRight(e){
     if(typeof S === 'undefined') return;
+    if(typeof window.sfRightClick === 'function' && window.sfRightClick().chat === false) return;
     if(!(S.page === 'draft' || document.getElementById('draftBody'))) return;
     if(!(e.target && e.target.closest && e.target.closest('#fabBtn'))) return;
     if(e.type !== 'contextmenu' && e.button !== 2) return;
@@ -836,5 +980,12 @@
   ['pointerdown','mousedown','pointerup','mouseup','auxclick','contextmenu']
     .forEach(function(t){ window.addEventListener(t, fabRight, true); });
 
-  window.DraftChat = { open: () => setOn(true), close: () => setOn(false), newChat, render: renderAll };
+  /* the top bar's sliders button opens the chat's AI settings (draft-bar.js) */
+  function openSettings(){
+    if(!dcOn()) setOn(true);
+    _dcSettings = true;
+    rerender();
+  }
+
+  window.DraftChat = { open: () => setOn(true), close: () => setOn(false), newChat, render: renderAll, settings: openSettings };
 })();

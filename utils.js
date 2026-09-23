@@ -8,6 +8,124 @@
      Numbers · Calculator · Unit converter · Random picker
    ═══════════════════════════════════════════════════════════ */
 
+/* ══════════════════════════════════════════════════════════════
+   STORY TYPE — what kind of writing this is
+
+   The writer works in registers the mainstream does not: tragedy,
+   avant-garde, the emotional rather than the commercial. This is the
+   vocabulary for saying so, once, and having every AI request carry it.
+   The choice is a list (pick as many as apply) and lives in
+   S.config.storyTypes.
+
+   Nothing here suggests a fix or a rewrite: the note that travels with
+   the prompt tells the model to keep the work in the writer's own
+   register instead of steering it toward a conventional shape.
+   ══════════════════════════════════════════════════════════════ */
+const SF_STORY_TYPES = [
+  { id:'unconventional', label:'Unconventional',  note:'outside the mainstream on purpose' },
+  { id:'tragedy',        label:'Tragedy',         note:'no rescue, the fall is the point' },
+  { id:'avantgarde',     label:'Avant-garde',     note:'form first — break it deliberately' },
+  { id:'experimental',   label:'Experimental',    note:'the structure itself is an argument' },
+  { id:'emotional',      label:'Emotional',       note:'feeling over plot mechanics' },
+  { id:'melancholy',     label:'Melancholy',      note:'quiet, elegiac, unresolved' },
+  { id:'surreal',        label:'Surreal',         note:'dream logic, not literal sense' },
+  { id:'absurdist',      label:'Absurdist',       note:'meaning withheld on purpose' },
+  { id:'metafiction',    label:'Metafiction',     note:'the writing knows it is writing' },
+  { id:'psychological',  label:'Psychological',   note:'interior life is the plot' },
+  { id:'stream',         label:'Stream of consciousness', note:'thought as it happens' },
+  { id:'minimalist',     label:'Minimalist',      note:'spare, unadorned' },
+  { id:'fragmentary',    label:'Fragmentary',     note:'pieces, not a whole arc' },
+  { id:'gothic',         label:'Gothic',          note:'decay, dread, inheritance' },
+  { id:'noir',           label:'Noir',            note:'doomed and moral' },
+  { id:'mythic',         label:'Mythic / fable',  note:'older than the novel' },
+  { id:'darkcomedy',     label:'Dark comedy',     note:'funny and unforgiving' },
+  { id:'body',           label:'Visceral / body horror', note:'uncomfortable on purpose' },
+  { id:'philosophical',  label:'Philosophical',   note:'an idea argued through people' },
+  { id:'slowburn',       label:'Slow burn',       note:'withheld, patient' },
+  { id:'domestic',       label:'Domestic realism', note:'small rooms, real stakes' },
+  { id:'speculative',    label:'Speculative / slipstream', note:'one step sideways from now' },
+  { id:'magical',        label:'Magical realism', note:'the impossible treated as ordinary' },
+  { id:'literary',       label:'Literary',        note:'sentence as the instrument' },
+  { id:'dystopia',       label:'Dystopia',        note:'a system that has already won' },
+  { id:'postapoc',       label:'Post-apocalyptic',note:'what is left after the end' },
+  { id:'uncanny',        label:'Uncanny',         note:'familiar, and wrong' },
+  { id:'liminal',        label:'Liminal',         note:'thresholds and waiting rooms' },
+  { id:'antinovel',      label:'Anti-novel',      note:'refuses the arc on purpose' },
+  { id:'autofiction',    label:'Autofiction',     note:'the self, slightly rearranged' },
+  { id:'epistolary',     label:'Epistolary',      note:'documents, letters, fragments' },
+  { id:'hysterical',     label:'Hysterical realism', note:'too much world, too many facts' },
+  { id:'elegiac',        label:'Elegiac',         note:'mourning as the mode' },
+  { id:'workingclass',   label:'Working class',   note:'labour, money, exhaustion' },
+  { id:'folkloric',      label:'Folkloric',       note:'told aloud, not written' },
+  { id:'harrowing',      label:'Harrowing',       note:'unbearable, and meant to be' },
+  { id:'quiet',          label:'Quiet / nothing happens', note:'the drama is entirely interior' }
+];
+window.SF_STORY_TYPES = SF_STORY_TYPES;
+
+function sfStoryTypes(){ return Array.isArray(window.SF_STORY_TYPES) ? window.SF_STORY_TYPES : []; }
+function sfStoryChosen(){
+  const on = (S && S.config && Array.isArray(S.config.storyTypes)) ? S.config.storyTypes : [];
+  const known = {};
+  sfStoryTypes().forEach(function(t){ known[t.id] = t; });
+  return on.filter(function(id){ return !!known[id]; });
+}
+function sfStoryToggle(id){
+  if(!S.config) S.config = {};
+  if(!Array.isArray(S.config.storyTypes)) S.config.storyTypes = [];
+  const list = S.config.storyTypes;
+  const i = list.indexOf(id);
+  if(i < 0) list.push(id); else list.splice(i, 1);
+  if(typeof save === 'function') save();
+  return i < 0;
+}
+
+/* the lines every AI request carries — see callAI() in ai.js and compose()
+   in draft-chat.js. Plain text, because it is a prompt. */
+function sfStoryStyleLine(){
+  const ids = sfStoryChosen();
+  if(!ids.length) return '';
+  const byId = {};
+  sfStoryTypes().forEach(function(t){ byId[t.id] = t; });
+  const named = ids.map(function(id){
+    const t = byId[id];
+    return t.label + (t.note ? ' (' + t.note + ')' : '');
+  }).join('; ');
+  return 'WHAT THE WRITER IS WRITING — their own register, chosen deliberately: ' + named + '.\n' +
+    'Write inside that register and take it seriously. Do not push the work toward a conventional, '
+    + 'commercial or mainstream shape, do not "fix" what is unconventional about it, and do not offer '
+    + 'to make it more accessible unless the writer asks. If a request is a translation, transliteration '
+    + 'or a lookup, ignore this paragraph and answer it faithfully.';
+}
+window.sfStoryStyleLine = sfStoryStyleLine;
+window.sfStoryChosen = sfStoryChosen;
+window.sfStoryToggle = sfStoryToggle;
+
+/* the same chips in Settings → AI and in the draft chat's Assistant panel */
+function sfStoryChips(){
+  const wrap = document.createElement('div');
+  wrap.className = 'sf-story-chips';
+  const chosen = sfStoryChosen();
+  sfStoryTypes().forEach(function(t){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sf-story-chip' + (chosen.indexOf(t.id) >= 0 ? ' on' : '');
+    b.dataset.storyType = t.id;
+    b.title = t.note || '';
+    b.textContent = t.label;
+    wrap.appendChild(b);
+  });
+  wrap.addEventListener('click', function(e){
+    const b = e.target.closest('[data-story-type]');
+    if(!b) return;
+    e.preventDefault();
+    const on = sfStoryToggle(b.dataset.storyType);
+    b.classList.toggle('on', on);
+    if(typeof toast === 'function') toast(on ? b.textContent + ' added to your story type' : b.textContent + ' removed');
+  });
+  return wrap;
+}
+window.sfStoryChips = sfStoryChips;
+
 const UTIL_GROUPS = [
   { id:'time', label:'Time', icon:'clock',
     tools:[ { id:'clock',     label:'Clock',        icon:'clock' },

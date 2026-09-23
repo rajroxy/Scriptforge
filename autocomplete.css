@@ -1,0 +1,56 @@
+/* ═══════════════════════════════════════════════════════════
+   Word autocomplete — the popup
+
+   It hangs off the caret, so it is fixed-positioned and carries the
+   app's own surface, rule and radius. The accepted part of the word is
+   shown in the ink colour and the rest in the muted one, so what Tab
+   will add is obvious at a glance.
+   ═══════════════════════════════════════════════════════════ */
+html body .sf-complete{
+  position:fixed;
+  z-index:420;
+  min-width:150px;
+  max-width:min(340px, 60vw);
+  padding:4px;
+  background:var(--surface-2);
+  border:1px solid var(--line-2);
+  border-radius:var(--r-md, 6px);
+  box-shadow:var(--e-3);
+  font-family:var(--ui);
+  font-size:12.5px;
+  line-height:1.35;
+}
+html body .sf-complete[hidden]{ display:none !important; }
+
+html body .sf-complete .sf-complete-item{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  width:100%;
+  padding:5px 8px;
+  background:transparent;
+  border:0;
+  border-radius:var(--r-sm, 4px);
+  color:var(--ink-4);
+  text-align:left;
+  cursor:pointer;
+}
+html body .sf-complete .sf-complete-item b{
+  flex:0 0 auto;
+  font-weight:600;
+  color:var(--ink);
+}
+html body .sf-complete .sf-complete-item span{
+  flex:1 1 auto;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:11.5px;
+  color:var(--ink-4);
+}
+html body .sf-complete .sf-complete-item.on,
+html body .sf-complete .sf-complete-item:hover{
+  background:var(--overlay-strong, var(--surface-3));
+}
+html body .sf-complete .sf-complete-item.on b{ color:var(--accent, var(--ink)); }

@@ -18,8 +18,13 @@ async function callAI(prompt){
   const p = curProvider();
   const key = aiKey();
   if(!key && !p.keyless) throw new Error(`No API key for ${p.name}. Open Settings → AI.`);
-  if(p.gemini) return callGemini(prompt, key);
-  return callOpenAICompat(prompt, key);
+  /* every request carries the register the writer works in — tragedy,
+     avant-garde, the emotional — so the answers stay inside it instead of
+     pulling the work toward a mainstream shape (Settings → AI → Story type) */
+  const style = (typeof window.sfStoryStyleLine === 'function') ? window.sfStoryStyleLine() : '';
+  const full = style ? style + '\n\n' + prompt : prompt;
+  if(p.gemini) return callGemini(full, key);
+  return callOpenAICompat(full, key);
 }
 
 async function callGemini(prompt, key){

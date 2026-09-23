@@ -149,10 +149,13 @@
   /* ═══ the head ═══
      One row, two groups and nothing doubled:
 
-       left   T · which board (picker, new, rename, remove, count)
-       right  Add beat · Add act · Add scene · All boards · Clear
+       left   T · Add beat                       (the page's writing tools)
+       right  ＋ · ✎ · 🗑 · which board · count · All boards · Clear
 
-     Every button the app drew is re-used — this only places them. */
+     Add beat sits beside T, where the writer adds a card; the board's own
+     controls — start one, rename it, remove it, and the picker that says
+     which board you are on — end the row on the right. Every button the
+     app drew is re-used; this only places and orders them. */
   const head = function(root){
     if(!root || !root.querySelector) return;
     const bar = root.querySelector('.page-head');
@@ -188,15 +191,27 @@
       clear.innerHTML = '<i class="bi bi-eraser"></i> Clear';
     }
 
-    /* one home for the actions, in the order they read (appendChild moves a
-       node that is already there, so this is also the sort) */
-    [bar.querySelector('[data-act="add-beat"]'),
-     bar.querySelector('[data-act="add-act"]'),
-     bar.querySelector('[data-act="add-scene"]'),
-     bar.querySelector('[data-act="plan-all"]'),
+    /* ── Add beat stays on the LEFT, right after T ──
+       It is the page's writing tool: it adds a card to the board you are
+       on, so it belongs with the type button, not with the board's own
+       commands. */
+    if(addBeat && left !== bar && left.firstElementChild){
+      const typo = left.querySelector('[data-typop]');
+      left.appendChild(addBeat);
+      if(typo && left.firstElementChild !== typo) left.insertBefore(typo, left.firstChild);
+    }
+
+    /* one home for the page's own switches, in the order they read
+       (appendChild moves a node that is already there, so this is also the
+       sort). Add act / Add scene were taken off the bar long ago. */
+    [bar.querySelector('[data-act="plan-all"]'),
      clear].forEach(function(b){
       if(b) right.appendChild(b);
     });
+
+    /* ── the board cluster ends the row: ＋ · rename · remove · picker ──
+       It is placed BEFORE All boards and Clear, so those stay the last
+       thing on the bar and the board's own controls read as one cluster. */
 
     /* the page's old action group is empty now — it goes */
     Array.prototype.forEach.call(bar.querySelectorAll('.plan-tools'), function(g){
@@ -216,18 +231,20 @@
       picker.className = 'plan-picker';
       picker.setAttribute('data-plan-picker', '1');
       picker.innerHTML =
-        '<select class="sel plan-board-sel" data-plan-board title="Which board to show">'
+          '<button class="ol-btn ol-btn-icon plan-board-new" data-plan-new title="Add board — start a new one"><i class="bi bi-plus-lg"></i></button>'
+        + '<button class="ol-btn ol-btn-icon plan-board-ren" data-plan-ren title="Rename this board"><i class="bi bi-pencil"></i></button>'
+        + '<button class="ol-btn ol-btn-icon plan-board-del" data-plan-del title="Remove this board"'
+        +   (all.length < 2 ? ' disabled' : '') + '><i class="bi bi-trash3"></i></button>'
+        + '<select class="sel plan-board-sel" data-plan-board title="Which board to show">'
         + all.map(function(b){
             return '<option value="' + esc(b.id) + '"' + (b.id === cur ? ' selected' : '') + '>'
               + esc(b.name) + '</option>';
           }).join('')
         + '</select>'
-        + '<button class="ol-btn ol-btn-icon plan-board-new" data-plan-new title="Start a new board"><i class="bi bi-plus-lg"></i></button>'
-        + '<button class="ol-btn ol-btn-icon plan-board-ren" data-plan-ren title="Rename this board"><i class="bi bi-pencil"></i></button>'
-        + '<button class="ol-btn ol-btn-icon plan-board-del" data-plan-del title="Remove this board"'
-        +   (all.length < 2 ? ' disabled' : '') + '><i class="bi bi-trash3"></i></button>'
         + '<span class="plan-board-count" data-plan-count>' + all.length + ' board' + (all.length === 1 ? '' : 's') + '</span>';
-      left.appendChild(picker);          /* right after the type button */
+      /* the cluster ends the row, before All boards and Clear */
+      if(right.firstChild) right.insertBefore(picker, right.firstChild);
+      else right.appendChild(picker);
       if(typeof window.enhanceSelects === 'function') window.enhanceSelects(picker);
     }
 

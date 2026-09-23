@@ -324,10 +324,27 @@ function sfOverlayMessageIsFromPane(e){
 function overlayClamp(){
   const o = overlayCfg();
   const vw = window.innerWidth, vh = window.innerHeight;
+
+  /* The pane opens tucked under the top bar, a touch higher than it used
+     to: it reads as part of the app rather than something dropped on it.
+     A position saved by an older build is lifted once, so an existing
+     pane moves up with it instead of staying where it was left. */
+  if(o.y != null && !S.config.ovlLift){
+    S.config.ovlLift = true;
+    o.y = o.y - 26;
+  }
+  /* a second, smaller lift: the pane now opens right under the top bar, over
+     the top of the page rather than level with its heading. A pane left at
+     the older height is raised once, so nobody has to drag it. */
+  if(o.y != null && !S.config.ovlLift2){
+    S.config.ovlLift2 = true;
+    o.y = o.y - 20;
+  }
+
   o.w = Math.max(300, Math.min(o.w || 640, Math.max(300, vw - 24)));
   o.h = Math.max(200, Math.min(o.h || 420, Math.max(200, vh - 24)));
   if(o.x == null) o.x = Math.max(12, vw - o.w - 28);
-  if(o.y == null) o.y = 84;
+  if(o.y == null) o.y = 48;
   o.x = Math.max(6, Math.min(o.x, Math.max(6, vw - o.w - 6)));
     o.y = Math.max(6, Math.min(o.y, Math.max(6, vh - o.h - 6)));
   return o;

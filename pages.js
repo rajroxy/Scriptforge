@@ -1,4 +1,4 @@
-console.log("MARK 91");
+/* (the MARK line was a debug marker) */
 
 
 /* ═══════════════════════════════════════════════════════════
@@ -648,7 +648,7 @@ const OV_GUIDES = [
       ['Plan','Turn the premise into a beat sheet before you touch a page.'],
       ['Manuscript','Assemble the chapters and read the whole book as one document.']
     ],
-    go:'plan', cta:'Start with the beat sheet'
+    go:'manuscript', cta:'Start with manuscript'
   },
   {
     icon:'film', tag:'Screenplay', title:'How to write any type of fiction screenplay',
@@ -670,7 +670,7 @@ const OV_GUIDES = [
       ['Plan','A beat sheet with act breaks before a single slugline.'],
       ['Script','The formatted pages in the writing view — the final pass.']
     ],
-    go:'outline', cta:'Start with the scenes'
+    go:'script', cta:'Start with script'
   }
 ];
 
@@ -704,7 +704,21 @@ PAGE_RENDERERS.overview = function(root){
 
   root.addEventListener('click', function(e){
     const go = e.target.closest('[data-ov-go]');
-    if(go && go.dataset.ovGo) goPage(go.dataset.ovGo);
+    if(!go || !go.dataset.ovGo) return;
+    const target = go.dataset.ovGo;
+    /* BOTH halves open the writing page, and the writing page IS the form
+       you are in: the manuscript in a novel, the script in a screenplay.
+       So each card has to set the form before it goes — a screenplay mode
+       made “Start with manuscript” open the script, and a novel mode made
+       “Start with script” open the book. */
+    if(target === 'script' || target === 'manuscript'){
+      const want = (target === 'script') ? 'screenplay' : 'novel';
+      if(typeof switchMode === 'function') switchMode(want);
+      else S.mode = want;
+      goPage('manuscript');
+      return;
+    }
+    goPage(target);
   });
 };
 
@@ -2845,6 +2859,23 @@ PAGE_RENDERERS.stats = function(root){
   const d = D();
   const modes = MODES;
 
+  /* The categories are the mode's own — Fiction and Non-fiction — so
+     this page can never drift from what a project can be filed as. */
+  const catName = function(id){
+    let name = '';
+    MODES.forEach(function(m){
+      (m.categories || []).forEach(function(c){ if(c.id === id) name = c.name; });
+    });
+    return name;
+  };
+  const catItems = function(modeId){
+    const m = MODES.filter(function(x){ return x.id === modeId; })[0];
+    return '<button class="stats-cat-item" data-value="none"><span>None</span><i class="bi bi-check2"></i></button>'
+      + ((m && m.categories) || []).map(function(c){
+          return '<button class="stats-cat-item" data-value="' + c.id + '"><span>' + c.name + '</span><i class="bi bi-check2"></i></button>';
+        }).join('');
+  };
+
   // Category selected from either Novel or Screenplay
   const selectedNovel = S.config.statsNovel || 'none';
   const selectedScreenplay = S.config.statsScreenplay || 'none';
@@ -2891,6 +2922,13 @@ PAGE_RENDERERS.stats = function(root){
     </div>
   `;
 
+  /* The lists come from the modes: Novel and Screenplay each offer their
+     own categories and nothing else. */
+  ['novel', 'screenplay'].forEach(function(id){
+    const card = root.querySelector('[data-stats-' + id + ']');
+    const list = card && card.querySelector('.stats-cat-list');
+    if(list && !list.querySelector('[data-value="nonfiction"]')) list.innerHTML = catItems(id);
+  });
   // Paint + wire the category boxes (Vercel-style scrollable lists)
   const novelBox  = root.querySelector('[data-stats-novel]');
   const screenBox = root.querySelector('[data-stats-screenplay]');
@@ -2901,7 +2939,7 @@ PAGE_RENDERERS.stats = function(root){
       item.classList.toggle('active', item.dataset.value === current);
     });
     const val = box.querySelector('.stats-cat-value');
-    if(val) val.textContent = current === 'fiction' ? 'Fiction' : 'None';
+    if(val) val.textContent = catName(current) || 'None';
   }
   function bindCat(box, otherBox, key, otherKey){
     if(!box) return;
@@ -3063,7 +3101,7 @@ function renderStatsBody(){
   }
   const snaps = modeData.versions || [];
 
-  const catLabel = 'Fiction';
+  const catLabel = catName(activeCatId) || 'Fiction';
   const modeLabel = activeModeId === 'novel' ? 'Novel' : 'Screenplay';
 
   body.innerHTML = `

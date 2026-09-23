@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════
    ScriptForge — Write
-   Editor · Full toolbar · Icon library · Per-mode inserts
+   Editor · Full toolbar · Icon library · Per-mode inserts · Word autocomplete
    ═══════════════════════════════════════════════════════════ */
 
 const WRITE = {};
@@ -95,6 +95,11 @@ if(window.SF_VIEW === true){
 // ═══════════════════════════════════════════════════════════
 
 const MODE_TOOLS = {
+  /* The app has two modes, so it has two tool sets. Everything else that
+     used to live here — poetry, song, essay, research, academic, journal,
+     blog, news, comic, children, code, memoir, speech, recipe, scripture,
+     interview — belonged to formats the app no longer offers, and was
+     unreachable: nothing could switch to them. */
   novel: [
     {ins:'sceneBreak', icon:'three-dots', label:'Scene break'},
   ],
@@ -105,138 +110,7 @@ const MODE_TOOLS = {
     {ins:'paren', icon:'chat-quote', label:'Parenthetical', key:'⌘4'},
     {ins:'dialogue', icon:'chat-dots', label:'Dialogue', key:'⌘5'},
     {ins:'transition', icon:'arrow-right-square', label:'Transition', key:'⌘6'}
-  ],
-  tv: [
-    {ins:'teaser', icon:'play-circle', label:'Teaser'},
-    {ins:'actbreak', icon:'pause-circle', label:'Act break'},
-    {ins:'scene', icon:'camera-reels', label:'Scene heading', key:'⌘1'},
-    {ins:'character', icon:'person', label:'Character', key:'⌘3'},
-    {ins:'dialogue', icon:'chat-dots', label:'Dialogue', key:'⌘5'}
-  ],
-  stage: [
-    {ins:'act', icon:'layers', label:'Act'},
-    {ins:'scene', icon:'signpost-2', label:'Scene', key:'⌘1'},
-    {ins:'stageDir', icon:'signpost', label:'Stage direction'},
-    {ins:'character', icon:'person', label:'Character', key:'⌘3'},
-    {ins:'dialogue', icon:'chat-dots', label:'Dialogue', key:'⌘5'}
-  ],
-  poetry: [
-    {ins:'stanza', icon:'text-indent-right', label:'Stanza'},
-    {ins:'haiku', icon:'flower1', label:'Haiku'},
-    {ins:'sonnet', icon:'heart', label:'Sonnet'},
-    {ins:'freeverse', icon:'wind', label:'Free verse'},
-    {ins:'limerick', icon:'emoji-laughing', label:'Limerick'}
-  ],
-  song: [
-    {ins:'verse', icon:'music-note', label:'Verse'},
-    {ins:'chorus', icon:'megaphone', label:'Chorus'},
-    {ins:'bridge', icon:'bezier2', label:'Bridge'},
-    {ins:'prechorus', icon:'caret-up-square', label:'Pre-chorus'},
-    {ins:'outro', icon:'music-note-beamed', label:'Outro'}
-  ],
-  essay: [
-    {ins:'thesis', icon:'bullseye', label:'Thesis'},
-    {ins:'argument', icon:'chat-left-text', label:'Argument'},
-    {ins:'evidence', icon:'file-earmark-text', label:'Evidence'},
-    {ins:'citation', icon:'quote', label:'Citation'},
-    {ins:'counter', icon:'shield-exclamation', label:'Counter'},
-    {ins:'conclusion', icon:'flag', label:'Conclusion'}
-  ],
-  research: [
-    {ins:'abstract', icon:'file-text', label:'Abstract'},
-    {ins:'intro', icon:'book', label:'Introduction'},
-    {ins:'method', icon:'gear', label:'Methods'},
-    {ins:'results', icon:'bar-chart', label:'Results'},
-    {ins:'discussion', icon:'chat-square-text', label:'Discussion'},
-    {ins:'refs', icon:'journals', label:'References'}
-  ],
-  academic: [
-    {ins:'abstract', icon:'file-text', label:'Abstract'},
-    {ins:'keywords', icon:'tags', label:'Keywords'},
-    {ins:'citation', icon:'quote', label:'Citation'},
-    {ins:'footnote', icon:'1-circle', label:'Footnote'}
-  ],
-  journal: [
-    {ins:'date', icon:'calendar-event', label:'Date'},
-    {ins:'mood', icon:'emoji-smile', label:'Mood'},
-    {ins:'gratitude', icon:'heart', label:'Gratitude'},
-    {ins:'reflect', icon:'arrow-repeat', label:'Reflection'}
-  ],
-  blog: [
-    {ins:'hook', icon:'megaphone', label:'Hook'},
-    {ins:'h2', icon:'type-h2', label:'Subheading'},
-    {ins:'bullets', icon:'list-ul', label:'Bullets'},
-    {ins:'quote', icon:'quote', label:'Quote'},
-    {ins:'cta', icon:'cursor', label:'CTA'}
-  ],
-  news: [
-    {ins:'headline', icon:'newspaper', label:'Headline'},
-    {ins:'dateline', icon:'geo-alt', label:'Dateline'},
-    {ins:'lead', icon:'chat-left-quote', label:'Lead'},
-    {ins:'byline', icon:'person-badge', label:'Byline'}
-  ],
-  comic: [
-    {ins:'panel', icon:'grid-3x3', label:'Panel'},
-    {ins:'caption', icon:'card-text', label:'Caption'},
-    {ins:'bubble', icon:'chat-square-text', label:'Bubble'},
-    {ins:'sfx', icon:'lightning-charge', label:'SFX'}
-  ],
-  children: [
-    {ins:'once', icon:'book-half', label:'Once upon'},
-    {ins:'sound', icon:'volume-up', label:'Sound word'},
-    {ins:'repeat', icon:'arrow-repeat', label:'Repetition'},
-    {ins:'end', icon:'flag', label:'The end'}
-  ],
-  code: [
-    {ins:'html', icon:'filetype-html', label:'HTML'},
-    {ins:'js', icon:'braces', label:'Function'},
-    {ins:'comment', icon:'chat-left-text', label:'Comment'},
-    {ins:'todo', icon:'check2-square', label:'TODO'}
-  ],
-  memoir: [
-    {ins:'sceneBreak', icon:'three-dots', label:'Scene break'},
-    {ins:'chapter', icon:'bookmark', label:'Chapter'},
-    {ins:'timelineRef', icon:'clock-history', label:'Timeline marker'}
-  ],
-  speech: [
-    {ins:'cue', icon:'card-text', label:'Cue'},
-    {ins:'pause', icon:'pause-circle', label:'Pause'},
-    {ins:'emphasis', icon:'stars', label:'Emphasis'}
-  ],
-  recipe: [
-    {ins:'ingredient', icon:'basket', label:'Ingredient'},
-    {ins:'step', icon:'list-ol', label:'Step'},
-    {ins:'tip', icon:'lightbulb', label:'Tip'}
-  ],
-  scripture: [
-    {ins:'verse', icon:'book', label:'Verse'},
-    {ins:'note', icon:'chat-left-text', label:'Note'},
-    {ins:'cross', icon:'link-45deg', label:'Cross-ref'}
-  ],
-  interview: [
-    {ins:'question', icon:'question-circle', label:'Question'},
-    {ins:'answer', icon:'chat-left-dots', label:'Answer'},
-    {ins:'followup', icon:'arrow-return-right', label:'Follow-up'}
   ]
-};
-
-// ═══════════════════════════════════════════════════════════
-//   INSERT TEMPLATES
-// ═══════════════════════════════════════════════════════════
-
-const INSERTS = {
-  // Universal
-  hr:'<hr>',
-  sceneBreak:'<p style="text-align:center;color:var(--ink-3);letter-spacing:1em;">* * *</p>',
-  chapter:'<h2>Chapter</h2>',
-  timejump:'<p style="text-align:center;font-style:italic;color:var(--ink-3);">Later…</p>',
-  // Screenplay
-  scene:'<p class="scene-heading">INT. LOCATION - DAY</p>',
-  action:'<p class="action">Action description...</p>',
-  character:'<p class="character-name">CHARACTER</p>',
-  dialogue:'<p class="dialogue">Dialogue...</p>',
-  paren:'<p class="parenthetical">(beat)</p>',
-  transition:'<p class="transition">CUT TO:</p>'
 };
 
 
@@ -331,9 +205,6 @@ function renderChapterControls(){
     <div class="chapter-control cc-tools">
       <button class="icon-btn-sm" data-act="notes-open" title="Notes — a scratchpad panel"><i class="bi bi-sticky"></i></button>
       <button class="icon-btn-sm" data-act="go-page" data-page="notebook" title="Book — projects and snapshots"><i class="bi bi-journal-bookmark"></i></button>
-    </div>
-    <span class="cc-sep"></span>
-    <div class="chapter-control cc-tools">
       <button class="icon-btn-sm" data-act="util-open" title="Utilities — clock, calendar, calculator and more"><i class="bi bi-grid-3x3-gap"></i></button>
     </div>
     <span class="cc-sep"></span>
@@ -930,13 +801,21 @@ function mixedFontApply(){
   }
 
   // ── word mode / random mode: wrap the word that just ended ──
+  //    A word followed by punctuation still counts as the word that just
+  //    ended: "rain," is the word "rain" and a comma. Matching only a word
+  //    that reaches the caret meant every word before a comma, a full stop,
+  //    a question mark or a quote was skipped — the rotation stalled on
+  //    exactly the words a sentence ends on and looked like it only
+  //    half-worked.
   const upto = node.textContent.slice(0, r.startOffset);
-  const m = /([\p{L}\p{M}][\p{L}\p{M}\d''\-]*)$/u.exec(upto);
+  const m = /([\p{L}\p{M}][\p{L}\p{M}\d''\-]*)([^\p{L}\p{M}\d]*)$/u.exec(upto);
   if(!m) return;
+  const wordFrom = m.index;
+  const wordTo = m.index + m[1].length;
 
   // ── letter mode: each letter of the word takes a random font ──
   if(scope === 'letter'){
-    if(mixedFontWrapLetters(node, r.startOffset - m[1].length, r.startOffset)){
+    if(mixedFontWrapLetters(node, wordFrom, wordTo)){
       mixedFontTurn++;
     }
     return;
@@ -948,7 +827,7 @@ function mixedFontApply(){
   } else {
     font = fonts[mixedFontTurn % fonts.length];
   }
-  if(mixedFontWrap(node, r.startOffset - m[1].length, r.startOffset, font)){
+  if(mixedFontWrap(node, wordFrom, wordTo, font)){
     mixedFontTurn++;
   }
 }

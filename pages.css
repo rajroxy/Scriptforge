@@ -125,6 +125,17 @@
   outline:none;
   caret-color:var(--ink);
 }
+/* Every writing surface reads the document typography — not only the
+   manuscript. The draft/editor panes were inheriting the 13.5px interface
+   size, so Settings → Font size changed the manuscript and appeared to do
+   nothing anywhere else. */
+.editor-doc,
+.sf-split-doc,
+.sf-split-editor,
+.fnt-doc{
+  font-size:var(--doc-size);
+  line-height:var(--doc-line);
+}
 .write-doc p{margin-bottom:var(--doc-para);}
 .write-doc:empty::before{
   content:attr(data-placeholder);

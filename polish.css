@@ -3,18 +3,55 @@
 
    Two panes inside the writing canvas: the plain Fountain source and
    the formatted script page the app already knows how to draw.
+
+   THE SCRIPT PAGE IS A PAGE, NOT A COLUMN OF LOOSE BOXES
+
+   The bar sits at the top like every other page's bar, the two panes
+   fill everything under it, and neither ever asks the page to scroll.
    ═══════════════════════════════════════════════════════════ */
+/* scoped to .active: the class must never keep a hidden page painting */
+html body .sf-script-page.active{
+  display:flex !important;
+  flex-direction:column !important;
+  height:100% !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+}
+html body .sf-script-page.active > .write-wrap{
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  height:auto !important;
+}
+html body .sf-script-page.active .write-canvas{
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  display:flex !important;
+  flex-direction:column !important;
+  padding:10px 16px 16px !important;   /* the panes get the width, not the margin */
+  overflow:hidden !important;
+}
+/* the rich-text toolbar is hidden in script mode, so the chapter strip is
+   a card of its own — the same box the bar above it is, not half of one */
+html body .sf-script-page.active .chapter-controls{
+  margin:10px 16px 0 !important;
+  border-radius:var(--r-md, 6px) !important;
+  background:var(--surface-2) !important;
+  border:0 !important;
+}
+
 html body .fnt-wrap{
   display:flex;
   align-items:stretch;
-  gap:10px;
-  min-height:100%;
-  padding:4px 0 0;
+  gap:12px;
+  flex:1 1 auto;
+  min-height:0;
+  padding:0;
 }
 
 html body .fnt-pane{
   flex:1 1 50%;
   min-width:0;
+  min-height:0;
   display:flex;
   flex-direction:column;
   background:var(--surface-2);
@@ -26,16 +63,16 @@ html body .fnt-pane{
 html body .fnt-src{
   flex:1 1 auto;
   width:100%;
-  min-height:380px;
-  padding:14px 16px;
+  min-height:0;
+  padding:16px 18px;
   background:transparent;
   border:0;
   outline:none;
   resize:none;
   color:var(--ink);
   font-family:'Courier Prime', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size:13px;
-  line-height:1.62;
+  font-size:13.5px;
+  line-height:1.68;
   letter-spacing:.01em;
   tab-size:4;
   white-space:pre-wrap;
@@ -43,9 +80,17 @@ html body .fnt-src{
 }
 html body .fnt-src::placeholder{ color:var(--ink-4); }
 
-html body .fnt-prev-pane{ background:var(--doc-bg, var(--surface-1)); }
+/* the preview pane is the one that scrolls, so the title page flows out
+   of sight with the script instead of eating the top of the pane */
+html body .fnt-prev-pane{
+  background:var(--doc-bg, var(--surface-1));
+  overflow-y:auto;
+}
 
 html body .fnt-hint{
+  position:sticky;
+  top:0;
+  z-index:2;
   flex:0 0 auto;
   display:flex;
   align-items:center;
@@ -62,22 +107,325 @@ html body .fnt-hint i{ color:var(--accent, var(--ink-3)); }
 
 /* the formatted page, inside its pane */
 html body .fnt-prev-pane .write-doc.fnt-doc{
-  flex:1 1 auto;
+  flex:0 0 auto;
   min-height:0;
   max-width:none;
   margin:0;
-  padding:18px 22px 60px;
-  overflow-y:auto;
+  padding:22px 26px 60px;
+  overflow:visible;
   cursor:default;
 }
 html body .fnt-doc p{ margin-bottom:var(--doc-para, 12px); }
 
 /* one column when there is no room for two */
 @media (max-width:900px){
-  html body .fnt-wrap{ flex-direction:column; }
-  html body .fnt-pane{ flex:1 1 auto; }
+  html body .fnt-wrap{ flex-direction:column; overflow-y:auto; }
+  html body .fnt-pane{ flex:1 1 auto; min-height:300px; }
   html body .fnt-src{ min-height:240px; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   THE BAR — the counts sit to the right, the two switches read as
+   switches, and the Scenes / Characters / Title panels hang off the bar
+   like every other dropdown in the app.
+   ═══════════════════════════════════════════════════════════ */
+html body .fnt-bar{
+  position:relative !important;      /* the panels are placed against it */
+  flex-wrap:wrap !important;
+  row-gap:6px !important;
+}
+html body .fnt-bar .fnt-sp{ flex:1 1 auto !important; min-width:6px !important; }
+html body .fnt-bar .fnt-st{
+  flex:0 0 auto !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  gap:5px !important;
+  padding:0 6px !important;
+  font-size:11px !important;
+  color:var(--ink-3) !important;
+  white-space:nowrap !important;
+}
+html body .fnt-bar .fnt-st b{
+  color:var(--ink) !important;
+  font-weight:600 !important;
+  font-variant-numeric:tabular-nums !important;
+}
+html body .fnt-bar .fnt-st i{ font-size:12px !important; color:var(--ink-4) !important; }
+/* a switch that is on says so, like every other switch in the app */
+html body .fnt-bar .ol-btn.on{
+  background:var(--surface-4) !important;
+  color:var(--ink) !important;
+  box-shadow:inset 0 0 0 1px var(--line-3) !important;
+}
+
+/* ── the panels that drop out of the bar ── */
+html body .fnt-jump{
+  position:absolute !important;
+  top:calc(100% + 6px) !important;
+  right:8px !important;
+  z-index:60 !important;
+  width:min(340px, calc(100% - 16px)) !important;
+  max-height:min(58vh, 420px) !important;
+  overflow-y:auto !important;
+  padding:6px !important;
+  background:var(--surface-2) !important;
+  border:1px solid var(--line-2) !important;
+  border-radius:var(--r-md, 8px) !important;
+  box-shadow:0 18px 44px rgba(0, 0, 0, .48) !important;
+}
+html body .fnt-jump[hidden]{ display:none !important; }
+html body .fnt-cast{ width:min(380px, calc(100% - 16px)) !important; }
+html body .fnt-jump-empty{
+  padding:9px 10px !important;
+  font-size:11.5px !important;
+  line-height:1.55 !important;
+  color:var(--ink-4) !important;
+}
+html body .fnt-jump-empty b{ color:var(--ink-3) !important; font-weight:600 !important; }
+html body .fnt-jump-i{
+  display:flex !important;
+  align-items:baseline !important;
+  gap:9px !important;
+  width:100% !important;
+  padding:7px 9px !important;
+  border:0 !important;
+  border-radius:var(--r-sm, 5px) !important;
+  background:transparent !important;
+  color:var(--ink-2, var(--ink)) !important;
+  font:inherit !important;
+  font-size:12px !important;
+  text-align:left !important;
+  cursor:pointer !important;
+}
+html body .fnt-jump-i > span{
+  flex:0 0 auto !important;
+  font-size:10px !important;
+  color:var(--ink-4) !important;
+  font-variant-numeric:tabular-nums !important;
+}
+html body .fnt-jump-i:hover{ background:var(--surface-4) !important; color:var(--ink) !important; }
+html body .fnt-jump-i em{
+  margin-left:auto !important;
+  font-style:normal !important;
+  font-size:10px !important;
+  color:var(--ink-4) !important;
+  white-space:nowrap !important;
+}
+/* the Insert panel and the Find panel are the same box as the other two */
+html body .fnt-insert,
+html body .fnt-find{ width:min(320px, calc(100% - 16px)) !important; }
+
+html body .fnt-cast-row{
+  display:flex !important;
+  align-items:baseline !important;
+  justify-content:space-between !important;
+  gap:10px !important;
+  padding:7px 9px !important;
+  border-radius:var(--r-sm, 5px) !important;
+  cursor:pointer !important;
+}
+html body .fnt-cast-row:hover{ background:var(--surface-4) !important; }
+html body .fnt-cast-name{
+  font-size:12.5px !important;
+  font-weight:600 !important;
+  letter-spacing:.02em !important;
+}
+html body .fnt-cast-meta{
+  flex:0 0 auto !important;
+  font-size:11px !important;
+  color:var(--ink-4) !important;
+  white-space:nowrap !important;
+}
+
+/* the title page's fields, in the same panel */
+html body .fnt-title{ width:min(340px, calc(100% - 16px)) !important; }
+html body .fnt-title-row{
+  display:flex !important;
+  align-items:center !important;
+  gap:8px !important;
+  padding:4px 5px !important;
+}
+html body .fnt-title-row label{
+  flex:0 0 76px !important;
+  font-size:10px !important;
+  font-weight:600 !important;
+  letter-spacing:.08em !important;
+  text-transform:uppercase !important;
+  color:var(--ink-4) !important;
+}
+html body .fnt-title-row input{
+  flex:1 1 auto !important;
+  min-width:0 !important;
+  height:28px !important;
+  padding:0 8px !important;
+  background:var(--surface-3) !important;
+  border:1px solid var(--line-2) !important;
+  border-radius:var(--r-sm, 5px) !important;
+  color:var(--ink) !important;
+  font:inherit !important;
+  font-size:12px !important;
+  outline:none !important;
+}
+html body .fnt-title-row input:focus{ border-color:var(--ink-4) !important; }
+html body .fnt-title-acts{
+  display:flex !important;
+  gap:6px !important;
+  margin-top:6px !important;
+  padding:8px 5px 3px !important;
+  border-top:1px solid var(--line-2) !important;
+}
+
+/* ── the suggestion list, under the caret in the source pane ── */
+html body .fnt-sug{
+  position:absolute !important;
+  z-index:70 !important;
+  min-width:200px !important;
+  max-width:min(320px, 92%) !important;
+  max-height:220px !important;
+  overflow-y:auto !important;
+  padding:5px !important;
+  background:var(--surface-2) !important;
+  border:1px solid var(--line-2) !important;
+  border-radius:var(--r-md, 8px) !important;
+  box-shadow:0 14px 34px rgba(0, 0, 0, .48) !important;
+}
+html body .fnt-sug[hidden]{ display:none !important; }
+html body .fnt-sug-i{
+  display:block !important;
+  width:100% !important;
+  padding:6px 8px !important;
+  border:0 !important;
+  border-radius:var(--r-sm, 5px) !important;
+  background:transparent !important;
+  color:var(--ink-2, var(--ink)) !important;
+  font:inherit !important;
+  font-size:12px !important;
+  text-align:left !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  cursor:pointer !important;
+}
+html body .fnt-sug-i.on{ background:var(--surface-4) !important; color:var(--ink) !important; }
+
+/* ── the title page, on top of the formatted script ── */
+html body .fnt-titlepage{
+  flex:0 0 auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:5px;
+  padding:44px 26px 36px;
+  text-align:center;
+  border-bottom:1px solid var(--line-2);
+}
+html body .fnt-titlepage[hidden]{ display:none !important; }
+html body .fnt-titlepage .fnt-tp-title{
+  font-size:19px;
+  font-weight:700;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--doc-ink, var(--ink));
+}
+html body .fnt-titlepage .fnt-tp-credit,
+html body .fnt-titlepage .fnt-tp-source{
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--ink-4);
+}
+html body .fnt-titlepage .fnt-tp-author{
+  font-size:13.5px;
+  color:var(--ink-2, var(--ink));
+}
+html body .fnt-titlepage .fnt-tp-meta{
+  margin-top:12px;
+  font-size:11px;
+  line-height:1.6;
+  white-space:pre-line;
+  color:var(--ink-4);
+}
+
+/* ── scene numbers, drawn down the margin ──
+   Counters, not text: switching them on never touches what gets saved,
+   copied or exported. */
+html body .fnt-prev-pane .write-doc.fnt-numbers{ counter-reset:fntscene; }
+html body .fnt-prev-pane .write-doc.fnt-numbers .scene-heading{
+  position:relative !important;
+  counter-increment:fntscene;
+}
+html body .fnt-prev-pane .write-doc.fnt-numbers .scene-heading::before{
+  content:counter(fntscene) ".";
+  position:absolute;
+  left:-28px;
+  top:0;
+  font-family:var(--ui-font, inherit);
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:0;
+  color:var(--ink-4);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRINT — the formatted script alone, black on white, no shell
+   ═══════════════════════════════════════════════════════════ */
+@media print{
+  /* nothing in the shell paints — not even an edge of it */
+  html body *{
+    visibility:hidden !important;
+    background:transparent !important;
+    border-color:transparent !important;
+    box-shadow:none !important;
+    outline:none !important;
+  }
+  html body .fnt-script-page.active,
+  html body .fnt-script-page.active .write-wrap,
+  html body .fnt-script-page.active .write-canvas,
+  html body .fnt-script-page.active .fnt-wrap,
+  html body .fnt-script-page.active .fnt-prev-pane{
+    overflow:visible !important;
+    display:block !important;
+    margin:0 !important;
+    padding:0 !important;
+    height:auto !important;
+    width:auto !important;
+  }
+  /* the script, black on white, at the top of the sheet */
+  html body .fnt-script-page.active .fnt-prev-pane .write-doc.fnt-doc,
+  html body .fnt-script-page.active .fnt-prev-pane .write-doc.fnt-doc *{ visibility:visible !important; }
+  html body .fnt-script-page.active .fnt-prev-pane .write-doc.fnt-doc{
+    position:static !important;
+    max-width:none !important;
+    margin:0 !important;
+    padding:0 !important;
+    background:#fff !important;
+    color:#000 !important;
+  }
+  html body .fnt-script-page.active .fnt-prev-pane .write-doc.fnt-doc *{ color:#000 !important; }
+  html body .fnt-script-page.active .fnt-prev-pane .write-doc.fnt-doc .scene-heading{
+    border-bottom-color:#bbb !important;
+  }
+  @page{ margin:16mm 14mm; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INTERMIXING — the sample line in Settings → Custom. A font setting
+   you cannot see is a setting you cannot tell from a broken one, so the
+   three faces take their turns here exactly as they will while typing.
+   ═══════════════════════════════════════════════════════════ */
+html body .mix-preview{
+  margin-top:7px !important;
+  padding:10px 12px !important;
+  background:var(--surface-2) !important;
+  border-radius:var(--r-md, 6px) !important;
+  color:var(--ink-2, var(--ink)) !important;
+  font-size:15px !important;
+  line-height:1.65 !important;
+  letter-spacing:0 !important;
+}
+html body .mix-preview.off{ opacity:.45 !important; }
+html body .mix-preview span{ letter-spacing:inherit !important; }
 
 /* ═══════════════════════════════════════════════════════════
    Right-click settings — the sliders icon at the top-left is gone, the
@@ -353,15 +701,15 @@ html body .gt-head .gt-x:hover{ background:var(--surface-3) !important; color:va
 /* ═══════════════════════════════════════════════════════════
    Small placements
    ═══════════════════════════════════════════════════════════ */
-/* the Novel / Screenplay panel sits a little higher than it did */
+/* the Novel / Screenplay panel sits a little higher than it did, so it
+   opens over the welcome block instead of beside it */
 html body .modes-panel{
-  top:104px !important;
-  bottom:96px !important;
+  top:56px !important;
+  bottom:56px !important;
 }
 
-/* the Canvas page carries no type button, and the drawing canvas keeps
-   its tools tidy without the “T” */
-html body #page-mindmap .mm-head [data-typop]{ display:none !important; }
+/* The Canvas page carries its own T, like every other page — the card text
+   follows it (see the .mm-node-text rule lower down). */
 html body #page-canvas .canvas-tools [data-cx-tool="text"]{ display:none !important; }
 
 /* ═══════════════════════════════════════════════════════════
@@ -472,6 +820,7 @@ html body #page-outline       .page-head::before,
 html body #page-kanban        .page-head::before,
 html body #page-plan          .page-head::before,
 html body #page-bible         .page-head::before,
+html body #page-manuscript    .sf-bar::before,
 html body #page-mindmap       .page-head::before{
   content:'' !important;
   position:absolute !important;
@@ -492,9 +841,26 @@ html body #page-outline#page-outline .page-head,
 html body #page-kanban#page-kanban   .page-head,
 html body #page-plan#page-plan       .page-head,
 html body #page-bible#page-bible     .page-head,
+html body #page-manuscript#page-manuscript .sf-bar,
 html body #page-mindmap#page-mindmap .page-head{
   top:8px !important;
   margin-top:8px !important;
+}
+
+/* THE SCRIPT PAGE'S BAR
+   fountain-script.js builds that bar itself, after the page is already on
+   screen, so it cannot rely on the page rules above. The air comes from
+   the PAGE instead of the bar: padding on the page container cannot be
+   cancelled by any bar rule, whatever its weight, so the bar is 8px clear
+   of the header exactly like Draft, Outline, Plan, Bible and Canvas. */
+html body #page-manuscript.sf-script-page.active{
+  padding-top:8px !important;
+}
+html body #page-manuscript#page-manuscript.sf-script-page .sf-bar.fnt-bar{
+  position:relative !important;
+  top:0 !important;                        /* the page's padding is the air */
+  margin:0 16px !important;
+  flex:0 0 auto !important;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -556,12 +922,55 @@ html body .chapter-controls{
   padding-right:calc(22px - var(--ctl-sm, 28px) / 2) !important;
 }
 
-/* The chapter strip's first hairline stands in the column of the toolbar's
-   divider before Bold. polish.js measures the live layout and writes the
-   offset into --sf-sep-x, so the two lines read as one. */
-html body .chapter-controls .cc-sep{
-  margin-left:var(--sf-sep-x, 8px) !important;
+/* ═══════════════════════════════════════════════════════════
+   MANUSCRIPT — the page wears a FULL CARD like every other page in
+   the app: one flat surface, clear of the top bar, inset from the
+   page edge by the same 10 / 16 the rest of the app uses.
+
+   The card is the manuscript's two rows: the formatting toolbar is
+   the upper half (order 1) and the chapter strip the lower half
+   (order 2), with the app's own hairline between them. Both are
+   inset identically, so the first box of each row still lines up,
+   and the dividers keep answering to chapter-align.js as before.
+   ═══════════════════════════════════════════════════════════ */
+html body #page-manuscript#page-manuscript .write-toolbar{
+  margin:10px 16px 0 !important;
+  background:var(--surface-2) !important;
+  border-radius:var(--r-md, 6px) var(--r-md, 6px) 0 0 !important;
+  box-shadow:none !important;
 }
+html body #page-manuscript#page-manuscript .chapter-controls{
+  margin:0 16px !important;
+  padding:8px calc(22px - var(--ctl-sm, 28px) / 2) 8px 24px !important;
+  min-height:42px !important;
+  background:var(--surface-2) !important;
+  border:0 !important;
+  border-radius:0 0 var(--r-md, 6px) var(--r-md, 6px) !important;
+  box-shadow:none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SETTINGS → CUSTOM → INTERMIXING
+   The three faces stay on one line; the rotation drops onto its own
+   line under them, where it reads as what the three faces take turns by.
+   ═══════════════════════════════════════════════════════════ */
+html body .cust-mix-wrap{
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:stretch !important;
+  gap:6px !important;
+}
+html body .cust-mix-wrap > .cust-inline{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  gap:6px !important;
+}
+html body .cust-mix-wrap > .cust-inline:last-child > .sel{ min-width:220px !important; }
+
+/* The chapter strip's hairlines are placed by chapter-align.js and nothing
+   else — see the note in polish.js. The old --sf-sep-x margin lived here and
+   fought with that aligner, so the line beside the note icon flipped between
+   two spots (a doubled divider). */
 /* The colour chips are boxes like every other icon — the toolbar's greys
    around them, with the colour as a small chip inside. */
 html body .tb-swatch{
@@ -584,16 +993,25 @@ html body .tb-swatch .tb-swatch-fill{
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.16) !important;
 }
 
-/* The chapter strip's hairlines are the toolbar's hairlines: full-height
-   lines in the same colour, instead of short stubs of their own. */
+/* ONE hairline, one size, everywhere in the chapter strip — the divider
+   beside the note icon, the one beside the utility grid and the one before
+   find & replace all read as the same line as the toolbar's dividers above
+   them: full row height, the toolbar's own colour, no stubs of their own. */
+html body .chapter-controls .cc-sep,
 html body .cc-sep{
   width:1px !important;
-  height:100% !important;
-  min-height:18px !important;
-  margin:0 8px !important;
-  background:var(--line) !important;
+  height:auto !important;
+  min-height:0 !important;
   align-self:stretch !important;
+  margin:0 10px !important;
+  flex:0 0 1px !important;
+  background:var(--line) !important;
 }
+/* the strip hugs its row, so the line runs unbroken from the toolbar above */
+html body .chapter-controls{ align-items:stretch !important; }
+html body .chapter-controls .chapter-control,
+html body .chapter-controls .cc-tools,
+html body .chapter-controls .cc-right{ align-items:center !important; }
 
 /* ═══════════════════════════════════════════════════════════
    DRAFT — the writing pane's head is part of the card, not a row
@@ -603,18 +1021,418 @@ html body #page-draft .draft-pane-head{
   border-bottom:0 !important;
 }
 
+/* The AI chat's settings button lives at the right end of the Draft page's
+   own top bar and nowhere else — the chat card has no head of its own, so
+   there is one sliders icon on screen, in the bar. */
+html body #page-draft .draft-pane-head:has(> .draft-list-acts){ display:none !important; }
+
 /* ═══════════════════════════════════════════════════════════
-   OUTLINE · BIBLE — the chevron pager is the way through these
-   lists, so the scroller keeps working with no scrollbar drawn
-   over the panel.
+   OUTLINE · BIBLE — the chapter list and the entry list scroll in
+   their own panels, with a real scrollbar. There are no chevrons on
+   either page any more, so scrolling is the only way through — and
+   every chapter and subchapter is reachable that way.
    ═══════════════════════════════════════════════════════════ */
 html body #page-outline .ol-panel,
 html body #page-bible .bb-rows{
-  scrollbar-width:none !important;
-  -ms-overflow-style:none !important;
+  overflow-y:auto !important;
+  overscroll-behavior:contain !important;
+  scrollbar-width:thin !important;
+  scrollbar-color:var(--line-3, var(--line)) transparent !important;
+  -ms-overflow-style:auto !important;
 }
 html body #page-outline .ol-panel::-webkit-scrollbar,
 html body #page-bible .bb-rows::-webkit-scrollbar{
-  display:none !important;
-  width:0 !important;
+  display:block !important;
+  width:10px !important;
 }
+html body #page-outline .ol-panel::-webkit-scrollbar-track,
+html body #page-bible .bb-rows::-webkit-scrollbar-track{
+  background:transparent !important;
+}
+html body #page-outline .ol-panel::-webkit-scrollbar-thumb,
+html body #page-bible .bb-rows::-webkit-scrollbar-thumb{
+  background:var(--line-3, var(--line)) !important;
+  border-radius:999px !important;
+  border:2px solid transparent !important;
+  background-clip:padding-box !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DRAFT · IDEA — no chevron pagers on either page: both lists
+   scroll in their own column, with a real scrollbar, so every
+   draft and every saved prompt is reachable at once.
+   ═══════════════════════════════════════════════════════════ */
+html body #page-draft .draft-rows,
+html body #page-inspire .idea-rows{
+  overflow-y:auto !important;
+  overscroll-behavior:contain !important;
+  scrollbar-width:thin !important;
+  scrollbar-color:var(--line-3, var(--line)) transparent !important;
+  -ms-overflow-style:auto !important;
+}
+html body #page-draft .draft-rows::-webkit-scrollbar,
+html body #page-inspire .idea-rows::-webkit-scrollbar{
+  display:block !important;
+  width:10px !important;
+}
+html body #page-draft .draft-rows::-webkit-scrollbar-track,
+html body #page-inspire .idea-rows::-webkit-scrollbar-track{
+  background:transparent !important;
+}
+html body #page-draft .draft-rows::-webkit-scrollbar-thumb,
+html body #page-inspire .idea-rows::-webkit-scrollbar-thumb{
+  background:var(--line-3, var(--line)) !important;
+  border-radius:999px !important;
+  border:2px solid transparent !important;
+  background-clip:padding-box !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DRAFT BAR — the chat's settings button lives at the right end of
+   the page's own top bar (never in the app header). It is drawn only
+   while the chat is open.
+   ═══════════════════════════════════════════════════════════ */
+html body #page-draft .sf-bar [data-sfbar-chat-settings]{ margin-left:auto !important; }
+html body #page-draft .sf-bar [data-sfbar-chat-settings][hidden]{ display:none !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   CUSTOM — the writer switches' inline controls sit on one line, and
+   the kanban board's subchapters live inside their chapter card.
+   ═══════════════════════════════════════════════════════════ */
+html body .cust-inline{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  flex-wrap:wrap !important;
+  gap:6px !important;
+}
+html body .cust-inline .dd-card{ min-width:118px !important; }
+
+html body .kb-subs{ display:flex !important; flex-direction:column !important; gap:1px !important; margin:2px 0 6px !important; }
+html body .kb-subs[hidden]{ display:none !important; }
+html body .kb-sub{
+  display:flex !important;
+  align-items:center !important;
+  gap:8px !important;
+  padding:3px 6px 3px 10px !important;
+  border-radius:var(--r-sm, 4px) !important;
+  background:var(--surface-2) !important;
+  font-size:11.5px !important;
+  color:var(--ink-3) !important;
+}
+html body .kb-sub:hover{ background:var(--surface-3) !important; color:var(--ink) !important; }
+html body .kb-sub-name{
+  flex:1 1 auto !important;
+  min-width:0 !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+}
+html body .kb-sub-words{ flex:0 0 auto !important; font-size:10.5px !important; color:var(--ink-4) !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   STORY TYPE — Settings → AI, the draft chat's Assistant panel and
+   the Custom page all show these chips. A chip that is on is
+   part of the writer's register and travels with every AI request.
+   ═══════════════════════════════════════════════════════════ */
+html body .sf-story-chips{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  gap:4px !important;
+  max-width:440px !important;
+  justify-content:flex-end !important;
+}
+html body .sf-story-chips-lg{ max-width:520px !important; }
+html body .sf-story-chip{
+  appearance:none !important;
+  border:1px solid var(--line-2) !important;
+  background:var(--surface-2) !important;
+  color:var(--ink-3) !important;
+  border-radius:999px !important;
+  padding:3px 9px !important;
+  font-size:11px !important;
+  line-height:1.45 !important;
+  font-family:var(--ui, inherit) !important;
+  cursor:pointer !important;
+  transition:background .12s ease, color .12s ease, border-color .12s ease !important;
+}
+html body .sf-story-chip:hover{ background:var(--surface-3) !important; color:var(--ink) !important; }
+html body .sf-story-chip.on{
+  background:color-mix(in srgb, var(--accent, #b8860b) 18%, var(--surface-2)) !important;
+  border-color:var(--accent, #b8860b) !important;
+  color:var(--ink) !important;
+  font-weight:600 !important;
+}
+
+/* the canvas cards follow the Canvas page's T button */
+html body #page-mindmap .mm-node-text{
+  font-family:var(--pg-font, var(--ui, inherit)) !important;
+  font-size:var(--pg-size, 12.5px) !important;
+  line-height:var(--pg-lh, 1.5) !important;
+  font-weight:var(--pg-weight, 400) !important;
+}
+
+/* Canvas bar: the T and New card on the left, the magnifier popup and Clear
+   pinned to the top-right corner of the bar — Clear last, nothing after it. */
+html body #page-mindmap .mm-head{ justify-content:flex-start !important; }
+/* The left group takes the free space, which is what pins the magnifier
+   popup and Clear to the right edge of the bar whatever the justify-content
+   elsewhere may say — the pair sits at the far right, Clear last. */
+html body #page-mindmap .mm-head > .ol-head-left{
+  flex:1 1 auto !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:6px !important;
+}
+html body #page-mindmap .mm-head > .ol-actions.mm-actions{
+  margin-left:auto !important;
+  flex:0 0 auto !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:6px !important;
+}
+html body #page-mindmap .mm-head [data-mm="clear"]{ order:2 !important; }
+html body #page-mindmap .mm-head .mm-zoomwrap{ order:1 !important; }
+
+/* the overlay pane and its scrim sit over the whole app, welcome screen
+   included — nothing else may paint on top of them */
+html body .ovl-wrap{ z-index:900 !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   DRAFT CHAT — the reply-mode button in the chat's own toolbar.
+   Off “normal chat” it is lit, so you can see at a glance that the AI
+   is in questioning or listening mode. Not red like the mic.
+   ═══════════════════════════════════════════════════════════ */
+html body .dc-ibtn.dc-mode.on{ background:var(--surface-3) !important; }
+html body .dc-ibtn.dc-mode.on i{ color:var(--acc, var(--ink)) !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   CANVAS — Fit and the size controls are ONE popup, in the top-right
+   corner, immediately left of Clear. The bar itself carries only the
+   trigger: New card on the left, then the popup and Clear on the right.
+   ═══════════════════════════════════════════════════════════ */
+html body #page-mindmap .mm-actions{ margin-left:auto !important; }
+html body #page-mindmap .mm-zoomwrap{
+  position:relative !important;
+  display:flex !important;
+  align-items:center !important;
+}
+html body #page-mindmap .mm-zoombox{
+  position:absolute !important;
+  top:calc(100% + 6px) !important;
+  right:0 !important;
+  z-index:60 !important;
+  display:flex !important;
+  flex-direction:column !important;
+  gap:4px !important;
+  padding:6px !important;
+  min-width:136px !important;
+  background:var(--surface-1) !important;
+  border:1px solid var(--line-2) !important;
+  border-radius:var(--r-md, 6px) !important;
+  box-shadow:0 16px 34px -12px rgba(0,0,0,.45) !important;
+}
+html body #page-mindmap .mm-zoombox[hidden]{ display:none !important; }
+html body #page-mindmap .mm-zoombox .ol-btn{ justify-content:center !important; }
+html body #page-mindmap .mm-zoomrow{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:4px !important;
+}
+html body #page-mindmap .mm-zoom{
+  flex:1 1 auto !important;
+  min-width:44px !important;
+  text-align:center !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THE FIRST-RUN NAME (welcome.js)
+   Asked once, over the dashboard, in the app's own surface — a card, a
+   field, one button. Nothing about it is a dialog the writer has to
+   fight: Enter takes the name, Esc leaves it. */
+html body .sf-namegate{
+  position:fixed;
+  inset:0;
+  z-index:520;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter:blur(3px);
+  animation:sfGateIn 180ms var(--ease, ease);
+}
+@keyframes sfGateIn{ from{ opacity:0; } to{ opacity:1; } }
+
+/* the writer's name, UNDER “Welcome back” — the second line of the greeting */
+html body .sf-welcome-name{
+  margin-top:6px;
+  font-family:var(--display);
+  font-size:20px;
+  font-weight:600;
+  letter-spacing:-.02em;
+  color:var(--accent, var(--ink-2));
+}
+html body .sf-welcome-name[hidden]{ display:none !important; }
+html body .sf-namegate-card{
+  width:min(420px, 100%);
+  padding:26px 24px 20px;
+  text-align:center;
+  background:var(--surface-2);
+  border:1px solid var(--line-2);
+  border-radius:var(--r-lg, 10px);
+  box-shadow:var(--e-4);
+}
+html body .sf-namegate-ic{
+  width:44px; height:44px; margin:0 auto 12px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:50%;
+  background:var(--accent-soft, var(--surface-4));
+  color:var(--accent, var(--ink));
+  font-size:19px;
+}
+html body .sf-namegate-card h2{
+  font-size:17px; font-weight:600; letter-spacing:-.02em;
+  color:var(--ink); margin-bottom:6px;
+}
+html body .sf-namegate-card p{
+  font-size:12.5px; line-height:1.55; color:var(--ink-3); margin-bottom:16px;
+}
+html body .sf-namegate-row{ display:flex; gap:8px; }
+html body .sf-namegate-row input{
+  flex:1 1 auto; min-width:0;
+  padding:9px 12px;
+  background:var(--surface-3);
+  border:1px solid var(--line-2);
+  border-radius:var(--r-md, 8px);
+  color:var(--ink);
+  font:inherit; font-size:13.5px;
+  outline:none;
+}
+html body .sf-namegate-row input:focus{ border-color:var(--accent-line, var(--line-3)); }
+html body .sf-namegate-row .btn{ flex:0 0 auto; }
+html body .sf-namegate-skip{
+  margin-top:12px;
+  background:none; border:0; cursor:pointer;
+  font:inherit; font-size:11.5px; color:var(--ink-4);
+}
+html body .sf-namegate-skip:hover{ color:var(--ink-2); }
+
+/* ═══════════════════════════════════════════════════════════
+   THE SCRIPT BAR'S PANELS
+   The insert list belongs under the source pane — the writer is typing
+   there, and anchored to the right end it opened over the preview instead,
+   halfway across the page. The ⋯ overflow keeps the right edge, since its
+   button is the last thing in the bar. */
+html body .fnt-insert{ left:8px !important; right:auto !important; }
+html body .fnt-more{ left:auto !important; right:8px !important; }
+html body .fnt-more .fnt-jump-i{ align-items:center !important; gap:10px !important; }
+html body .fnt-more .fnt-jump-i > span{
+  flex:0 0 16px !important; width:16px !important; text-align:center !important;
+  font-size:12px !important; color:var(--ink-4) !important;
+}
+html body .fnt-more .fnt-jump-i.on{ background:var(--surface-4) !important; color:var(--ink) !important; }
+html body .fnt-more .fnt-jump-i.on > span{ color:var(--accent, var(--ink)) !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   STATISTICS — the tiles are the app's own, exactly as they were.
+   These were restyled once (four lavender blocks turned into hairlines, the
+   icons taken off them) and that was a mistake: the Statistics page is the
+   app's page and its tiles are the app's tiles. Nothing here touches them
+   any more, so what the page drew before is what the page draws. */
+
+/* the days-opened rail keeps the look overrides.css finished it with:
+   one tube (surface-2, the app's own corner) and one 2px line that runs
+   where the app was opened and breaks where it wasn't. A second version
+   lived here — a 1px baseline with a dot a day — and the two disagreed
+   about the same element, which is what made the rail read as a row of
+   loose pills. ONE owner again: this file says nothing about it. */
+
+/* ═══════════════════════════════════════════════════════════
+   THE PROJECT ROW IS ONE CARD — NEVER A BOX INSIDE A BOX
+   (rescued from styles-pack.css, which is gone with Flutter)
+
+   The row used to be dressed as a surface of its own, inside the wrap
+   that is already the card: a second rounded rectangle, with its own
+   shadow, around the project's name. The wrap is the card and everything
+   inside it is content, so nothing between them draws a box.
+   Backgrounds are left alone, so hover and selected tinting still read.
+   ═══════════════════════════════════════════════════════════ */
+html body :is(.proj-item, .proj-row, .proj-body, .proj-name){
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  outline:none !important;
+}
+/* and the outline a focused row would otherwise draw */
+html body :is(.proj-item, .proj-row):focus,
+html body :is(.proj-item, .proj-row):focus-visible{ outline:none !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   NO STRAY RULES AROUND THE BARS
+   A hairline between two groups of buttons is drawn by a border or an
+   outline on the group itself. The bars own their own separators (see
+   the toolbar rules above), so any box round a group is a leftover.
+   ═══════════════════════════════════════════════════════════ */
+html body :is(.ol-head-left, .ol-actions, .sf-bar-end, .mm-actions,
+              .plan-actions, .plan-tools, .draft-list-head, .kb-col-head,
+              .col-head, .set-head-chips, .stats-drops){
+  outline:none !important;
+}
+html body :is(.ol-head-left, .ol-actions, .mm-actions, .plan-actions){
+  border:0 !important;
+  box-shadow:none !important;
+  background:transparent !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FONT SIZE — the sample line under the slider in Settings
+   Drawn in the writing face at the size you picked, so the control can
+   be seen working. final-fix.js keeps it in step with the slider.
+   ═══════════════════════════════════════════════════════════ */
+html body .font-size-sample{
+  margin:6px 0 2px;
+  padding:10px 12px;
+  border:1px solid var(--line-2);
+  border-radius:var(--r-md, 6px);
+  background:var(--surface-2);
+  color:var(--ink-2);
+  font-family:var(--doc-font, inherit);
+  font-size:var(--doc-size, 17px);
+  line-height:var(--doc-line, 1.75);
+  letter-spacing:var(--doc-track, 0);
+  word-spacing:var(--doc-word, 0);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CANVAS BAR — T and New card, and nothing else
+   The zoom & fit cluster and Clear are off the bar (the readout could
+   show a number nobody asked for, and the two buttons crowded the top
+   right). Zooming is the wheel and the drag of empty space, and Fit ·
+   Zoom in · Zoom out · Clear canvas live in the page's own menu —
+   the round button's right-click list (see final-fix.js).
+   ═══════════════════════════════════════════════════════════ */
+html body #page-mindmap .mm-head .mm-zoomwrap,
+html body #page-mindmap .mm-head [data-mm="clear"],
+html body #page-mindmap .mm-head .mm-zoom,
+html body #page-mindmap .mm-head [data-mm="zoom-label"]{
+  display:none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PLAN BAR — T · Add beat on the left, the board cluster on the right
+   (plan-boards.js places the nodes; this only fixes the order and the
+   gaps so the two groups never sit on top of each other)
+   ═══════════════════════════════════════════════════════════ */
+html body #page-plan .page-head .ol-head-left{ gap:6px !important; }
+html body #page-plan .page-head .plan-picker{
+  display:flex !important; align-items:center !important; gap:4px !important;
+  margin-left:auto !important;                  /* the cluster ends the bar */
+}
+html body #page-plan .page-head .plan-board-sel{ min-width:132px !important; }

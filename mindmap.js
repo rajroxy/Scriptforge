@@ -68,9 +68,13 @@
     if(!Array.isArray(st.nodes)) st.nodes = [];
     if(!Array.isArray(st.links)) st.links = [];
     if(!st.view || typeof st.view !== 'object') st.view = { x:0, y:0, k:1 };
-    st.view.k = Math.max(0.35, Math.min(2.5, +st.view.k || 1));
-    st.view.x = +st.view.x || 0;
-    st.view.y = +st.view.y || 0;
+    /* a saved zoom is only kept when it is a real number — a hand-edited or
+       half-written file must never leave the canvas on “NaN%” */
+    const kn = +st.view.k;
+    st.view.k = isFinite(kn) ? Math.max(0.35, Math.min(2.5, kn)) : 1;
+    const xn = +st.view.x, yn = +st.view.y;
+    st.view.x = isFinite(xn) ? xn : 0;
+    st.view.y = isFinite(yn) ? yn : 0;
     st.nodes.forEach(function(n, i){
       n.id = n.id || ('n' + i + Math.random().toString(36).slice(2, 6));
       n.x = +n.x || 0; n.y = +n.y || 0;
@@ -91,12 +95,21 @@
     return st.nodes.filter(function(n){ return n.id === id; })[0] || null;
   };
 
+  /* the zoom readout, and the transform that goes with it, are always a
+     real number — whatever the state holds */
+  const num = function(v, fallback){ const n = +v; return isFinite(n) ? n : fallback; };
+  const zoomText = function(k){ return Math.round(num(k, 1) * 100) + '%'; };
+
   const applyView = function(){
     const st = store(false);
     if(!st || !world) return;
-    world.style.transform = 'translate(' + st.view.x + 'px,' + st.view.y + 'px) scale(' + st.view.k + ')';
+    const k = num(st.view.k, 1), x = num(st.view.x, 0), y = num(st.view.y, 0);
+    if(k !== st.view.k) st.view.k = k;
+    if(x !== st.view.x) st.view.x = x;
+    if(y !== st.view.y) st.view.y = y;
+    world.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + k + ')';
     const label = el('[data-mm="zoom-label"]');
-    if(label) label.textContent = Math.round(st.view.k * 100) + '%';
+    if(label) label.textContent = zoomText(k);
     draw();
   };
 
@@ -172,11 +185,13 @@
       grow(ta);
     });
 
+    /* No copy over the canvas: the empty state is the glyph alone. */
     if(!st.nodes.length){
-      world.innerHTML = '<div class="mm-empty"><i class="bi ' + ICON + '"></i>'
-        + '<div>Empty canvas. <b>New card</b> adds one — or double-click anywhere here.</div></div>';
+      world.innerHTML = '<div class="mm-empty"><i class="bi ' + ICON + '"></i></div>';
     }
     applyView();
+    /* the cards were re-created, so the arm's mark goes back on */
+    if(armed) markArmed();
   };
 
   const grow = function(ta){
@@ -196,8 +211,8 @@
     const p = { x:0, y:0 };
     if(!stage) return p;
     const r = stage.getBoundingClientRect();
-    if(st) p.x = (r.width / 2 - st.view.x) / st.view.k - NODE_W / 2;
-    if(st) p.y = (r.height / 2 - st.view.y) / st.view.k - 60;
+    if(st) p.x = (r.width / 2 - num(st.view.x, 0)) / num(st.view.k, 1) - NODE_W / 2;
+    if(st) p.y = (r.height / 2 - num(st.view.y, 0)) / num(st.view.k, 1) - 60;
     return { x:p.x + (st ? (st.nodes.length % 4) * 26 : 0), y:p.y + (st ? (st.nodes.length % 4) * 22 : 0) };
   };
 
@@ -214,10 +229,14 @@
     });
     const r = stage.getBoundingClientRect();
     const pad = 40;
-    const k = Math.max(0.35, Math.min(1.6, Math.min((r.width - pad * 2) / Math.max(1, maxX - minX), (r.height - pad * 2) / Math.max(1, maxY - minY))));
+    let k = Math.max(0.35, Math.min(1.6, Math.min((r.width - pad * 2) / Math.max(1, maxX - minX), (r.height - pad * 2) / Math.max(1, maxY - minY))));
+    /* a card with no measurable box must not poison the view with NaN */
+    if(!isFinite(k)) k = 1;
+    let fx = pad - minX * k + Math.max(0, (r.width - pad * 2 - (maxX - minX) * k) / 2);
+    let fy = pad - minY * k + Math.max(0, (r.height - pad * 2 - (maxY - minY) * k) / 2);
     st.view.k = k;
-    st.view.x = pad - minX * k + Math.max(0, (r.width - pad * 2 - (maxX - minX) * k) / 2);
-    st.view.y = pad - minY * k + Math.max(0, (r.height - pad * 2 - (maxY - minY) * k) / 2);
+    st.view.x = isFinite(fx) ? fx : 0;
+    st.view.y = isFinite(fy) ? fy : 0;
     if(typeof save === 'function') save();
     applyView();
   };
@@ -232,16 +251,16 @@
     root.innerHTML =
       '<div class="page-head ol-head mm-head">'
       +   '<div class="ol-head-left">'
+      +     '<button class="ol-btn ol-btn-icon" data-typop="mindmap" title="Font, size and leading"><i class="bi bi-fonts"></i></button>'
       +     '<button class="ol-btn" data-mm="add"><i class="bi bi-plus-lg"></i> New card</button>'
-      +     '<button class="ol-btn" data-mm="fit"><i class="bi bi-arrows-angle-contract"></i> Fit</button>'
       +   '</div>'
-      +   '<div class="mm-hint">Drag a card, or drag its dot onto another card to link them \u00b7 click a link to remove it</div>'
-      +   '<div class="ol-actions mm-actions">'
-      +     '<button class="ol-btn ol-btn-icon" data-mm="zoom-out" title="Zoom out"><i class="bi bi-dash-lg"></i></button>'
-      +     '<span class="mm-zoom" data-mm="zoom-label">100%</span>'
-      +     '<button class="ol-btn ol-btn-icon" data-mm="zoom-in" title="Zoom in"><i class="bi bi-plus-lg"></i></button>'
-      +     '<button class="ol-btn" data-mm="clear" title="Remove every card and link"><i class="bi bi-eraser"></i> Clear</button>'
-      +   '</div>'
+      /* The bar carries the two things you do on this page: the type for
+         the cards and a new card. Zooming is the wheel over the canvas and
+         the drag of empty space; Fit, Zoom in, Zoom out and Clear canvas
+         sit in the page's own menu (the round button's right-click list),
+         which is where the page's other commands already are. Nothing of
+         theirs is drawn here, so there is no readout on the bar that could
+         ever show anything but a real number. */
       + '</div>'
       + '<div class="mm-wrap">'
       +   '<div class="mm-stage" data-mm="stage">'
@@ -255,6 +274,28 @@
     svg   = root.querySelector('[data-mm="links"]');
 
     paint();
+    /* the T button's type applies to the card text (see polish.css) */
+    if(typeof typoApply === 'function') typoApply(PAGE, root);
+
+    /* the page's own commands, for the menu that lists them (final-fix.js
+       drops Fit · Zoom in · Zoom out · Clear canvas into the canvas's
+       right-click list) */
+    window.sfCanvas = {
+      fit: function(){ try{ fit(); }catch(e){} },
+      zoomIn: function(){ try{ zoomBy(1); }catch(e){} },
+      zoomOut: function(){ try{ zoomBy(-1); }catch(e){} },
+      clear: function(){
+        const st = store(false);
+        if(!st || !st.nodes.length) return;
+        if(!confirm('Remove every card and link from this canvas?')) return;
+        st.nodes = []; st.links = [];
+        if(typeof save === 'function') save();
+        paint();
+        if(typeof toast === 'function') toast('Canvas cleared');
+      },
+      arm: armFrom,
+      addCard: function(){ addNode(centre().x, centre().y); paint(); }
+    };
     requestAnimationFrame(function(){
       paint();
       /* open centred: frame the cards if there are any, otherwise put the
@@ -271,6 +312,56 @@
     });
   };
 
+  /* the size steps, used by the bar, the menu and the wheel alike */
+  const zoomBy = function(dir){
+    const st = store(false);
+    if(!st || !stage) return;
+    const r = stage.getBoundingClientRect();
+    const mx = r.width / 2, my = r.height / 2;
+    const cur = num(st.view.k, 1);
+    const wx = (mx - num(st.view.x, 0)) / cur, wy = (my - num(st.view.y, 0)) / cur;
+    const next = cur * (dir > 0 ? 1.15 : 1 / 1.15);
+    st.view.k = isFinite(next) ? Math.max(0.35, Math.min(2.5, next)) : cur;
+    const nx = mx - wx * st.view.k, ny = my - wy * st.view.k;
+    st.view.x = isFinite(nx) ? nx : 0;
+    st.view.y = isFinite(ny) ? ny : 0;
+    if(typeof save === 'function') save();
+    applyView();
+  };
+
+  /* ═══ point-to-point linking by clicking ═══
+     Drag the dot onto a card to link them (that still works). This is the
+     other way: click the dot to arm the card, then click any number of
+     cards to attach them to it — the arm stays on, so one card can be
+     wired to many, one after another. Esc, a click on empty canvas or a
+     click on the armed card itself ends it. */
+  let armed = null;
+  let movedAt = 0;
+  const markArmed = function(){
+    Array.prototype.forEach.call(document.querySelectorAll('.mm-node.mm-armed'), function(n){ n.classList.remove('mm-armed'); });
+    if(!armed || !world) return;
+    const n = world.querySelector('[data-mm-node="' + armed + '"]');
+    if(n) n.classList.add('mm-armed');
+  };
+  function armFrom(id){
+    armed = (armed === id) ? null : id;
+    markArmed();
+    return armed;
+  }
+  const connect = function(a, b){
+    const st = store(false);
+    if(!st || !a || !b || a === b) return false;
+    const exists = st.links.some(function(l){
+      return (l.a === a && l.b === b) || (l.a === b && l.b === a);
+    });
+    if(exists){ if(typeof toast === 'function') toast('Already linked', 'warn'); return false; }
+    st.links.push({ id:'l' + Math.random().toString(36).slice(2, 8), a:a, b:b });
+    if(typeof save === 'function') save();
+    draw();
+    return true;
+  };
+  window.sfCanvasLink = connect;
+
   /* ═══ buttons ═══ */
   document.addEventListener('click', function(e){
     const t = e.target;
@@ -278,18 +369,31 @@
     const page = document.getElementById('page-' + PAGE);
     if(!page) return;
 
-    const zoom = function(dir){
-      const st = store(false);
-      if(!st || !stage) return;
-      const r = stage.getBoundingClientRect();
-      const mx = r.width / 2, my = r.height / 2;
-      const wx = (mx - st.view.x) / st.view.k, wy = (my - st.view.y) / st.view.k;
-      st.view.k = Math.max(0.35, Math.min(2.5, st.view.k * (dir > 0 ? 1.15 : 1 / 1.15)));
-      st.view.x = mx - wx * st.view.k;
-      st.view.y = my - wy * st.view.k;
-      if(typeof save === 'function') save();
-      applyView();
-    };
+    /* the armed port: click a card, it is linked — and the arm stays on */
+    const port = t.closest('[data-mm-port]');
+    if(port){
+      e.preventDefault(); e.stopPropagation();
+      const id = port.dataset.mmPort;
+      armFrom(id);
+      if(armed && typeof toast === 'function'){
+        toast('Now click the cards to link — Esc when you are done');
+      }
+      return;
+    }
+    const nodeEl = t.closest('.mm-node');
+    if(armed && nodeEl && !t.closest('textarea, button') && Date.now() - movedAt > 260){
+      if(nodeEl.dataset.mmNode === armed){
+        armFrom(armed);
+      }else{
+        const ok = connect(armed, nodeEl.dataset.mmNode);
+        if(ok) markArmed();                    /* still armed: link another */
+        e.preventDefault();
+      }
+      return;
+    }
+    if(armed && !nodeEl && !t.closest('[data-mm]')){
+      armed = null; markArmed();
+    }
 
     if(t.closest('[data-mm="add"]')){
       e.preventDefault();
@@ -297,18 +401,20 @@
       paint();
       return;
     }
+    if(t.closest('[data-mm="zoom-panel"]')){
+      e.preventDefault();
+      const box = page.querySelector('[data-mm="zoom-box"]');
+      if(box) box.hidden = !box.hidden;
+      return;
+    }
+    /* Fit and the size steps all live in the popup and all leave it open,
+       so you can fit and then nudge the size without reopening it. */
     if(t.closest('[data-mm="fit"]')){ e.preventDefault(); fit(); return; }
-    if(t.closest('[data-mm="zoom-in"]')){ e.preventDefault(); zoom(1); return; }
-    if(t.closest('[data-mm="zoom-out"]')){ e.preventDefault(); zoom(-1); return; }
+    if(t.closest('[data-mm="zoom-in"]')){ e.preventDefault(); zoomBy(1); return; }
+    if(t.closest('[data-mm="zoom-out"]')){ e.preventDefault(); zoomBy(-1); return; }
     if(t.closest('[data-mm="clear"]')){
       e.preventDefault();
-      const st = store(false);
-      if(!st || !st.nodes.length) return;
-      if(!confirm('Remove every card and link from this canvas?')) return;
-      st.nodes = []; st.links = [];
-      if(typeof save === 'function') save();
-      paint();
-      if(typeof toast === 'function') toast('Canvas cleared');
+      if(window.sfCanvas) window.sfCanvas.clear();
       return;
     }
 
@@ -333,6 +439,23 @@
       draw();
       if(typeof toast === 'function') toast('Link removed');
       return;
+    }
+  }, true);
+
+  /* The zoom & fit popup closes the moment the pointer goes anywhere else,
+     and on Escape. Registered after the handler above, so a click on its
+     own trigger has already toggled it open by the time this runs. */
+  const closeZoom = function(){
+    Array.prototype.forEach.call(document.querySelectorAll('.mm-zoombox'), function(b){ b.hidden = true; });
+  };
+  document.addEventListener('click', function(e){
+    if(e.target && e.target.closest && e.target.closest('.mm-zoomwrap')) return;
+    closeZoom();
+  }, true);
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      closeZoom();
+      if(armed){ armed = null; markArmed(); }
     }
   }, true);
 
@@ -398,7 +521,7 @@
     const p = stagePoint(e);
 
     if(drag.kind === 'pan'){
-      if(Math.abs(p.x - drag.sx) > 2 || Math.abs(p.y - drag.sy) > 2) drag.moved = true;
+      if(Math.abs(p.x - drag.sx) > 2 || Math.abs(p.y - drag.sy) > 2){ drag.moved = true; movedAt = Date.now(); }
       st.view.x = drag.ox + (p.x - drag.sx);
       st.view.y = drag.oy + (p.y - drag.sy);
       applyView();
@@ -408,11 +531,11 @@
     if(drag.kind === 'node'){
       const n = nodeById(st, drag.id);
       if(!n) return;
-      n.x = Math.round(drag.ox + (p.x - drag.sx) / st.view.k);
-      n.y = Math.round(drag.oy + (p.y - drag.sy) / st.view.k);
+      n.x = Math.round(drag.ox + (p.x - drag.sx) / num(st.view.k, 1));
+      n.y = Math.round(drag.oy + (p.y - drag.sy) / num(st.view.k, 1));
       const nEl = world.querySelector('[data-mm-node="' + n.id + '"]');
       if(nEl){ nEl.style.left = n.x + 'px'; nEl.style.top = n.y + 'px'; }
-      drag.moved = true;
+      drag.moved = true; movedAt = Date.now();
       schedule();
       return;
     }
@@ -436,17 +559,7 @@
     Array.prototype.slice.call(stage.querySelectorAll('.mm-held')).forEach(function(n){ n.classList.remove('mm-held'); });
     if(!st) return;
 
-    if(kind === 'link' && d.to){
-      const exists = st.links.some(function(l){
-        return (l.a === d.from && l.b === d.to) || (l.a === d.to && l.b === d.from);
-      });
-      if(!exists){
-        st.links.push({ id:'l' + Math.random().toString(36).slice(2, 8), a:d.from, b:d.to });
-        if(typeof save === 'function') save();
-      } else if(typeof toast === 'function'){
-        toast('Already linked', 'warn');
-      }
-    }
+    if(kind === 'link' && d.to) connect(d.from, d.to);
 
     if((kind === 'node' || kind === 'pan') && typeof save === 'function') save();
     draw();
@@ -458,11 +571,14 @@
     if(!st) return;
     e.preventDefault();
     const p = stagePoint(e);
-    const wx = (p.x - st.view.x) / st.view.k, wy = (p.y - st.view.y) / st.view.k;
-    const k = st.view.k * (1 - (e.deltaY || 0) * 0.0015);
-    st.view.k = Math.max(0.35, Math.min(2.5, k));
+    const cur = num(st.view.k, 1);
+    const wx = (p.x - num(st.view.x, 0)) / cur, wy = (p.y - num(st.view.y, 0)) / cur;
+    const k = cur * (1 - (+e.deltaY || 0) * 0.0015);
+    st.view.k = isFinite(k) ? Math.max(0.35, Math.min(2.5, k)) : cur;
     st.view.x = p.x - wx * st.view.k;
     st.view.y = p.y - wy * st.view.k;
+    if(!isFinite(st.view.x)) st.view.x = 0;
+    if(!isFinite(st.view.y)) st.view.y = 0;
     applyView();
   };
 
@@ -473,7 +589,8 @@
     const st = store(false);
     if(!st) return;
     const p = stagePoint(e);
-    addNode((p.x - st.view.x) / st.view.k - NODE_W / 2, (p.y - st.view.y) / st.view.k - 30);
+    addNode((p.x - num(st.view.x, 0)) / num(st.view.k, 1) - NODE_W / 2,
+            (p.y - num(st.view.y, 0)) / num(st.view.k, 1) - 30);
     paint();
     e.preventDefault();
   };

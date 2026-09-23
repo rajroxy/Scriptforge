@@ -116,12 +116,11 @@
     const dir = parseInt(btn.dataset.pgStep, 10) || 1;
 
     if(b.dataset.pg === 'ol'){
-      /* the whole list stays on the page — the chevrons scroll the panel */
+      /* the chevrons turn the page — a screenful of chapters at a time, the
+         way the Draft list and the Bible page their rows. Scrolling never
+         moved anything on: the next page is the next chapters. */
       const root = document.getElementById('page-outline');
-      const panel = root && (root.querySelector('.ol-panel') || root.querySelector('.ol-wrap'));
-      if(!panel) return;
-      panel.scrollBy({ top: dir * Math.max(90, panel.clientHeight - 60), behavior:'smooth' });
-      setTimeout(function(){ if(root && root.__olSync) root.__olSync(); }, 420);
+      if(root && typeof root.__olStep === 'function') root.__olStep(dir);
       return;
     }
 
@@ -159,54 +158,27 @@
 
   /* ── Outline: one panel, exactly like the Draft list — the toolbar
      (T · New chapter · New subchapter · Expand · Collapse) rides INSIDE
-     the panel at the top, the chapter list fills it, and the chevrons
-     are its footer. Every row renders; nothing is hidden. ── */
+     the panel at the top and the chapter list fills it.
+
+     There are NO chevrons on this page: the list scrolls inside its own
+     panel, with its own scrollbar, exactly as it did before. Paging it a
+     screenful at a time was what hid the subchapters — a subchapter that
+     fell past the page break could not be reached at all. Scrolling shows
+     every chapter and every subchapter there is. ── */
   if(typeof PAGE_RENDERERS.outline === 'function'){
     const orig = PAGE_RENDERERS.outline;
+
     PAGE_RENDERERS.outline = function(root){
       orig(root);
       if(!root || !root.querySelector) return;
 
-      const wrap  = root.querySelector('.ol-wrap');
-      const panel = root.querySelector('.ol-panel');
-      if(!wrap || !panel){ drop(root); return; }
-
-      /* The toolbar is the page's own bar now — the same box Draft and Idea
-         wear — so it stays at page level and the panel holds only the list
-         and its chevron footer. */
-
-      const rows = Array.prototype.slice.call(panel.querySelectorAll('.ol-node'))
-        .filter(function(r){ return r.parentElement === panel; });
-      if(!rows.length){ drop(root); return; }
-
-      /* the whole chapter list always renders — no row is ever hidden */
-      rows.forEach(function(r){ if(r.style.display === 'none') r.style.display = ''; });
-
-      const sync = function(){
-        const b = root.querySelector('.pg-pager');
-        if(!b) return;
-        const wr = panel.getBoundingClientRect();
-        let first = 0, last = rows.length - 1;
-        rows.forEach(function(r, i){
-          const rr = r.getBoundingClientRect();
-          if(rr.bottom <= wr.top + 2) first = i + 1;
-          if(rr.top < wr.bottom - 2) last = i;
-        });
-        if(first > last) first = last;
-        const range = b.querySelector('.vpl-range');
-        if(range) range.textContent = (first + 1) + '–' + (last + 1);
-        const prev = b.querySelector('[data-pg-step="-1"]');
-        const next = b.querySelector('[data-pg-step="1"]');
-        if(prev) prev.disabled = panel.scrollTop <= 2;
-        if(next) next.disabled = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 2;
-      };
-      root.__olSync = sync;
-
-      const b = shell(root, 'ol', '1–' + rows.length, true, true);
-      if(b && b.parentElement !== wrap) wrap.appendChild(b);
-
-      panel.addEventListener('scroll', sync, { passive:true });
-      if(window.requestAnimationFrame) requestAnimationFrame(sync); else sync();
+      /* no pager on this page, and no row left hidden by an older build */
+      drop(root);
+      Array.prototype.slice.call(root.querySelectorAll('.ol-node')).forEach(function(r){
+        if(r.style.display === 'none') r.style.display = '';
+      });
+      root.__olStep = null;
+      root.__olSync  = null;
     };
   }
 })();
@@ -548,61 +520,21 @@
     }
   };
 
-  /* ── the Bible's left panel gets the Draft list's chevron pager at its
-     bottom: the panel pages its entries instead of scrolling forever ── */
-  let BB_PAGE = 0, BB_ROW_H = 34;
+  /* ── the Bible's left panel keeps its own scrollbar ── */
+  /* The Bible's list scrolls inside its own panel, with its own scrollbar,
+     exactly as it did before — no chevrons. Every entry is reachable, which
+     paging was getting wrong for entries past the page break. */
   const pageBibleRows = function(){
     const list = document.querySelector('#page-bible .bb-list');
     const box  = document.getElementById('bbRows');
     if(!list || !box) return;
 
-    let bar = list.querySelector('.bb-pager');
-    if(!bar){
-      bar = document.createElement('div');
-      bar.className = 'bb-pager';
-      list.appendChild(bar);
-    }
+    const bar = list.querySelector('.bb-pager');
+    if(bar && bar.parentElement) bar.parentElement.removeChild(bar);
 
-    const rows = box.querySelectorAll('.bb-row');
-    if(bar.style.display === 'none') bar.style.display = '';
-
-    /* no entries yet — the bar still shows, like the Draft list's “0” */
-    if(!rows.length){
-      if(bar.dataset.sig !== 'empty'){
-        bar.dataset.sig = 'empty';
-        bar.innerHTML =
-          '<button class="mv-pager-btn" data-bb-page="-1" title="Previous" disabled>'
-            + '<i class="bi bi-chevron-left"></i></button>'
-          + '<span class="vpl-range">0</span>'
-          + '<button class="mv-pager-btn" data-bb-page="1" title="Next" disabled>'
-            + '<i class="bi bi-chevron-right"></i></button>';
-      }
-      return;
-    }
-
-    for(let i = 0; i < rows.length; i++){
-      const rh = rows[i].getBoundingClientRect().height;
-      if(rh > 0){ BB_ROW_H = rh + 1; break; }
-    }
-    const per   = Math.max(3, Math.floor(((box.clientHeight || 300) - 6) / (BB_ROW_H || 34)));
-    const pages = Math.max(1, Math.ceil(rows.length / per));
-    BB_PAGE = Math.max(0, Math.min(BB_PAGE, pages - 1));
-    const from = BB_PAGE * per;
-
-    for(let i = 0; i < rows.length; i++){
-      const want = (i >= from && i < from + per) ? '' : 'none';
-      if(rows[i].style.display !== want) rows[i].style.display = want;
-    }
-
-    const sig = [from, per, rows.length, BB_PAGE].join('|');
-    if(bar.dataset.sig === sig) return;
-    bar.dataset.sig = sig;
-    bar.innerHTML =
-      '<button class="mv-pager-btn" data-bb-page="-1" title="Previous"' + (BB_PAGE <= 0 ? ' disabled' : '') + '>'
-        + '<i class="bi bi-chevron-left"></i></button>'
-      + '<span class="vpl-range">' + ((from + 1) + '–' + Math.min(from + per, rows.length)) + '</span>'
-      + '<button class="mv-pager-btn" data-bb-page="1" title="Next"' + (BB_PAGE >= pages - 1 ? ' disabled' : '') + '>'
-        + '<i class="bi bi-chevron-right"></i></button>';
+    Array.prototype.slice.call(box.querySelectorAll('.bb-row')).forEach(function(r){
+      if(r.style.display === 'none') r.style.display = '';
+    });
   };
 
   /* the T panel has no close button — clicking outside (or Escape) closes it */
@@ -613,7 +545,17 @@
     }
   };
 
-  const tidy = function(){ paintChips(); stripBibleAdds(); pageBibleRows(); stripTypoClose(); };
+  /* The Bible's Category field is one of the app's dropdowns, not a bare
+     native select: renderBbDetail() rebuilds the detail card on every pick,
+     so the new <select class="sel"> is handed to the same enhancer the
+     Settings and Idea pages use. Already-enhanced selects are skipped, so
+     running on every mutation costs nothing. */
+  const bbDropdown = function(){
+    const box = document.getElementById('bbDetail');
+    if(box && typeof window.enhanceSelects === 'function') window.enhanceSelects(box);
+  };
+
+  const tidy = function(){ paintChips(); stripBibleAdds(); pageBibleRows(); bbDropdown(); stripTypoClose(); };
 
   const pending = [];
   let scheduled = false;
@@ -1342,11 +1284,15 @@ const SF_FAB_OPT = function(o){
 };
 
 const SF_FAB_AI = {
+  /* The Outline page names its units by the form you are writing: a novel has
+     chapters and subchapters, a screenplay has scenes and sub-scenes. That
+     choice is made in outlineFabOpts() below, which swaps the two labels —
+     the option list here is the novel one and the fallback. */
   outline: [
-    { fn:'olChapterTitles', icon:'bookmark-fill', label:'Chapter titles',
-      desc:'Suggest a title for every chapter, from your outline' },
-    { fn:'olSubTitles', icon:'signpost-2', label:'Subchapter titles',
-      desc:'Name the subchapters inside each chapter' },
+    { fn:'olChapterTitles', icon:'bookmark-fill', label:'Chapter description',
+      desc:'Describe what every chapter covers, from your outline' },
+    { fn:'olSubTitles', icon:'signpost-2', label:'Subchapter description',
+      desc:'Describe what happens in each subchapter' },
     { fn:'olStructure', icon:'list-nested', label:'Check the order',
       desc:'Is the chapter order working? What should move?' }
   ],

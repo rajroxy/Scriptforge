@@ -15,8 +15,12 @@ const MODES = [
     name: 'Novel',
     icon: 'book',
     desc: 'Long-form prose writing',
+    /* exactly two kinds of novel work, and nothing else: a project is
+       fiction or it is not. See also the statistics page, which reads
+       these rather than keeping a list of its own. */
     categories: [
       { id: 'fiction',    name: 'Fiction',     icon: 'book-half',    desc: 'Novels, novellas, and short stories' },
+      { id: 'nonfiction', name: 'Non-fiction', icon: 'journal-text', desc: 'Memoir, reportage, essays — true stories' },
     ],
     editorViews:    ['draft', 'outline', 'plan', 'manuscript', 'kanban', 'bible'],
     fabGroups: [
@@ -39,13 +43,14 @@ const MODES = [
     desc: 'Scripted writing',
     categories: [
       { id: 'fiction',    name: 'Fiction',     icon: 'book-half',    desc: 'Screenplays and scripts' },
+      { id: 'nonfiction', name: 'Non-fiction', icon: 'journal-text', desc: 'Documentary, true-story and essay films' },
     ],
-    /* a script has no Outline page — the Fountain source IS the outline */
-    editorViews:    ['draft', 'plan', 'manuscript', 'kanban', 'bible'],
+    editorViews:    ['draft', 'outline', 'plan', 'manuscript', 'kanban', 'bible'],
     fabGroups: [
       { label:'Views', views:[
         { id:'inspire',    name:'Idea',      icon:'lightbulb-fill' },
         { id:'draft',      name:'Draft',     icon:'lightbulb' },
+        { id:'outline',    name:'Outline',   icon:'list-nested' },
         { id:'plan',       name:'Plan',      icon:'list-check' },
         { id:'manuscript', name:'Script',    icon:'file-earmark-text' }
       ]},
@@ -267,6 +272,19 @@ const THEMES = [
       grad:'linear-gradient(135deg,#c8cdd6 0%,#7d8590 100%)',
       docBg:'#17191c', docInk:'#dde0e5', caret:'#9ecbff', sel:'#9ecbff', selInk:'#0f1114'
     }
+  },
+  {
+    id:'neon', name:'Neon City', c1:'#0b1020', c2:'#5eead4', dark:true,
+    note:'Midnight navy with teal and violet — lit, but never loud',
+    palette:{
+      bg:'#0b1020', s1:'#101733', s2:'#151d3d', s3:'#1b2447', s4:'#232e55', s5:'#2d3a66',
+      ov:'rgba(140,180,255,.06)', ovs:'rgba(140,180,255,.11)',
+      ink:'#e6ecff', ink2:'#b9c6ea', ink3:'#8b9ac4', ink4:'#66739a',
+      line:'#1a2244', line2:'#232d55', line3:'#33406e',
+      acc:'#5eead4', acc2:'#a78bfa', accInk:'#06121f', accSoft:'rgba(94,234,212,.12)', accLine:'rgba(94,234,212,.32)',
+      grad:'linear-gradient(135deg,#5eead4 0%,#a78bfa 100%)',
+      docBg:'#0e1530', docInk:'#dae2f7', caret:'#a78bfa', sel:'#7c5cff', selInk:'#0b1020'
+    }
   }
 ];
 
@@ -478,11 +496,50 @@ const FONTS = [
   {name:'Source Serif 4',f:"'Source Serif 4',serif",g:'Serif'},
   {name:'IBM Plex Serif',f:"'IBM Plex Serif',serif",g:'Serif'},
   {name:'Libre Baskerville',f:"'Libre Baskerville',serif",g:'Serif'},
+  {name:'Crimson Pro',f:"'Crimson Pro',serif",g:'Serif'},
+  {name:'Alegreya',f:"'Alegreya',serif",g:'Serif'},
+  {name:'Bitter',f:"'Bitter',serif",g:'Serif'},
+  {name:'Cardo',f:"'Cardo',serif",g:'Serif'},
+  {name:'Domine',f:"'Domine',serif",g:'Serif'},
+  {name:'Gentium Book Plus',f:"'Gentium Book Plus',serif",g:'Serif'},
+  {name:'Literata',f:"'Literata',serif",g:'Serif'},
+  {name:'Newsreader',f:"'Newsreader',serif",g:'Serif'},
+  {name:'Petrona',f:"'Petrona',serif",g:'Serif'},
+  {name:'PT Serif',f:"'PT Serif',serif",g:'Serif'},
+  {name:'Spectral',f:"'Spectral',serif",g:'Serif'},
+  {name:'Vollkorn',f:"'Vollkorn',serif",g:'Serif'},
+  {name:'Bodoni Moda',f:"'Bodoni Moda',serif",g:'Serif'},
+  {name:'Faustina',f:"'Faustina',serif",g:'Serif'},
+  {name:'Gelasio',f:"'Gelasio',serif",g:'Serif'},
+  {name:'Tinos',f:"'Tinos',serif",g:'Serif'},
+  {name:'Cinzel',f:"'Cinzel',serif",g:'Serif'},
   {name:'Inter',f:"'Inter',sans-serif",g:'Sans'},
+  {name:'Fira Sans',f:"'Fira Sans',sans-serif",g:'Sans'},
+  {name:'Libre Franklin',f:"'Libre Franklin',sans-serif",g:'Sans'},
+  {name:'Nunito',f:"'Nunito',sans-serif",g:'Sans'},
+  {name:'Open Sans',f:"'Open Sans',sans-serif",g:'Sans'},
+  {name:'Public Sans',f:"'Public Sans',sans-serif",g:'Sans'},
+  {name:'Roboto',f:"'Roboto',sans-serif",g:'Sans'},
+  {name:'Space Grotesk',f:"'Space Grotesk',sans-serif",g:'Sans'},
+  {name:'Work Sans',f:"'Work Sans',sans-serif",g:'Sans'},
+  {name:'Manrope',f:"'Manrope',sans-serif",g:'Sans'},
+  {name:'DM Sans',f:"'DM Sans',sans-serif",g:'Sans'},
+  {name:'Figtree',f:"'Figtree',sans-serif",g:'Sans'},
+  {name:'Plus Jakarta Sans',f:"'Plus Jakarta Sans',sans-serif",g:'Sans'},
+  {name:'Outfit',f:"'Outfit',sans-serif",g:'Sans'},
+  {name:'Sora',f:"'Sora',sans-serif",g:'Sans'},
   {name:'JetBrains Mono',f:"'JetBrains Mono',monospace",g:'Mono'},
   {name:'Courier Prime',f:"'Courier Prime',monospace",g:'Mono'},
+  {name:'IBM Plex Mono',f:"'IBM Plex Mono',monospace",g:'Mono'},
+  {name:'Space Mono',f:"'Space Mono',monospace",g:'Mono'},
+  {name:'Roboto Mono',f:"'Roboto Mono',monospace",g:'Mono'},
+  {name:'Zilla Slab',f:"'Zilla Slab',serif",g:'Slab'},
+  {name:'Roboto Slab',f:"'Roboto Slab',serif",g:'Slab'},
+  {name:'Arvo',f:"'Arvo',serif",g:'Slab'},
   {name:'Caveat',f:"'Caveat',cursive",g:'Hand'},
   {name:'Dancing Script',f:"'Dancing Script',cursive",g:'Hand'},
+  {name:'Kalam',f:"'Kalam',cursive",g:'Hand'},
+  {name:'Patrick Hand',f:"'Patrick Hand',cursive",g:'Hand'},
   {name:'Noto Serif Devanagari',f:"'Noto Serif Devanagari',serif",g:'Indic'},
   {name:'Noto Serif Tamil',f:"'Noto Serif Tamil',serif",g:'Indic'},
   {name:'Noto Serif Bengali',f:"'Noto Serif Bengali',serif",g:'Indic'},
@@ -584,6 +641,9 @@ const S = {
     theme:'night',            // color theme id from THEMES (every theme is dark)
     eyeComfort:false,         // warm light filter over any theme — night writing
     eyeComfortLevel:40,       // 0–100 → overlay strength
+    uiBrightness:100,         // 40–160 % → dims or lifts the whole interface (100 = untouched)
+    uiStyle:'modern',         // interface style: modern (the app's own) | flutter (Material 3)
+    iconPack:'bootstrap',     // the one icon set the app ships (vendor/bootstrap-icons)
     // ── experimental (Settings → Experimental) ──
     expOverlay:false,         // floating overlay screen instead of the docked split screen
     expMixedFonts:false,      // rotate three fonts while typing
@@ -640,7 +700,12 @@ function D(){ return S.modes[S.mode]; }
 function useProjectData(proj){
   if(!proj) return null;
   const d = D();
-  const lists = ['chapters','drafts','ideas','notes','beats','references','timeline','cast','versions'];
+  /* `aiChats` belongs here too: it was left out, so the Draft page's chat
+     was ONE list shared by every project — open a second book and the first
+     book's conversation was still sitting in it, which is exactly the "it
+     does not remember which project" the writer reported. The chats are the
+     project's now, like every other list on this line. */
+  const lists = ['chapters','drafts','ideas','notes','beats','references','timeline','cast','versions','aiChats'];
   lists.forEach(function(k){ if(!Array.isArray(proj[k])) proj[k] = []; });
   if(!proj.chapters.length){
     proj.chapters.push({ id: (typeof uid === 'function' ? uid() : 'ch' + Date.now()),
@@ -659,6 +724,12 @@ function useProjectData(proj){
   lists.forEach(function(k){ d[k] = proj[k]; });
   d.bible  = proj.bible;
   d.kanban = proj.kanban;
+
+  /* the active chat goes with the chats: a chat id from the book you just
+     left is not a chat in this one */
+  if(d.aiChatActive && !proj.aiChats.some(function(c){ return c && c.id === d.aiChatActive; })){
+    d.aiChatActive = null;
+  }
 
   d.currentProject = proj.id;
   if(proj.category) d.currentCategory = proj.category;

@@ -555,19 +555,19 @@ TOOLS.addUrl = async function(){
   }catch(e){
     content = '[Could not fetch content]';
   }
-  S.references.push({id: uid(), type:'url', title, url, content, created: Date.now()});
+  D().references.push({id: uid(), type:'url', title, url, content, created: Date.now()});
   save();
   renderReferences();
   toast('Reference added');
 };
 
 TOOLS.addRefFromNote = function(){
-  if(!S.notes.length) return toast('No notes available', 'warn');
-  const list = S.notes.map((n, i) => `${i+1}. ${n.title || 'Untitled'}`).join('\n');
+  if(!D().notes.length) return toast('No notes available', 'warn');
+  const list = D().notes.map((n, i) => `${i+1}. ${n.title || 'Untitled'}`).join('\n');
   const pick = parseInt(prompt('Link a note:\n' + list + '\n\nEnter number:'));
-  if(!pick || pick < 1 || pick > S.notes.length) return;
-  const n = S.notes[pick - 1];
-  S.references.push({
+  if(!pick || pick < 1 || pick > D().notes.length) return;
+  const n = D().notes[pick - 1];
+  D().references.push({
     id: uid(), type:'note', title: n.title || 'Note',
     content: n.content || '', created: Date.now()
   });
@@ -577,14 +577,14 @@ TOOLS.addRefFromNote = function(){
 };
 
 TOOLS.viewReference = function(i){
-  const r = S.references[i];
+  const r = D().references[i];
   if(!r) return;
   showResult(r.title, r.url || 'Reference', r.content || '(empty)');
 };
 
 TOOLS.deleteReference = function(i){
   if(!confirm('Delete this reference?')) return;
-  S.references.splice(i, 1);
+  D().references.splice(i, 1);
   save();
   renderReferences();
 };
@@ -593,8 +593,11 @@ TOOLS.deleteReference = function(i){
 //   DRAFT / NOTE / IDEA HELPERS
 // ═══════════════════════════════════════════════════════════
 
+/* The draft list lives on the project — D().drafts — not on S. Everything
+   here used to write to S.drafts / S.chapters, which do not exist, so the
+   New draft button (and adding a draft to a chapter) threw and did nothing. */
 TOOLS.addDraft = function(){
-  S.drafts.unshift({
+  D().drafts.unshift({
     id: uid(), title:'', body:'',
     created: Date.now()
   });
@@ -603,10 +606,10 @@ TOOLS.addDraft = function(){
 };
 
 TOOLS.draftToChapter = function(i){
-  const d = S.drafts[i];
+  const d = D().drafts[i];
   if(!d) return;
   const title = d.title || 'From draft';
-  S.chapters.push({
+  D().chapters.push({
     id: uid(),
     title,
     content: d.body.split('\n\n').map(p => `<p>${esc(p).replace(/\n/g,'<br>')}</p>`).join(''),
@@ -663,7 +666,7 @@ document.addEventListener('click', e => {
   if(t.closest('[data-act="add-draft"]')){ e.preventDefault(); TOOLS.addDraft(); return; }
   const ddEl = t.closest('[data-draft-del]');
   if(ddEl){
-    S.drafts.splice(parseInt(ddEl.dataset.draftDel), 1);
+    D().drafts.splice(parseInt(ddEl.dataset.draftDel), 1);
     save();
     renderDrafts();
     return;
@@ -723,13 +726,13 @@ document.addEventListener('click', e => {
     const title = prompt('Event title:'); if(!title) return;
     const date = prompt('Date marker (optional):') || '';
     const desc = prompt('Description (optional):') || '';
-    S.timeline.push({id:uid(), title, date, desc});
+    D().timeline.push({id:uid(), title, date, desc});
     save(); renderTimeline(); return;
   }
   const teEl = t.closest('[data-event-edit]');
   if(teEl){
     const i = parseInt(teEl.dataset.eventEdit);
-    const ev = S.timeline[i];
+    const ev = D().timeline[i];
     const title = prompt('Title:', ev.title); if(title === null) return;
     ev.title = title;
     const date = prompt('Date:', ev.date || ''); if(date !== null) ev.date = date;
@@ -739,7 +742,7 @@ document.addEventListener('click', e => {
   const tdEl = t.closest('[data-event-del]');
   if(tdEl){
     const i = parseInt(tdEl.dataset.eventDel);
-    if(confirm('Delete event?')){ S.timeline.splice(i, 1); save(); renderTimeline(); }
+    if(confirm('Delete event?')){ D().timeline.splice(i, 1); save(); renderTimeline(); }
     return;
   }
 
@@ -754,18 +757,18 @@ document.addEventListener('click', e => {
   // Kanban
   if(t.closest('[data-act="add-column"]')){
     const title = prompt('Column name:', 'New Column'); if(!title) return;
-    S.kanban.columns.push({id:uid(), title, cards:[]});
+    D().kanban.columns.push({id:uid(), title, cards:[]});
     save(); renderKanban(); return;
   }
   const ccEl = t.closest('[data-col-del]');
   if(ccEl){
-    const i = S.kanban.columns.findIndex(c => c.id === ccEl.dataset.colDel);
-    if(i >= 0 && confirm('Delete column and its cards?')){ S.kanban.columns.splice(i, 1); save(); renderKanban(); }
+    const i = D().kanban.columns.findIndex(c => c.id === ccEl.dataset.colDel);
+    if(i >= 0 && confirm('Delete column and its cards?')){ D().kanban.columns.splice(i, 1); save(); renderKanban(); }
     return;
   }
   const caEl = t.closest('[data-card-add]');
   if(caEl){
-    const col = S.kanban.columns.find(c => c.id === caEl.dataset.cardAdd);
+    const col = D().kanban.columns.find(c => c.id === caEl.dataset.cardAdd);
     if(!col) return;
     const title = prompt('Card title:'); if(!title) return;
     col.cards.push({id:uid(), title, desc:''});
@@ -775,7 +778,7 @@ document.addEventListener('click', e => {
   if(ceEl){
     const cardId = ceEl.dataset.cardEdit;
     let found = null;
-    S.kanban.columns.forEach(c => { const k = c.cards.find(x => x.id === cardId); if(k) found = k; });
+    D().kanban.columns.forEach(c => { const k = c.cards.find(x => x.id === cardId); if(k) found = k; });
     if(!found) return;
     const title = prompt('Title:', found.title); if(title === null) return;
     found.title = title;
@@ -785,7 +788,7 @@ document.addEventListener('click', e => {
   const cddEl = t.closest('[data-card-del]');
   if(cddEl){
     const cardId = cddEl.dataset.cardDel;
-    S.kanban.columns.forEach(c => { c.cards = c.cards.filter(x => x.id !== cardId); });
+    D().kanban.columns.forEach(c => { c.cards = c.cards.filter(x => x.id !== cardId); });
     save(); renderKanban(); return;
   }
 }, true);
@@ -793,8 +796,8 @@ document.addEventListener('click', e => {
 // ═══ Drag drop for kanban ═══
 function moveCard(cardId, fromCol, toCol){
   if(fromCol === toCol) return;
-  const f = S.kanban.columns.find(c => c.id === fromCol);
-  const t = S.kanban.columns.find(c => c.id === toCol);
+  const f = D().kanban.columns.find(c => c.id === fromCol);
+  const t = D().kanban.columns.find(c => c.id === toCol);
   if(!f || !t) return;
   const i = f.cards.findIndex(c => c.id === cardId);
   if(i < 0) return;
@@ -809,9 +812,9 @@ document.addEventListener('input', e => {
   const t = e.target;
 
   const dt = t.closest('[data-draft-title]');
-  if(dt){ S.drafts[parseInt(dt.dataset.draftTitle)].title = t.value; debouncedSave(); return; }
+  if(dt){ D().drafts[parseInt(dt.dataset.draftTitle)].title = t.value; debouncedSave(); return; }
   const db = t.closest('[data-draft-body]');
-  if(db){ S.drafts[parseInt(db.dataset.draftBody)].body = t.value; debouncedSave(); return; }
+  if(db){ D().drafts[parseInt(db.dataset.draftBody)].body = t.value; debouncedSave(); return; }
 
   const cn = t.closest('[data-cast-name]');
   if(cn){ S.bible[parseInt(cn.dataset.castName)].name = t.value; debouncedSave(); return; }
@@ -823,7 +826,7 @@ document.addEventListener('input', e => {
 
   const ct = t.closest('[data-col-title]');
   if(ct){
-    const c = S.kanban.columns.find(x => x.id === ct.dataset.colTitle);
+    const c = D().kanban.columns.find(x => x.id === ct.dataset.colTitle);
     if(c){ c.title = t.value; debouncedSave(); }
     return;
   }

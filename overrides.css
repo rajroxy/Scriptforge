@@ -1230,6 +1230,16 @@ html body #sfEyeOverlay{
 html body.eye-comfort #sfEyeOverlay{ display:block; }
 
 /* ═══════════════════════════════════════════════════════════
+   BRIGHTNESS — the whole interface at once (Settings → Appearance).
+   The filter only exists when the slider is off 100%, so a writer who
+   never touches it runs exactly the app they had before it was added.
+   ═══════════════════════════════════════════════════════════ */
+html body.ui-bright{ filter:brightness(var(--ui-bright, 1)); }
+@media print{
+  html body.ui-bright{ filter:none !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════
    OVERLAY PANE — what a pane itself shows (read-only, no chrome)
    ═══════════════════════════════════════════════════════════ */
 html.sf-view .boot-overlay,
