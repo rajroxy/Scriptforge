@@ -466,7 +466,7 @@ html body #page-plan .plan-actions [data-act="plan-all"]{ position:relative !imp
    Prompt me on the left, one button at the right end of the bar that
    opens Genres · Tags · Themes in a panel.
    ═══════════════════════════════════════════════════════════ */
-html body #page-inspire .idea-bar{ gap:14px !important; }
+html body #page-inspire .idea-bar{ gap:14px !important; padding-right:2px !important; }
 /* the bar's own Prompt me is off the top bar — the right-click panel has it */
 html body #page-inspire .idea-bar-left{ flex:0 0 auto !important; }
 html body #page-inspire .idea-bar [data-idea="prompt"],
