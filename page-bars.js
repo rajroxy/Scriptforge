@@ -61,15 +61,13 @@
 })();
 
 (function(){
-  const PAGE = 'draft';   /* Two buttons, one slot: New draft while you are writing, and New Chat in
-     its place while the chat (or any AI panel) is on screen — the bar itself
-     never leaves. New draft calls the app's own action directly: the old
-     delegated click pointed at a + this bar had already replaced. New Chat
-     is where a chat is started now, so the chat card carries no + of its
-     own. */
+  const PAGE = 'draft';   /* The bar holds New draft and nothing else — New Chat lives inside the
+     chat itself, where a chat is actually started. New draft calls the app's
+     own action directly: the old delegated click pointed at a + this bar had
+     already replaced. While an AI panel or the chat is up, New draft steps
+     aside and the bar stays. */
   const ACTS = [
-    { icon:'plus-lg',    t:'New draft', act:'tools:addDraft' },
-    { icon:'chat-dots',  t:'New Chat',  act:'chat:new' }
+    { icon:'plus-lg', t:'New draft', act:'tools:addDraft' }
   ];
 
   const build = function(){

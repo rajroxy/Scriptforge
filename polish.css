@@ -214,29 +214,22 @@ html body .sfpp-text p{ margin:0 0 9px !important; }
 html body .sfpp-text p:first-child{ color:var(--ink) !important; }
 
 /* ═══════════════════════════════════════════════════════════
-   Draft bar — the bar stays put. New draft is the button while you
-   are writing; the moment the draft chat (or any AI panel) is on
-   screen, New draft steps aside and the AI chat button takes its
-   place, ready to put the chat away again.
+   Draft bar — the bar stays put and holds New draft. The moment the
+   draft chat (or any AI panel) is on screen, New draft steps aside.
+   New Chat is not in this bar: it sits inside the chat itself.
    The id is doubled on purpose: the layout layer forces this bar to
    display:flex with the same id doubled, and both are !important.
    ═══════════════════════════════════════════════════════════ */
-html body #page-draft .sf-bar [data-sfbar="chat:toggle"]{ display:none !important; }
-
-html body #page-draft#page-draft .sf-bar.sf-bar-hidden [data-sfbar="chat:toggle"],
-html body.sf-ai-open #page-draft#page-draft .sf-bar [data-sfbar="chat:toggle"]{
-  display:inline-flex !important;
-}
-
 html body #page-draft#page-draft .sf-bar.sf-bar-hidden [data-sfbar="tools:addDraft"],
 html body.sf-ai-open #page-draft#page-draft .sf-bar [data-sfbar="tools:addDraft"]{
   display:none !important;
 }
 
-/* New Chat lives in the bar, so the chat card's own + is gone and the head
-   it left behind collapses instead of keeping a strip of empty bar */
-html body #page-draft .draft-list-head [data-dc="new"]{ display:none !important; }
-html body #page-draft .draft-list-head:empty{ display:none !important; }
+/* New Chat, in the chat's own left card */
+html body #page-draft .draft-list-head .draft-newchat{
+  width:100% !important;
+  justify-content:center !important;
+}
 
 /* ═══════════════════════════════════════════════════════════
    Plan — the board picker and the board headings

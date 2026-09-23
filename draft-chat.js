@@ -268,8 +268,10 @@
   function chatMarkup(){
     return '' +
         '<aside class="draft-list">' +
-      /* the bar's New Chat button starts a chat — the card carries no + */
-      '<div class="draft-list-head"></div>' +
+      /* New Chat belongs here, in the chat itself — never beside New draft */
+      '<div class="draft-list-head">' +
+        '<button class="ol-btn draft-newchat" data-dc="new" title="Start a new chat"><i class="bi bi-plus-lg"></i> New Chat</button>' +
+      '</div>' +
       '<div class="draft-rows" id="dcList"></div>' +
       '<footer class="dc-pager">' +
         '<button class="dc-pager-btn" data-dc-page="-1" title="Previous"><i class="bi bi-chevron-left"></i></button>' +

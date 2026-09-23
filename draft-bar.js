@@ -4,9 +4,10 @@
    · New draft is the bar while you are writing. It calls the app's own
      New draft action; the writing actions live in the right-click menu.
    · While an AI panel is on screen — the right-click assistant, the
-     draft chat, or the AI result sheet — the bar stays, New draft steps
-     aside, and the AI chat button takes its place in the same slot.
-     Everything is back the moment the panel closes.
+     draft chat, or the AI result sheet — the bar stays and New draft
+     steps aside. Everything is back the moment the panel closes.
+   · New Chat is not here: it sits inside the draft chat, where a chat
+     is started.
 
    The buttons are the app's own; this only places and hides them.
    ═══════════════════════════════════════════════════════════ */
