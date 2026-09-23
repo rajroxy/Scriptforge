@@ -316,7 +316,7 @@
   /* A build tag in the panel's head, so "am I on the new build?" is one
      glance instead of a guess. This matches the polish.js version in
      index.html. */
-  const BUILD = 'v7';
+  const BUILD = 'v8';
 
   /* This app is a single page that never reloads itself, so a tab left open
      keeps running the code it was opened with — fixes included. When the build
@@ -356,6 +356,8 @@
     if(!body) return;
     const defs = (typeof SF_FAB_DEFAULT !== 'undefined' && SF_FAB_DEFAULT) ? SF_FAB_DEFAULT : TEXT_ACTIONS;
     const opts = pageOptions();
+    /* the manuscript's options read as the page's own; no header over them */
+    const bare = WRITING_IDS.indexOf(S.page) >= 0;
 
     const line = function(o){
       return '<button class="fab-ai-opt" data-fabai="' + o.fn + '" title="' + esc(o.desc) + '">'
@@ -366,7 +368,7 @@
 
     body.innerHTML =
       (opts
-        ? '<div class="fab-ai-sec">For this page</div>' + opts.map(line).join('')
+        ? (bare ? '' : '<div class="fab-ai-sec">For this page</div>') + opts.map(line).join('')
           + (S.page === 'bible'
               ? '<div class="fab-ai-ask"><input class="ai-input" data-fabai-input placeholder="Ask about a character, place or event…">'
                 + '<button class="ai-chip primary" data-fabai-ask><i class="bi bi-send"></i></button></div>'
