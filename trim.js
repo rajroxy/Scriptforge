@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════════
    ScriptForge — the prompt page's top-left corner
 
-   The generate button keeps its meaning and loses its words: one
-   stars icon, no label (the button still says what it does on hover).
-   Any older “New prompt” button that survived a re-render is removed.
+   The bar keeps its own buttons: Prompt me sits at the left, where the
+   writing starts, with the AI settings beside it. Only an older
+   “New prompt” button that survived a re-render is cleared away.
    ═══════════════════════════════════════════════════════════ */
 (function(){
   const trim = function(){
@@ -13,13 +13,6 @@
     Array.prototype.forEach.call(page.querySelectorAll('.idea-bar button, .idea-tools button'), function(b){
       if(/^\s*new prompt\s*$/i.test((b.textContent || '').trim())) b.remove();
     });
-
-    /* the generate button is gone from the top-left: the sixth card takes
-       anything you type, and the right-click AI menu still has Prompt me */
-    Array.prototype.forEach.call(
-      page.querySelectorAll('.idea-bar [data-ic-prompt], .idea-bar [data-idea="prompt"]'),
-      function(b){ b.remove(); }
-    );
   };
 
   let raf = 0;

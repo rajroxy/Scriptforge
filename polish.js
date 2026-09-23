@@ -182,6 +182,9 @@
        layer may have put there */
     ['manuscript', 'write', 'chapters', 'scenes', 'episodes', 'acts', 'stanzas', 'verses']
       .forEach(function(k){ delete SF_FAB_AI[k]; });
+    /* the prompt page keeps its Prompt me button in its own bar, so its
+       right-click carries the writing actions and nothing else */
+    ['inspire', 'idea'].forEach(function(k){ delete SF_FAB_AI[k]; });
   }
 
   /* What the page on screen offers. For the canvas this file owns the list, so
@@ -251,7 +254,7 @@
   /* A build tag in the panel's head, so "am I on the new build?" is one
      glance instead of a guess. This matches the polish.js version in
      index.html. */
-  const BUILD = 'v9';
+  const BUILD = 'v10';
 
   /* This app is a single page that never reloads itself, so a tab left open
      keeps running the code it was opened with — fixes included. When the build
