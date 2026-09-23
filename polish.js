@@ -9,8 +9,8 @@
                       the “Book” label, the statistics tile's label
      · FAB AI         the manuscript and the canvas get their own
                       right-click options, and a divider before Translate
-     · PROMPT PAGE    Prompt me on the left, Genres · Tags · Themes spread
-                      across the top bar, and no settings button on the page
+     · PROMPT PAGE    Prompt me on the left, one button at the right that
+                      opens Genres · Tags · Themes — and no settings button
 
    No page is re-rendered from here: it changes what is on screen.
    ═══════════════════════════════════════════════════════════ */
@@ -254,7 +254,7 @@
   /* A build tag in the panel's head, so "am I on the new build?" is one
      glance instead of a guess. This matches the polish.js version in
      index.html. */
-  const BUILD = 'v11';
+  const BUILD = 'v12';
 
   /* This app is a single page that never reloads itself, so a tab left open
      keeps running the code it was opened with — fixes included. When the build
@@ -357,36 +357,82 @@
     if(!S.config.ideaAI) S.config.ideaAI = {};
     const cfg = S.config.ideaAI;
 
+    /* One button at the right end of the bar; the three pickers live in the
+       panel it opens, so the bar stays a bar. */
     const box = document.createElement('div');
-    box.className = 'idea-picks';
+    box.className = 'idea-filters';
     box.setAttribute('data-sf-picks', '1');
     box.innerHTML =
-      [['genre', 'Genres', GENRES, cfg.genre],
-       ['tag',   'Tags',   TAGS,   cfg.tag],
-       ['theme', 'Themes', THEMES, cfg.theme]]
-      .map(function(p){
-        return '<label class="idea-pick">'
-          + '<span>' + p[1] + '</span>'
-          + '<select class="sel" data-sf-pick="' + p[0] + '">'
-          + p[2].map(function(v){
-              return '<option value="' + esc(v) + '"' + ((p[3] || p[2][0]) === v ? ' selected' : '') + '>' + esc(v) + '</option>';
-            }).join('')
-          + '</select></label>';
-      }).join('');
+      '<button type="button" class="ol-btn idea-filters-btn" data-sf-filters-toggle'
+      + ' aria-haspopup="true" title="Genres, tags and themes for the prompts">'
+      +   '<i class="bi bi-funnel"></i>'
+      +   '<span class="idea-filters-val">Genres · Tags · Themes</span>'
+      +   '<i class="bi bi-chevron-down idea-filters-caret"></i>'
+      + '</button>'
+      + '<div class="idea-filters-pop" data-sf-filters-pop hidden>'
+      +   [['genre', 'Genres', GENRES, cfg.genre],
+           ['tag',   'Tags',   TAGS,   cfg.tag],
+           ['theme', 'Themes', THEMES, cfg.theme]]
+        .map(function(p){
+          return '<label class="idea-pick">'
+            + '<span>' + p[1] + '</span>'
+            + '<select class="sel" data-sf-pick="' + p[0] + '">'
+            + p[2].map(function(v){
+                return '<option value="' + esc(v) + '"' + ((p[3] || p[2][0]) === v ? ' selected' : '') + '>' + esc(v) + '</option>';
+              }).join('')
+            + '</select></label>';
+        }).join('')
+      + '</div>';
 
-    bar.insertBefore(box, bar.querySelector('.idea-tools') || null);
+    /* the right end of the bar */
+    bar.appendChild(box);
+
+    const pop   = box.querySelector('[data-sf-filters-pop]');
+    const label = box.querySelector('.idea-filters-val');
+
+    /* what the button reads: the choices, or what it is for when none are set */
+    const paint = function(){
+      const c = S.config.ideaAI || {};
+      const chosen = [c.genre, c.tag, c.theme].filter(function(v){
+        return v && String(v).indexOf('Any') !== 0;
+      });
+      box.classList.toggle('on', chosen.length > 0);
+      if(label){
+        label.textContent = chosen.length
+          ? chosen.join(' · ')
+          : 'Genres · Tags · Themes';
+      }
+    };
+
+    const setOpen = function(open){
+      pop.hidden = !open;
+      box.classList.toggle('open', !!open);
+      if(open && typeof window.enhanceSelects === 'function') window.enhanceSelects(pop);
+    };
+
+    paint();
+
+    box.addEventListener('click', function(e){
+      if(e.target.closest('[data-sf-filters-toggle]')) setOpen(pop.hidden);
+    }, true);
 
     box.addEventListener('change', function(e){
       const sel = e.target.closest('[data-sf-pick]');
       if(!sel) return;
       S.config.ideaAI[sel.dataset.sfPick] = sel.value;
       if(typeof save === 'function') save();
-      if(typeof toast === 'function') toast(sel.value === 'Any ' + sel.dataset.sfPick || sel.value.indexOf('Any') === 0
-        ? 'Cleared'
-        : sel.value);
+      paint();
+      if(typeof toast === 'function') toast(sel.value.indexOf('Any') === 0 ? 'Cleared' : sel.value);
     }, true);
 
-    if(typeof window.enhanceSelects === 'function') window.enhanceSelects(box);
+    /* clicking anywhere else, or Escape, puts the panel away */
+    document.addEventListener('click', function(e){
+      if(!e.target.closest || e.target.closest('[data-sf-filters]')) return;
+      setOpen(false);
+    }, true);
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape') setOpen(false);
+    }, true);
   }
 
   /* the choices ride along with the project brief the AI already gets */

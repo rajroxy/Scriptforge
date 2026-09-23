@@ -3,7 +3,7 @@
 
    One bar for every page, the same box the Idea page uses:
 
-     Draft    · New draft · Fix grammar · Improve      (build here)
+     Draft    · New draft                              (build here)
      Outline  · T · New chapter · New subchapter       … Expand / Collapse
      Plan     · T · Add beat                           … Add act / scene / Clear
      Bible    · T · New entry                          … category tabs
@@ -62,10 +62,12 @@
 
 (function(){
   const PAGE = 'draft';
+  /* the draft bar carries one button: the writing actions live in the
+     right-click menu, and the draft chat has its own. It calls the app's own
+     New draft directly — the old delegated click pointed at a + this bar had
+     already replaced. */
   const ACTS = [
-    { icon:'plus-lg', t:'New draft',    act:'click:[data-act="add-draft"]' },
-    { icon:'magic',   t:'Fix grammar',  act:'ai:fixGrammar' },
-    { icon:'stars',   t:'Improve',      act:'ai:improve' }
+    { icon:'plus-lg', t:'New draft', act:'tools:addDraft' }
   ];
 
   const build = function(){
@@ -107,6 +109,13 @@
     if(what.indexOf('ai:') === 0){
       const fn = what.slice(3);
       if(window.AI_FNS && window.AI_FNS[fn]) window.AI_FNS[fn]();
+      else if(typeof toast === 'function') toast('That action is not available here', 'warn');
+      return;
+    }
+    if(what.indexOf('tools:') === 0){
+      const fn = what.slice(6);
+      const T = window.TOOLS;
+      if(T && typeof T[fn] === 'function') T[fn]();
       else if(typeof toast === 'function') toast('That action is not available here', 'warn');
       return;
     }
