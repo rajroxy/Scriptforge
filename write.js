@@ -1015,14 +1015,6 @@ function onCtx(e){
     <button class="menu-item" data-ai="translate"><i class="mi-icon bi bi-translate"></i>Translate</button>
     <button class="menu-item" data-ai="hinglishToHindi"><i class="mi-icon bi bi-translate"></i>Hinglish → हिन्दी</button>
     <button class="menu-item" data-ai="hinglishToEnglish"><i class="mi-icon bi bi-translate"></i>Hinglish → English</button>
-    ${isWritingPage() ? `
-    <div class="menu-sep"></div>
-    <button class="menu-item" data-ai="msChapterTitles"><i class="mi-icon bi bi-bookmark-fill"></i>Chapter titles</button>
-    <button class="menu-item" data-ai="msChapterSubs"><i class="mi-icon bi bi-text-paragraph"></i>Chapter subtitles</button>
-    <button class="menu-item" data-ai="msSubTitles"><i class="mi-icon bi bi-signpost-2"></i>Subchapter titles</button>
-    <button class="menu-item" data-ai="msSubSubs"><i class="mi-icon bi bi-text-indent-left"></i>Subchapter subtitles</button>
-    <button class="menu-item" data-ai="msSceneHeading"><i class="mi-icon bi bi-film"></i>Scene headings</button>
-    ` : ''}
     <div class="menu-sep"></div>
     <button class="menu-item" data-ins="link"><i class="mi-icon bi bi-link-45deg"></i>Insert link</button>
     <button class="menu-item" data-cmd="removeFormat"><i class="mi-icon bi bi-eraser"></i>Clear format</button>

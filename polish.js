@@ -158,23 +158,10 @@
     if(typeof runAI === 'function') runAI(prompt, title, sub);
   };
 
-  /* the manuscript + canvas options, dropped into the page-aware menu.
-     The naming jobs are the same five the Outline menu carries — titles and
-     subtitles for chapters and subchapters — so the manuscript's right-click
-     assistant can name the structure you are writing into. */
+  /* the canvas options, dropped into the page-aware menu. The manuscript
+     carries no naming jobs of its own: those belong to the Outline page, and
+     the manuscript's right-click is text and structure-checking only. */
   const EXTRA = {
-    manuscript: [
-      { fn:'msChapterTitles', icon:'bookmark-fill', label:'Chapter titles',
-        desc:'A title for every chapter, from your own structure' },
-      { fn:'msChapterSubs', icon:'text-paragraph', label:'Chapter subtitles',
-        desc:'One line under every chapter name' },
-      { fn:'msSubTitles', icon:'signpost-2', label:'Subchapter titles',
-        desc:'Name the subchapters inside each chapter' },
-      { fn:'msSubSubs', icon:'text-indent-left', label:'Subchapter subtitles',
-        desc:'One line under every subchapter name' },
-      { fn:'msSceneHeading', icon:'film', label:'Scene headings',
-        desc:'Write the scene headings the screenplay way' }
-    ],
     mindmap: [
       { fn:'mmGrow', icon:'diagram-3', label:'Grow this canvas',
         desc:'The next cards and links this map is missing' },
@@ -185,81 +172,29 @@
     ]
   };
 
-  /* every id the manuscript is opened under — 'manuscript' itself, the alias
-     'write' the chapter strip and the chapter buttons navigate to, and the
-     mode-specific writing pages that draw the same page */
-  const WRITING_IDS = ['manuscript', 'write', 'chapters', 'scenes', 'episodes',
-                       'acts', 'stanzas', 'verses'];
-
   /* The page lists are set unconditionally: a stale or empty key here is what
-     used to make the manuscript's menu disappear. */
+     used to make a page's menu disappear. The manuscript deliberately has no
+     entry — it is a writing page, not a naming one. */
   if(typeof SF_FAB_AI !== 'undefined' && SF_FAB_AI){
     Object.keys(EXTRA).forEach(function(k){ SF_FAB_AI[k] = EXTRA[k]; });
-    WRITING_IDS.forEach(function(k){ SF_FAB_AI[k] = EXTRA.manuscript; });
     if(!SF_FAB_AI.canvas) SF_FAB_AI.canvas = EXTRA.mindmap;
+    /* and nothing naming-shaped is left on the manuscript, whatever another
+       layer may have put there */
+    ['manuscript', 'write', 'chapters', 'scenes', 'episodes', 'acts', 'stanzas', 'verses']
+      .forEach(function(k){ delete SF_FAB_AI[k]; });
   }
 
-  /* What the page on screen offers. SF_FAB_AI is the table the other pages
-     are listed in, but for the manuscript and the canvas this file owns the
-     list — so the right-click panel can never come up without the naming jobs
-     or the scene headings, whatever id the page arrived under and whether or
-     not that table is there. */
+  /* What the page on screen offers. For the canvas this file owns the list, so
+     the panel can never come up without it; every other page is read from the
+     shared table. */
   const pageOptions = function(){
     const ids = (typeof SF_FAB_AI !== 'undefined' && SF_FAB_AI) ? SF_FAB_AI : {};
     if(ids[S.page] && ids[S.page].length) return ids[S.page];
-    if(WRITING_IDS.indexOf(S.page) >= 0) return EXTRA.manuscript;
     if(S.page === 'canvas' || S.page === 'mindmap') return EXTRA.mindmap;
     return null;
   };
 
-  /* the jobs the menu offers are written out here, not borrowed from another
-     file: a right-click option must never turn into a dead button */
-  const brief = function(){
-    try{ return String((typeof sfProjectBrief === 'function') ? sfProjectBrief() : ''); }
-    catch(e){ return ''; }
-  };
-
   const F = window.AI_FNS || (window.AI_FNS = {});
-  F.msChapterTitles = function(){
-    ask('Chapter titles', 'From your outline',
-      'You are a story editor helping a writer name their chapters.\n\n' + brief() + '\n\n' +
-      'Task: suggest one strong, specific chapter title for EVERY chapter in the structure above.\n' +
-      'Rules: 2–5 words each, evocative, no numbers in the title, the same voice across all of them,\n' +
-      'and do not invent chapters that are not listed. Reply as a plain list — "chapter number — title" —\n' +
-      'and nothing else.');
-  };
-  F.msChapterSubs = function(){
-    ask('Chapter subtitles', 'Manuscript',
-      'You name chapters for a living.\n\n' + brief() + '\n\n' +
-      'Task: give EVERY chapter in the structure above a SUBTITLE — a single line that sits under\n' +
-      'the chapter name, the way a subtitle does on a book page.\n' +
-      'Rules: 3–9 words each, evocative but plain, never a repeat of the chapter title, the same\n' +
-      'voice across all of them, no numbers, no quotes, no punctuation at the end.\n' +
-      'Reply as a plain list — "chapter number — subtitle" — and nothing else.');
-  };
-  F.msSubTitles = function(){
-    ask('Subchapter titles', 'From your outline',
-      'You are a story editor naming the scenes inside a book.\n\n' + brief() + '\n\n' +
-      'Task: give EVERY subchapter in the structure above a short, concrete name.\n' +
-      'Rules: 2–6 words each, no numbers, same voice across all of them, and do not invent\n' +
-      'subchapters that are not listed. Reply as a plain list — "chapter — subchapter: name" —\n' +
-      'and nothing else.');
-  };
-  F.msSubSubs = function(){
-    ask('Subchapter subtitles', 'Manuscript',
-      'You name scenes inside chapters.\n\n' + brief() + '\n\n' +
-      'Task: for every subchapter in the structure above, write a SUBTITLE — one line under its\n' +
-      'name, the turn the scene takes.\n' +
-      'Rules: 3–9 words, concrete, same voice, in order, no numbering in the line itself.\n' +
-      'Reply as a plain list — "chapter — subchapter: subtitle" — and nothing else.');
-  };
-  F.msSceneHeading = function(){
-    ask('Scene headings', 'Manuscript',
-      'You are a script editor.\n\n' + brief() + '\n\n' +
-      'Task: write or correct the SCENE HEADINGS for this script — slug line only\n' +
-      '(INT./EXT. LOCATION — TIME), in caps, in order, one per line.\n' +
-      'Use only places that exist in the project above. Nothing else, no prose.');
-  };
 
   F.mmGrow = function(){
     ask('Growing the canvas', 'Canvas',
@@ -316,7 +251,7 @@
   /* A build tag in the panel's head, so "am I on the new build?" is one
      glance instead of a guess. This matches the polish.js version in
      index.html. */
-  const BUILD = 'v8';
+  const BUILD = 'v9';
 
   /* This app is a single page that never reloads itself, so a tab left open
      keeps running the code it was opened with — fixes included. When the build
@@ -356,8 +291,6 @@
     if(!body) return;
     const defs = (typeof SF_FAB_DEFAULT !== 'undefined' && SF_FAB_DEFAULT) ? SF_FAB_DEFAULT : TEXT_ACTIONS;
     const opts = pageOptions();
-    /* the manuscript's options read as the page's own; no header over them */
-    const bare = WRITING_IDS.indexOf(S.page) >= 0;
 
     const line = function(o){
       return '<button class="fab-ai-opt" data-fabai="' + o.fn + '" title="' + esc(o.desc) + '">'
@@ -368,7 +301,7 @@
 
     body.innerHTML =
       (opts
-        ? (bare ? '' : '<div class="fab-ai-sec">For this page</div>') + opts.map(line).join('')
+        ? '<div class="fab-ai-sec">For this page</div>' + opts.map(line).join('')
           + (S.page === 'bible'
               ? '<div class="fab-ai-ask"><input class="ai-input" data-fabai-input placeholder="Ask about a character, place or event…">'
                 + '<button class="ai-chip primary" data-fabai-ask><i class="bi bi-send"></i></button></div>'

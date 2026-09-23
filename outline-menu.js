@@ -12,10 +12,9 @@
      ———
      Check the order       does the structure hold?
 
-   The manuscript adds Scene headings (a script's slug lines).
-   The same jobs also join the right-click assistant's menu on these
-   pages, and the manuscript's own text menu carries them too, so the
-   FAB, the page and the editor agree.
+   The naming jobs live on the Outline page and nowhere else: the
+   manuscript is a writing page, so its right-click carries the writing
+   and the language actions plus the structure check, and no naming.
    ═══════════════════════════════════════════════════════════ */
 (function(){
   const F = window.AI_FNS || (window.AI_FNS = {});
@@ -72,21 +71,14 @@
   ];
 
   const ITEMS = {
+    /* the naming jobs belong to the Outline page — the manuscript carries the
+       writing and the language actions, and nothing that names its sections */
     outline: NAMING.concat([
       null,
       { fn:'olStructure', icon:'list-nested', label:'Check the order' }
     ]),
-    /* the manuscript is the writing page, so it also carries the writing and
-       the language actions, the way the editor's menu does */
-    manuscript: NAMING.concat(
-      [ null,
-        { fn:'msSceneHeading', icon:'film', label:'Scene headings' },
-        { fn:'olStructure',    icon:'list-nested', label:'Check the order' },
-        null ],
-      TEXT_ACTIONS,
-      [ null ],
-      LANGUAGE
-    )
+    manuscript: [ { fn:'olStructure', icon:'list-nested', label:'Check the order' } ]
+      .concat([ null ], TEXT_ACTIONS, [ null ], LANGUAGE)
   };
 
   /* the ids each host page answers to, in the order they are checked.
@@ -170,12 +162,6 @@
       { fn:'olChapterSubs', after:'olChapterTitles', icon:'text-paragraph',
         label:'Chapter subtitles', desc:'One line under every chapter name' },
       { fn:'olSubSubs', after:'olSubTitles', icon:'text-indent-left',
-        label:'Subchapter subtitles', desc:'One line under every subchapter name' }
-    ],
-    manuscript: [
-      { fn:'msChapterSubs', after:'msChapterTitles', icon:'text-paragraph',
-        label:'Chapter subtitles', desc:'One line under every chapter name' },
-      { fn:'msSubSubs', after:'msSubTitles', icon:'text-indent-left',
         label:'Subchapter subtitles', desc:'One line under every subchapter name' }
     ]
   };
