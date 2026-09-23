@@ -452,6 +452,21 @@ html body #page-plan .plan-actions [data-act="plan-all"]::before{
   background:var(--line-2) !important;
 }
 html body #page-plan .plan-actions [data-act="plan-all"]{ position:relative !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   The right-click AI panel's build tag — a quiet word in the head
+   ═══════════════════════════════════════════════════════════ */
+html body #fabAI .fab-ai-ver{
+  flex:0 0 auto !important;
+  padding:1px 5px !important;
+  border:1px solid var(--line-2) !important;
+  border-radius:999px !important;
+  color:var(--ink-4) !important;
+  font-size:9px !important;
+  font-weight:600 !important;
+  letter-spacing:.04em !important;
+  text-transform:none !important;
+}
 /* Clear reads as the destructive one, quietly */
 html body #page-plan .plan-actions .plan-btn-clear:hover{
   background:color-mix(in srgb, #d9534f 14%, var(--surface-3)) !important;

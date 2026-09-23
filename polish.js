@@ -313,8 +313,26 @@
     }).join('');
   };
 
+  /* A build tag in the panel's head, so "am I on the new build?" is one
+     glance instead of a guess. This matches the polish.js version in
+     index.html. */
+  const BUILD = 'v7';
+  const stampBuild = function(){
+    try{
+      document.documentElement.setAttribute('data-sf-build', BUILD);
+      const head = document.querySelector('#fabAI .fab-ai-head');
+      if(!head || head.querySelector('.fab-ai-ver')) return;
+      const tag = document.createElement('span');
+      tag.className = 'fab-ai-ver';
+      tag.textContent = BUILD;
+      tag.title = 'Menus build ' + BUILD + ' — the manuscript right-click options live here';
+      head.insertBefore(tag, head.querySelector('.fab-ai-x') || null);
+    }catch(e){}
+  };
+
   /* the menu itself: page options, then the writing actions, then Translate */
   window.renderFabAI = function(){
+    stampBuild();
     const body = document.getElementById('fabAIBody');
     if(!body) return;
     const defs = (typeof SF_FAB_DEFAULT !== 'undefined' && SF_FAB_DEFAULT) ? SF_FAB_DEFAULT : TEXT_ACTIONS;
