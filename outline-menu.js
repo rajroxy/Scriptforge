@@ -67,12 +67,23 @@
     ])
   };
 
-  /* the pages that carry the menu, in the order they are checked */
-  const PAGES = ['outline', 'manuscript'];
+  /* the ids each host page answers to, in the order they are checked.
+     The manuscript is opened under 'manuscript' AND under the alias 'write'
+     (the chapter strip and the chapter buttons navigate there), and the
+     mode-specific writing pages draw the same thing — every one of them
+     carries the naming jobs. */
+  const HOSTS = {
+    outline:    ['outline'],
+    manuscript: ['manuscript', 'write', 'chapters', 'scenes', 'episodes', 'acts', 'stanzas', 'verses']
+  };
   const activeHost = function(){
-    for(let i = 0; i < PAGES.length; i++){
-      const el = document.getElementById('page-' + PAGES[i]);
-      if(el && el.classList.contains('active')) return { id: PAGES[i], el: el };
+    const keys = Object.keys(HOSTS);
+    for(let i = 0; i < keys.length; i++){
+      const list = HOSTS[keys[i]];
+      for(let j = 0; j < list.length; j++){
+        const el = document.getElementById('page-' + list[j]);
+        if(el && el.classList.contains('active')) return { id: keys[i], el: el };
+      }
     }
     return null;
   };
@@ -105,7 +116,9 @@
     const t = e.target;
     if(!t || !t.closest) return;
     if(!host.el.contains(t)) return;
-    if(t.closest('input, textarea, [contenteditable="true"]')) return;   /* typing wins */
+    /* typing keeps its own menu — except the Fountain source on the script
+       page, where this menu is the only way to reach the naming jobs */
+    if(t.closest('input, textarea, [contenteditable="true"]') && !t.closest('.fnt-src')) return;
     e.preventDefault();
     build(host.id, e.clientX, e.clientY);
   }, true);

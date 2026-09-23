@@ -189,6 +189,12 @@
      used to make the manuscript's menu disappear */
   if(typeof SF_FAB_AI !== 'undefined' && SF_FAB_AI){
     Object.keys(EXTRA).forEach(function(k){ SF_FAB_AI[k] = EXTRA[k]; });
+    /* the manuscript is also opened under the id 'write' — the chapter strip
+       and every chapter button navigate there — and the mode-specific
+       writing pages draw the same page, so they all get its options */
+    ['write', 'chapters', 'scenes', 'episodes', 'acts', 'stanzas', 'verses'].forEach(function(k){
+      SF_FAB_AI[k] = EXTRA.manuscript;
+    });
   }
 
   const F = window.AI_FNS || (window.AI_FNS = {});

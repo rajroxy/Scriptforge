@@ -339,7 +339,7 @@ function renderChapterControls(){
     </div>
     <span class="cc-sep"></span>
     <div class="chapter-control cc-right">
-      ${S.page === 'manuscript'
+      ${(typeof isWritingPage === 'function' ? isWritingPage() : S.page === 'manuscript')
         ? '<button class="icon-btn-sm" data-act="split-open" title="Split screen"><i class="bi bi-layout-sidebar-inset-reverse"></i></button>'
         : ''}
       ${S.config.expOverlay
@@ -971,6 +971,21 @@ function updateCounts(){
 //   CONTEXT MENU
 // ═══════════════════════════════════════════════════════════
 
+/* ═══════════════════════════════════════════════════════════
+   THE WRITING PAGES
+   The manuscript answers to more than one page id: 'manuscript' and the
+   alias 'write' that the chapter strip, the chapter buttons and renaming
+   all navigate to — same page, drawn by the same renderer. The menu has to
+   follow the page, not the id, or the naming jobs vanish the moment you
+   pick a chapter from the dropdown.
+   ═══════════════════════════════════════════════════════════ */
+function isWritingPage(){
+  const id = (typeof S !== 'undefined' && S.page) ? S.page : '';
+  if(['manuscript','write','chapters','scenes','episodes','acts','stanzas','verses'].indexOf(id) >= 0) return true;
+  const el = document.getElementById('page-' + id);
+  return !!(el && el.querySelector('.write-canvas'));
+}
+
 function onCtx(e){
   e.preventDefault();
   saveSel();
@@ -995,12 +1010,13 @@ function onCtx(e){
     <button class="menu-item" data-ai="hinglishToEnglish"><i class="mi-icon bi bi-translate"></i>Hinglish → English</button>
     <button class="menu-item" data-ai="improve"><i class="mi-icon bi bi-stars"></i>Improve</button>
     ${S.config.expOrganize ? '<button class="menu-item" data-ai="organize"><i class="mi-icon bi bi-list-nested"></i>Organise my words</button>' : ''}
-    ${S.page === 'manuscript' ? `
+    ${isWritingPage() ? `
     <div class="menu-sep"></div>
     <button class="menu-item" data-ai="msChapterTitles"><i class="mi-icon bi bi-bookmark-fill"></i>Chapter titles</button>
     <button class="menu-item" data-ai="msChapterSubs"><i class="mi-icon bi bi-text-paragraph"></i>Chapter subtitles</button>
     <button class="menu-item" data-ai="msSubTitles"><i class="mi-icon bi bi-signpost-2"></i>Subchapter titles</button>
     <button class="menu-item" data-ai="msSubSubs"><i class="mi-icon bi bi-text-indent-left"></i>Subchapter subtitles</button>
+    <button class="menu-item" data-ai="msSceneHeading"><i class="mi-icon bi bi-film"></i>Scene headings</button>
     ` : ''}
     <div class="menu-sep"></div>
     <button class="menu-item" data-ins="link"><i class="mi-icon bi bi-link-45deg"></i>Insert link</button>
