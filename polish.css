@@ -454,6 +454,32 @@ html body #page-plan .plan-actions [data-act="plan-all"]::before{
 html body #page-plan .plan-actions [data-act="plan-all"]{ position:relative !important; }
 
 /* ═══════════════════════════════════════════════════════════
+   THE PROMPT PAGE'S TOP BAR
+   Prompt me on the left; Genres · Tags · Themes share the rest of
+   the bar, an equal third each, right up to its edge.
+   ═══════════════════════════════════════════════════════════ */
+html body #page-inspire .idea-bar{ gap:16px !important; }
+html body #page-inspire .idea-bar-left{ flex:0 0 auto !important; }
+html body #page-inspire .idea-picks{
+  margin-left:0 !important;
+  flex:1 1 auto !important;
+  min-width:0 !important;
+  justify-content:space-between !important;
+  gap:16px !important;
+}
+html body #page-inspire .idea-pick{
+  flex:1 1 0 !important;
+  min-width:0 !important;
+  gap:6px !important;
+}
+html body #page-inspire .idea-pick select{
+  flex:1 1 auto !important;
+  width:auto !important;
+  max-width:none !important;
+  min-width:0 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
    The right-click AI panel's build tag — a quiet word in the head
    ═══════════════════════════════════════════════════════════ */
 html body #fabAI .fab-ai-ver{

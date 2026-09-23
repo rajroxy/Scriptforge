@@ -9,8 +9,8 @@
                       the “Book” label, the statistics tile's label
      · FAB AI         the manuscript and the canvas get their own
                       right-click options, and a divider before Translate
-     · PROMPT PAGE    Genres · Tags · Themes in the top bar, and the AI
-                      settings button moved to the top-right of the card
+     · PROMPT PAGE    Prompt me on the left, Genres · Tags · Themes spread
+                      across the top bar, and no settings button on the page
 
    No page is re-rendered from here: it changes what is on screen.
    ═══════════════════════════════════════════════════════════ */
@@ -254,7 +254,7 @@
   /* A build tag in the panel's head, so "am I on the new build?" is one
      glance instead of a guess. This matches the polish.js version in
      index.html. */
-  const BUILD = 'v10';
+  const BUILD = 'v11';
 
   /* This app is a single page that never reloads itself, so a tab left open
      keeps running the code it was opened with — fixes included. When the build
@@ -348,13 +348,9 @@
     const bar = root.querySelector('.idea-bar');
     if(!bar) return;
 
-    /* the AI settings move to the top-right of the writing card */
-    const main = root.querySelector('.idea-main');
-    const wrap = root.querySelector('.idea-ai-wrap');
-    if(main && wrap && wrap.parentElement !== main){
-      main.appendChild(wrap);
-      wrap.classList.add('idea-ai-corner');
-    }
+    /* the AI settings button — and the popover it opens — are off this page:
+       the bar is Prompt me and the three pickers, nothing else */
+    Array.prototype.forEach.call(root.querySelectorAll('.idea-ai-wrap'), function(el){ el.remove(); });
 
     if(bar.querySelector('[data-sf-picks]')) return;   /* already built */
 
