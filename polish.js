@@ -272,10 +272,10 @@
     }).join('');
   };
 
-  /* A build tag in the panel's head, so "am I on the new build?" is one
-     glance instead of a guess. This matches the polish.js version in
-     index.html. */
-  const BUILD = 'v14';
+  /* The build this file is, written quietly onto the document element — it
+     matches the polish.js version in index.html and is what the reload guard
+     below compares. Nothing is drawn on screen for it. */
+  const BUILD = 'v15';
 
   /* This app is a single page that never reloads itself, so a tab left open
      keeps running the code it was opened with — fixes included. When the build
@@ -296,16 +296,7 @@
   }catch(e){}
 
   const stampBuild = function(){
-    try{
-      document.documentElement.setAttribute('data-sf-build', BUILD);
-      const head = document.querySelector('#fabAI .fab-ai-head');
-      if(!head || head.querySelector('.fab-ai-ver')) return;
-      const tag = document.createElement('span');
-      tag.className = 'fab-ai-ver';
-      tag.textContent = BUILD;
-      tag.title = 'Menus build ' + BUILD + ' — the manuscript right-click options live here';
-      head.insertBefore(tag, head.querySelector('.fab-ai-x') || null);
-    }catch(e){}
+    try{ document.documentElement.setAttribute('data-sf-build', BUILD); }catch(e){}
   };
 
   /* the menu itself: page options, then the writing actions, then Translate */
@@ -370,11 +361,20 @@
   const GENRES = ['Any genre','Literary','Thriller','Mystery','Crime','Romance','Fantasy',
                   'Science fiction','Horror','Historical','Western','Comedy','Adventure',
                   'Coming of age','Speculative'];
-  const TAGS   = ['Any tag','Slow burn','Heist','Revenge','Family','Redemption','Survival',
-                  'Political','Domestic','Supernatural','Road trip','Courtroom','War',
-                  'School','Workplace'];
+  const TAGS   = ['Any tag','Slow burn','Heist','Revenge','Family','Found family','Redemption',
+                  'Survival','Political','Domestic','Supernatural','Road trip','Courtroom',
+                  'War','School','Workplace','Enemies to lovers','Second chance',
+                  'Secret identity','Underdog','Reluctant hero','Fish out of water',
+                  'Locked room','Whodunit','Amnesia','Time loop','Dystopia','Cyberpunk',
+                  'Antihero','Small town','Mentor and student','Rivalry','Coming home',
+                  'Haunted house','Court intrigue','Deep space','Prison break'];
   const THEMES = ['Any theme','Love and loss','Power','Identity','Memory','Grief','Freedom',
-                  'Betrayal','Hope','Justice','Obsession','Belonging','Time','Faith','Technology'];
+                  'Betrayal','Hope','Justice','Obsession','Belonging','Time','Faith','Technology',
+                  'Duty and desire','Truth and lies','Guilt','Forgiveness','Courage','Loneliness',
+                  'Tradition and change','Fate and free will','Ambition','Sacrifice','Legacy',
+                  'Exile','Mortality','Art and the artist','Science and ethics',
+                  'Nature of evil','Class and money','War and peace','Beauty','Home',
+                  'Coming of age','Sisterhood and brotherhood','Nature and progress'];
 
   function promptPage(){
     const root = document.getElementById('page-inspire');
