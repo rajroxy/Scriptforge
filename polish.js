@@ -317,6 +317,25 @@
      glance instead of a guess. This matches the polish.js version in
      index.html. */
   const BUILD = 'v7';
+
+  /* This app is a single page that never reloads itself, so a tab left open
+     keeps running the code it was opened with — fixes included. When the build
+     on the server is not the one this tab last ran, take the new one: once per
+     tab, and only just after the page has settled, so nothing is mid-keystroke.
+     The app autosaves on every edit, so a reload here cannot lose writing. */
+  try{
+    const KEY = 'sf_build_seen';
+    const seen = localStorage.getItem(KEY);
+    const took = sessionStorage.getItem('sf_build_taken');
+    if(seen && seen !== BUILD && !took){
+      localStorage.setItem(KEY, BUILD);
+      sessionStorage.setItem('sf_build_taken', BUILD);
+      setTimeout(function(){ location.reload(); }, 1200);
+    } else if(seen !== BUILD){
+      localStorage.setItem(KEY, BUILD);
+    }
+  }catch(e){}
+
   const stampBuild = function(){
     try{
       document.documentElement.setAttribute('data-sf-build', BUILD);
