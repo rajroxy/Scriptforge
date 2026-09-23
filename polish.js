@@ -185,26 +185,77 @@
     ]
   };
 
-  /* the page lists are set unconditionally: a stale or empty key here is what
-     used to make the manuscript's menu disappear */
+  /* every id the manuscript is opened under — 'manuscript' itself, the alias
+     'write' the chapter strip and the chapter buttons navigate to, and the
+     mode-specific writing pages that draw the same page */
+  const WRITING_IDS = ['manuscript', 'write', 'chapters', 'scenes', 'episodes',
+                       'acts', 'stanzas', 'verses'];
+
+  /* The page lists are set unconditionally: a stale or empty key here is what
+     used to make the manuscript's menu disappear. */
   if(typeof SF_FAB_AI !== 'undefined' && SF_FAB_AI){
     Object.keys(EXTRA).forEach(function(k){ SF_FAB_AI[k] = EXTRA[k]; });
-    /* the manuscript is also opened under the id 'write' — the chapter strip
-       and every chapter button navigate there — and the mode-specific
-       writing pages draw the same page, so they all get its options */
-    ['write', 'chapters', 'scenes', 'episodes', 'acts', 'stanzas', 'verses'].forEach(function(k){
-      SF_FAB_AI[k] = EXTRA.manuscript;
-    });
+    WRITING_IDS.forEach(function(k){ SF_FAB_AI[k] = EXTRA.manuscript; });
+    if(!SF_FAB_AI.canvas) SF_FAB_AI.canvas = EXTRA.mindmap;
   }
 
+  /* What the page on screen offers. SF_FAB_AI is the table the other pages
+     are listed in, but for the manuscript and the canvas this file owns the
+     list — so the right-click panel can never come up without the naming jobs
+     or the scene headings, whatever id the page arrived under and whether or
+     not that table is there. */
+  const pageOptions = function(){
+    const ids = (typeof SF_FAB_AI !== 'undefined' && SF_FAB_AI) ? SF_FAB_AI : {};
+    if(ids[S.page] && ids[S.page].length) return ids[S.page];
+    if(WRITING_IDS.indexOf(S.page) >= 0) return EXTRA.manuscript;
+    if(S.page === 'canvas' || S.page === 'mindmap') return EXTRA.mindmap;
+    return null;
+  };
+
+  /* the jobs the menu offers are written out here, not borrowed from another
+     file: a right-click option must never turn into a dead button */
+  const brief = function(){
+    try{ return String((typeof sfProjectBrief === 'function') ? sfProjectBrief() : ''); }
+    catch(e){ return ''; }
+  };
+
   const F = window.AI_FNS || (window.AI_FNS = {});
-  F.msChapterTitles = function(){ if(F.olChapterTitles) F.olChapterTitles(); };
-  F.msChapterSubs   = function(){ if(F.olChapterSubs)   F.olChapterSubs();   };
-  F.msSubTitles     = function(){ if(F.olSubTitles)     F.olSubTitles();     };
-  F.msSubSubs       = function(){ if(F.olSubSubs)       F.olSubSubs();       };
-  F.msSceneHeading  = function(){
+  F.msChapterTitles = function(){
+    ask('Chapter titles', 'From your outline',
+      'You are a story editor helping a writer name their chapters.\n\n' + brief() + '\n\n' +
+      'Task: suggest one strong, specific chapter title for EVERY chapter in the structure above.\n' +
+      'Rules: 2–5 words each, evocative, no numbers in the title, the same voice across all of them,\n' +
+      'and do not invent chapters that are not listed. Reply as a plain list — "chapter number — title" —\n' +
+      'and nothing else.');
+  };
+  F.msChapterSubs = function(){
+    ask('Chapter subtitles', 'Manuscript',
+      'You name chapters for a living.\n\n' + brief() + '\n\n' +
+      'Task: give EVERY chapter in the structure above a SUBTITLE — a single line that sits under\n' +
+      'the chapter name, the way a subtitle does on a book page.\n' +
+      'Rules: 3–9 words each, evocative but plain, never a repeat of the chapter title, the same\n' +
+      'voice across all of them, no numbers, no quotes, no punctuation at the end.\n' +
+      'Reply as a plain list — "chapter number — subtitle" — and nothing else.');
+  };
+  F.msSubTitles = function(){
+    ask('Subchapter titles', 'From your outline',
+      'You are a story editor naming the scenes inside a book.\n\n' + brief() + '\n\n' +
+      'Task: give EVERY subchapter in the structure above a short, concrete name.\n' +
+      'Rules: 2–6 words each, no numbers, same voice across all of them, and do not invent\n' +
+      'subchapters that are not listed. Reply as a plain list — "chapter — subchapter: name" —\n' +
+      'and nothing else.');
+  };
+  F.msSubSubs = function(){
+    ask('Subchapter subtitles', 'Manuscript',
+      'You name scenes inside chapters.\n\n' + brief() + '\n\n' +
+      'Task: for every subchapter in the structure above, write a SUBTITLE — one line under its\n' +
+      'name, the turn the scene takes.\n' +
+      'Rules: 3–9 words, concrete, same voice, in order, no numbering in the line itself.\n' +
+      'Reply as a plain list — "chapter — subchapter: subtitle" — and nothing else.');
+  };
+  F.msSceneHeading = function(){
     ask('Scene headings', 'Manuscript',
-      'You are a script editor.\n\n' + sfProjectBrief() + '\n\n' +
+      'You are a script editor.\n\n' + brief() + '\n\n' +
       'Task: write or correct the SCENE HEADINGS for this script — slug line only\n' +
       '(INT./EXT. LOCATION — TIME), in caps, in order, one per line.\n' +
       'Use only places that exist in the project above. Nothing else, no prose.');
@@ -266,9 +317,8 @@
   window.renderFabAI = function(){
     const body = document.getElementById('fabAIBody');
     if(!body) return;
-    const ids = (typeof SF_FAB_AI !== 'undefined' && SF_FAB_AI) ? SF_FAB_AI : {};
-    const defs = (typeof SF_FAB_DEFAULT !== 'undefined' && SF_FAB_DEFAULT) ? SF_FAB_DEFAULT : [];
-    const opts = ids[S.page];
+    const defs = (typeof SF_FAB_DEFAULT !== 'undefined' && SF_FAB_DEFAULT) ? SF_FAB_DEFAULT : TEXT_ACTIONS;
+    const opts = pageOptions();
 
     const line = function(o){
       return '<button class="fab-ai-opt" data-fabai="' + o.fn + '" title="' + esc(o.desc) + '">'
@@ -291,6 +341,21 @@
       + '<div class="fab-ai-sec">' + (opts ? 'Language' : 'Text') + '</div>'
       + '<button class="ai-chip" data-ai="translate"><i class="bi bi-translate"></i> Translate</button>';
   };
+
+  /* The panel's own options are handled by the app's listener, which is
+     registered earlier; this is the net under it, so a page option can never
+     be a button that does nothing. */
+  document.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    const opt = t.closest('[data-fabai]');
+    if(!opt || e.defaultPrevented) return;
+    e.preventDefault();
+    const fn = opt.dataset.fabai;
+    if(typeof toggleFabAI === 'function') toggleFabAI(false);
+    if(window.AI_FNS && window.AI_FNS[fn]) window.AI_FNS[fn]();
+    else if(typeof toast === 'function') toast('That action is not available', 'warn');
+  }, true);
 
   /* ═══ 4 · THE PROMPT PAGE ═══ */
   const GENRES = ['Any genre','Literary','Thriller','Mystery','Crime','Romance','Fantasy',
