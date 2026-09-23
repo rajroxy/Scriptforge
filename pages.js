@@ -1048,6 +1048,20 @@ PAGE_RENDERERS.outline = function(root){
       PAGE_RENDERERS.outline(root);
       return;
     }
+
+    /* pressing the row itself opens that chapter (or subchapter): every row
+       carries data-ol-open, and until now nothing in the app listened for it,
+       so a row could not be selected at all. This sits last on purpose — the
+       row's own buttons above have already claimed their clicks. */
+    const row = e.target.closest('[data-ol-open]');
+    if(row && D().currentChapter !== row.dataset.olOpen){
+      e.preventDefault();
+      const f = find(row.dataset.olOpen);
+      if(!f) return;
+      D().currentChapter = f.node.id;
+      save();
+      PAGE_RENDERERS.outline(root);
+    }
   });
 
   const head = root.querySelector('.ol-head');

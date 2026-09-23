@@ -289,7 +289,7 @@
   /* The build this file is, written quietly onto the document element — it
      matches the polish.js version in index.html and is what the reload guard
      below compares. Nothing is drawn on screen for it. */
-  const BUILD = 'v16';
+  const BUILD = 'v17';
 
   /* This app is a single page that never reloads itself, so a tab left open
      keeps running the code it was opened with — fixes included. When the build
@@ -329,7 +329,9 @@
     const optionsOnly = (S.page === 'inspire' || S.page === 'idea' || S.page === 'outline');
     if(optionsOnly && opts && opts.length){
       body.innerHTML =
-        (S.page === 'outline' ? '<div class="fab-ai-sec">For this page</div>' : '')
+        (S.page === 'outline' || S.page === 'inspire' || S.page === 'idea'
+          ? '<div class="fab-ai-sec">For this page</div>'
+          : '')
         + opts.map(function(o){
             return '<button class="fab-ai-opt" data-fabai="' + o.fn + '" title="' + esc(o.desc) + '">'
               + '<span class="fa-ic"><i class="bi bi-' + o.icon + '"></i></span>'
