@@ -119,6 +119,7 @@
 
     statsLabel();
     promptPage();
+    draftTypo();
   };
 
   let raf = 0;
@@ -133,6 +134,19 @@
   }
 
   /* ═══ 3 · FAB AI — the manuscript and the canvas ═══ */
+  /* The draft page's Typography button sits at the left of its bar, before
+     New draft — the same place T takes on every other page. Idempotent, and
+     it follows the button through every repaint of the page. */
+  const draftTypo = function(){
+    const page = document.getElementById('page-draft');
+    if(!page) return;
+    const bar = page.querySelector('.sf-bar');
+    if(!bar) return;
+    const t = page.querySelector('[data-typop="draft"]');
+    if(!t || bar.firstElementChild === t) return;
+    bar.insertBefore(t, bar.firstElementChild);
+  };
+
   const canvasBrief = function(){
     let st = null;
     try{
@@ -275,7 +289,7 @@
   /* The build this file is, written quietly onto the document element — it
      matches the polish.js version in index.html and is what the reload guard
      below compares. Nothing is drawn on screen for it. */
-  const BUILD = 'v15';
+  const BUILD = 'v16';
 
   /* This app is a single page that never reloads itself, so a tab left open
      keeps running the code it was opened with — fixes included. When the build
@@ -307,16 +321,21 @@
     const defs = (typeof SF_FAB_DEFAULT !== 'undefined' && SF_FAB_DEFAULT) ? SF_FAB_DEFAULT : TEXT_ACTIONS;
     const opts = pageOptions();
 
-    /* The prompt page's panel is Prompt me and nothing else: no writing
-       actions, no language actions, no section headings, and no subtitle
-       under the option — just the one row. */
-    if((S.page === 'inspire' || S.page === 'idea') && opts && opts.length){
-      body.innerHTML = opts.map(function(o){
-        return '<button class="fab-ai-opt" data-fabai="' + o.fn + '" title="' + esc(o.desc) + '">'
-          + '<span class="fa-ic"><i class="bi bi-' + o.icon + '"></i></span>'
-          + '<span class="fa-txt"><b>' + esc(o.label) + '</b></span>'
-          + '</button>';
-      }).join('');
+    /* Two panels are their options and nothing else:
+         · the prompt page  — Prompt me alone, no headings at all
+         · the outline page — the naming jobs, no subtitle under an option
+                              and no writing or language actions
+       Both draw the row without its description line. */
+    const optionsOnly = (S.page === 'inspire' || S.page === 'idea' || S.page === 'outline');
+    if(optionsOnly && opts && opts.length){
+      body.innerHTML =
+        (S.page === 'outline' ? '<div class="fab-ai-sec">For this page</div>' : '')
+        + opts.map(function(o){
+            return '<button class="fab-ai-opt" data-fabai="' + o.fn + '" title="' + esc(o.desc) + '">'
+              + '<span class="fa-ic"><i class="bi bi-' + o.icon + '"></i></span>'
+              + '<span class="fa-txt"><b>' + esc(o.label) + '</b></span>'
+              + '</button>';
+          }).join('');
       return;
     }
 

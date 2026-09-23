@@ -467,6 +467,29 @@ html body #page-plan .plan-actions [data-act="plan-all"]::before{
 html body #page-plan .plan-actions [data-act="plan-all"]{ position:relative !important; }
 
 /* ═══════════════════════════════════════════════════════════
+   THE PAGE BARS AND THE APP HEADER
+   A bar sticks at the very top of its page, which is exactly the bottom
+   edge of the app header — so it reads as glued to it. A strip of page
+   background above each stuck bar gives it the air the draft and idea
+   bars have, and hides the content passing underneath.
+   ═══════════════════════════════════════════════════════════ */
+html body #page-draft         .sf-bar::before,
+html body #page-outline       .page-head::before,
+html body #page-kanban        .page-head::before,
+html body #page-plan          .page-head::before,
+html body #page-bible         .page-head::before,
+html body #page-mindmap       .page-head::before{
+  content:'' !important;
+  position:absolute !important;
+  left:0 !important;
+  right:0 !important;
+  top:-10px !important;
+  height:10px !important;
+  background:var(--bg) !important;
+  pointer-events:none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
    THE PROMPT PAGE'S TOP BAR
    Prompt me on the left, one button at the right end of the bar that
    opens Genres · Tags · Themes in a panel.
@@ -492,7 +515,7 @@ html body #page-inspire .idea-pick{
   flex:0 0 auto !important;
   min-width:0 !important;
 }
-html body #page-inspire .idea-pick.idea-pick-end{ margin-left:auto !important; }
+html body #page-inspire .idea-pick.idea-pick-end{ margin-left:auto !important; margin-right:-8px !important; }
 html body #page-inspire .idea-pick > span{
   font-size:9.5px !important;
   font-weight:600 !important;
