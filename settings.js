@@ -767,6 +767,45 @@ SETTINGS.open = function(){
     tabBar.appendChild(b);
   });
 
+  /* ── IMPORT — the button that used to float over the dashboard now sits at
+     the foot of this rail. It keeps both of the floating button's jobs, by
+     driving that same button: click for GitHub, right-click for a file. */
+  if(!document.getElementById('setImportStyle')){
+    const st = document.createElement('style');
+    st.id = 'setImportStyle';
+    /* a BUTTON, not a tab: it never changes the pane beside it, so it must not
+       look like the rail's other entries. margin-top:auto pins it to the foot. */
+    st.textContent =
+      'html body .settings-modal #setTabs .set-import-btn{' +
+        'margin-top:auto !important;width:100% !important;height:32px !important;' +
+        'display:flex !important;align-items:center !important;justify-content:center !important;gap:7px !important;' +
+        'border:1px solid var(--line-2) !important;border-radius:var(--r-sm,4px) !important;' +
+        'background:var(--surface-3) !important;color:var(--ink) !important;' +
+        'font-size:12px !important;font-weight:600 !important;letter-spacing:0 !important;' +
+        'cursor:pointer !important;transition:background .12s ease, border-color .12s ease !important;}' +
+      'html body .settings-modal #setTabs .set-import-btn i{font-size:12px !important;}' +
+      'html body .settings-modal #setTabs .set-import-btn:hover{' +
+        'background:var(--surface-4) !important;border-color:var(--line-3) !important;}';
+    document.head.appendChild(st);
+  }
+  const impBtn = document.createElement('button');
+  impBtn.type = 'button';
+  impBtn.className = 'set-import-btn';
+  impBtn.id = 'setImportBtn';
+  impBtn.title = 'Click: GitHub · Right-click: a file on this computer';
+  impBtn.innerHTML = '<i class="bi bi-box-arrow-in-down"></i> Import';
+  impBtn.addEventListener('click', function(e){
+    e.preventDefault();
+    if(typeof window.openGitHubPanel === 'function') window.openGitHubPanel();
+    else if(typeof toast === 'function') toast('GitHub panel not loaded', 'err');
+  });
+  impBtn.addEventListener('contextmenu', function(e){
+    e.preventDefault();
+    const src = document.getElementById('floatingImport');
+    if(src) src.dispatchEvent(new MouseEvent('contextmenu', {bubbles:true, cancelable:true}));
+  });
+  tabBar.appendChild(impBtn);
+
   /* sidebar layout — nothing to mirror into the head any more */
 
   renderSetTab('ai');
@@ -1350,31 +1389,10 @@ function applyThemeNow(){
 window.applyThemeNow = applyThemeNow;
 
 SETTINGS.renderers.general = function(root){
-  /* ── YOUR NAME ──
-     The dashboard greets the writer by it (welcome.js), and it signs the
-     exports. It can be typed here, or handed in with a ?name= link, or
-     picked up from GitHub — all three write the same setting. */
-  const cName = card('Your name', 'person-badge');
-  const nameInp = document.createElement('input');
-  nameInp.type = 'text';
-  nameInp.className = 'inp';
-  nameInp.maxLength = 40;
-  nameInp.placeholder = 'Your name';
-  nameInp.value = S.config.userName || '';
-  nameInp.style.minWidth = '200px';
-  const nameSet = function(){
-    const typed = String(nameInp.value || '').replace(/\s+/g, ' ').trim().slice(0, 40);
-    S.config.userName = typed;
-    if(typed && !String(S.config.authorName || '').trim()) S.config.authorName = typed;
-    save();
-    /* the greeting follows immediately — no reload, no page change */
-    try{ if(typeof window.sfWelcomeRefresh === 'function') window.sfWelcomeRefresh(); }catch(e){}
-    if(typeof toast === 'function') toast(typed ? 'The app will greet you as ' + typed : 'The greeting is back to plain “Welcome back”');
-  };
-  nameInp.onchange = nameSet;
-  nameInp.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); nameSet(); nameInp.blur(); } });
-  cName.appendChild(row('Your name', 'Shown under “Welcome back” on the dashboard, and used to sign your exports', nameInp));
-  root.appendChild(cName);
+  /* ── YOUR NAME — there is no Settings row for it any more, and nothing
+     on the dashboard asks for it. The name is still honoured when one
+     arrives from a ?name= link or from GitHub, and it still signs the
+     exports. */
 
   const c1 = card('Core', 'gear');
   const autoSave = document.createElement('div');

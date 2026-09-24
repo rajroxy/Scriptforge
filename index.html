@@ -27,7 +27,7 @@
 <!-- one chrome stylesheet (layout + autocomplete + the video-bar style
      that used to be inline here) and one page stylesheet (pages + pages-fix
      + settings-tweaks + overrides + polish + final-fix, in that order). -->
-<link rel="stylesheet" href="app.css?v=1">
+<link rel="stylesheet" href="app.css?v=2">
 <link rel="stylesheet" href="pages.css?v=15">
 </head>
 <body>
@@ -80,10 +80,12 @@ try{
   <button class="logo-btn" title="Home">
     <span class="logo-mark"><i class="bi bi-pen-fill"></i></span>
   </button>
-  <div class="breadcrumb" id="breadcrumb"></div>
-  <div class="mode-pills" id="modePills"></div>
   <div class="topbar-spacer"></div>
   <div class="topbar-actions" id="topbarActions" hidden>
+  <button class="topbar-btn" data-act="go-stats" title="Statistics">
+    <i class="bi bi-graph-up-arrow"></i>
+    <span>Statistics</span>
+  </button>
   <button class="topbar-btn" data-act="open-settings" title="Settings">
     <i class="bi bi-gear"></i>
     <span>Settings</span>
@@ -186,12 +188,12 @@ try{
      shares a file with it would not run. -->
 <script src="state.js?v=29"></script>
 <script src="fs.js?v=1"></script>
-<script src="pages.js?v=103"></script>
+<script src="pages.js?v=109"></script>
 <script src="write.js?v=52"></script>
 <script src="split.js?v=7"></script>
 <script src="ai.js?v=13"></script>
-<script src="settings.js?v=51"></script>
-<script src="app.js?v=41"></script>
+<script src="settings.js?v=54"></script>
+<script src="app.js?v=44"></script>
 <script src="page-bars.js?v=10"></script>
 <script src="mindmap.js?v=10"></script>
 <script src="github.js?v=5"></script>

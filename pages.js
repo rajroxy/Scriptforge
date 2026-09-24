@@ -114,23 +114,16 @@ function getStatsProject(){
   return statsProjectId;
 }
 
-// Stats panel sitting in the empty space to the right of the category cards.
-// It shows the project currently selected in the list below.
-function renderProjectStatsPanel(){
-  const panel = $('catStats');
-  if(!panel) return;
-
-  const d = D();
-  const pid = statsProjectId;
-  const proj = pid ? (d.projects || []).find(x => x.id === pid) : null;
-
+/* ── A project's card, as the two halves it is: “Project stats” and
+   “Progress”. One builder for both places that show it — the panel over the
+   projects list, and the novel / screenplay cards on the dashboard — so the
+   two can never drift apart. */
+function statsHalvesHTML(proj){
   if(!proj){
-    panel.innerHTML =
-      '<div class="cat-stats-half"><div class="cat-stats-head"><i class="bi bi-bar-chart"></i> Project stats</div>' +
+    return '<div class="cat-stats-half"><div class="cat-stats-head"><i class="bi bi-bar-chart"></i> Project stats</div>' +
       '<div class="cat-stats-empty">Click a project to see its stats.</div></div>' +
       '<div class="cat-stats-half cat-stats-half-b"><div class="cat-stats-head"><i class="bi bi-hdd-stack"></i> Progress</div>' +
       '<div class="cat-stats-empty">—</div></div>';
-    return;
   }
 
   const chs = proj.chapters || [];
@@ -146,7 +139,7 @@ function renderProjectStatsPanel(){
   /* units come from the PROJECT's mode (never the mode you're browsing in) */
   const L = (typeof CH_LABELS !== 'undefined' && CH_LABELS[proj.mode]) || { ch:'Chapter', sub:'Subchapter' };
 
-  panel.innerHTML = `
+  return `
     <div class="cat-stats-half">
       <div class="cat-stats-head"><i class="bi bi-bar-chart"></i> Project stats</div>
       <div class="cat-dates">
@@ -173,6 +166,19 @@ function renderProjectStatsPanel(){
         </div>
       </div>
     </div>`;
+}
+
+// Stats panel sitting in the empty space to the right of the category cards.
+// It shows the project currently selected in the list below.
+function renderProjectStatsPanel(){
+  const panel = $('catStats');
+  if(!panel) return;
+
+  const d = D();
+  const pid = statsProjectId;
+  const proj = pid ? (d.projects || []).find(x => x.id === pid) : null;
+
+  panel.innerHTML = statsHalvesHTML(proj);
 }
 
 
@@ -258,6 +264,14 @@ function renderProjectsForCategory(catId){
     list.appendChild(item);
   });
 }
+/* Repaint the dashboard after something a card shows has changed. The two
+   cards carry their own copy of the recent list, so a pin, a rename or a
+   delete made from one of them has to be drawn again here as well. */
+function refreshHomeCards(){
+  if(typeof S !== 'undefined' && S.page === 'home' && typeof goPage === 'function') goPage('home');
+}
+window.refreshHomeCards = refreshHomeCards;
+
 function togglePagesOverlay(force){
   const overlay = $('pagesOverlay');
   if(!overlay) return;
@@ -295,8 +309,11 @@ function goPage(id){
   const fabEl = document.getElementById('fabWrap');
   if(fabEl) fabEl.style.display = isDashboard ? 'none' : '';
     // Import button — only on Dashboard
+  /* the Import button moved to the foot of the Settings nav — the floating one
+     stays in the DOM (its two handlers are what the Settings entry drives) but
+     no longer shows over the dashboard */
   const impEl = document.getElementById('floatingImport');
-  if(impEl) impEl.style.display = (id === 'home') ? '' : 'none';
+  if(impEl) impEl.style.display = 'none';
 
   const stage = $('stage');
   if(!stage) return;
@@ -432,7 +449,81 @@ function updateStatusBar(){
 
 const PAGE_RENDERERS = {};
 
+/* The projects of one mode, in the order the projects panel lists them:
+   pinned first, then newest, and never more than the ten that panel shows. */
+function projectsOfMode(m){
+  const data = (S.modes && S.modes[m.id]) || {};
+  const pins = pinnedProjects();
+  return (data.projects || []).slice().sort(function(a, b){
+    const pa = pins.indexOf(a.id) >= 0 ? 0 : 1, pb = pins.indexOf(b.id) >= 0 ? 0 : 1;
+    if(pa !== pb) return pa - pb;
+    return (b.created || 0) - (a.created || 0);
+  }).slice(0, 10);
+}
+
+/* ── the project a dashboard card is describing ──
+   Nothing is shown there until the writer clicks a project in the card's own
+   list, exactly as in the projects panel: session-only, never saved, and one
+   pick per mode so the two cards never describe the same row. */
+const homePick = {};
+
+function getHomePick(modeId){
+  return homePick[modeId] || null;
+}
+
+function setHomePick(pid){
+  /* the pick belongs to whichever mode actually holds the project, so a row
+     clicked on the card that is not the active mode lands in its own bucket */
+  let mode = null;
+  Object.keys(S.modes || {}).forEach(function(k){
+    if((S.modes[k].projects || []).some(function(p){ return p.id === pid; })) mode = k;
+  });
+  if(!mode) return;
+  homePick[mode] = pid;
+  refreshHomeCards();
+}
+window.setHomePick = setHomePick;
+
+/* One recent-project row — the same row the projects panel draws. A single
+   click selects the project (its stats · progress appear above), a double
+   click opens it; pin · rename · delete are the panel's own buttons. */
+function homeProjectRow(p, modeId){
+  const pins = pinnedProjects();
+  const pinned = pins.indexOf(p.id) >= 0;
+  const picked = getHomePick(modeId) === p.id;
+  return '<div class="proj-item-wrap">' +
+    '<div class="proj-row' + (picked ? ' active' : '') + '">' +
+      '<div class="proj-item" data-home-pick="' + p.id + '">' +
+        '<div class="proj-icon"><i class="bi bi-folder-fill"></i></div>' +
+        '<div class="proj-body">' +
+          '<div class="proj-name">' + esc(p.name) + '</div>' +
+          (p._importSource === 'external' || p._importSource === 'internal'
+            ? '<div class="proj-source">' + (p._importSource === 'external' ? 'External' : 'Internal') + '</div>'
+            : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="proj-actions">' +
+        '<button class="proj-btn' + (pinned ? ' on' : '') + '" data-proj-pin="' + p.id + '" title="' + (pinned ? 'Unpin' : 'Pin to the top') + '">' +
+          '<i class="bi bi-pin-angle' + (pinned ? '-fill' : '') + '"></i>' +
+        '</button>' +
+        '<button class="proj-btn" data-proj-rename="' + p.id + '" title="Rename">' +
+          '<i class="bi bi-pencil"></i>' +
+        '</button>' +
+        '<button class="proj-btn" data-proj-del="' + p.id + '" title="Delete">' +
+          '<svg width="10" height="10" viewBox="0 0 10 10" fill="none">' +
+            '<path d="M2 2L8 8M8 2L2 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+          '</svg>' +
+        '</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
 // ─── HOME ───
+/* The dashboard is two cards — Novel and Screenplay — sized like the two
+   panes of the Script page: side by side, filling what the top bar leaves.
+   Each card is built the way the projects panel is: the mode's own head strip
+   first, then the project's stats · its progress, then its recent projects. */
 PAGE_RENDERERS.home = function(root){
   const d = D();
   const mode = currentMode() || MODES[0];
@@ -441,63 +532,189 @@ PAGE_RENDERERS.home = function(root){
   const projects = d.projects ? d.projects.length : 0;
   const today = new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
 
+  const modePanes = MODES.map(function(m){
+    const on = (m.id === S.mode) ? ' on' : '';
+    const data = S.modes[m.id] || {};
+    const count = data.chapters ? flatChs(data.chapters).length : 0;
+    const catId = data.currentCategory || ((m.categories && m.categories[0] && m.categories[0].id) || null);
+    const projs = projectsOfMode(m);
+    /* the stats · progress halves speak only for the project clicked in the
+       list below them — never for the mode's own open project */
+    const pick = getHomePick(m.id);
+    const proj = pick ? (projs.filter(function(p){ return p.id === pick; })[0] || null) : null;
+    /* New project belongs to the mode the card is: on the active card it is
+       the panel's own button, on the other one it switches first. */
+    const newBtn = !catId ? ''
+      : (on
+          ? '<button data-cat-new="' + catId + '" title="New project"><i class="bi bi-plus-lg"></i> New project</button>'
+          : '<button data-home-new="' + m.id + '" title="New project"><i class="bi bi-plus-lg"></i> New project</button>');
+    /* the panel's own pair: open what the list has selected */
+    const openBtn = proj
+      ? '<button data-home-open-sel="' + m.id + '" title="Open the project selected in the list below">' +
+        '<i class="bi bi-folder2-open"></i> Open project</button>'
+      : '';
+
+    const statsBlock = proj
+      ? '<div class="home-stats">' + statsHalvesHTML(proj) + '</div><div class="home-pane-div"></div>'
+      : '';
+    return '<section class="home-pane' + on + '">' +
+      '<div class="home-pane-head" data-home-mode="' + m.id + '" title="Switch to ' + m.name + '">' +
+        '<i class="bi bi-' + m.icon + '"></i>' +
+        '<span class="home-pane-name">' + m.name + '</span>' +
+        '<span class="home-pane-count">' + count + '</span>' +
+      '</div>' +
+      '<div class="home-pane-body">' +
+        statsBlock +
+        '<div class="home-recent">' +
+          '<div class="proj-list-head">' +
+            '<div class="pages-grid-label"><i class="bi bi-clock-history"></i> Recent projects</div>' +
+            openBtn +
+            newBtn +
+          '</div>' +
+          '<div class="home-proj-list">' +
+            (projs.length
+              ? projs.map(function(p){ return homeProjectRow(p, m.id); }).join('')
+              : '<div class="pages-empty" style="padding:12px 2px;">No projects in ' + esc(m.name) + ' yet.</div>') +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</section>';
+  }).join('');
+
   root.innerHTML = `
-    <div style="padding:60px 40px;max-width:900px;margin:0 auto;">
-
-            <div style="margin-bottom:48px;text-align:center;">
-        <h1 style="font-family:var(--display);font-size:32px;font-weight:700;letter-spacing:-.03em;">
-          Welcome back
-        </h1>
-      </div>
-
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;max-width:640px;margin:0 auto;">
-                <button class="home-tile-big" data-act="go-overview">
-          <i class="bi bi-grid-1x2"></i>
-          <div>
-            <div class="home-tile-big-title">Overview</div>
-          </div>
-        </button>
-        <button class="home-tile-big" data-act="go-stats">
-          <i class="bi bi-graph-up-arrow"></i>
-          <div>
-            <div class="home-tile-big-title">Statistics</div>
-          </div>
-        </button>
-      </div>
-
-    </div>
+    <div class="home-panes">${modePanes}</div>
 
     <style>
-      .home-tile-big{
-  position:relative;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:14px;
-  padding:32px 24px;
-  text-align:left;
-  background:var(--surface-2);
-  border:1px solid var(--line);
-  border-radius:var(--r-lg);
-  cursor:pointer;
-  transition:all var(--t-fast) var(--ease);
-  min-height:120px;
-}
-      .home-tile-big:hover{
-  border-color:var(--line-3);
-  background:var(--surface-3);
-}
-      .home-tile-big i{
-  font-size:28px;
-  color:var(--ink-2);
-  flex-shrink:0;
-}
-      .home-tile-big-title{
-  font-size:15px;
-  font-weight:600;
-  color:var(--ink);
-  letter-spacing:-.01em;
-}
+      /* The dashboard: two cards, one per mode, built like the Script page's
+         two panes — the same box (.fnt-pane: surface-2 · line-2 · r-md)
+         stretched over the whole canvas, under a head strip of its own.
+
+         Up in each card: the stats · progress of the project clicked in the
+         list below — the same two halves the projects panel draws
+         (statsHalvesHTML), and empty until a project is clicked.
+         Down: that mode's recent projects. */
+      html body #page-home.active{
+        display:flex;
+        flex-direction:column;
+        height:100%;
+        min-height:0;
+        overflow:hidden;
+      }
+      html body .home-panes{
+        flex:1 1 auto;
+        min-height:0;
+        display:flex;
+        align-items:stretch;
+        gap:12px;
+        padding:14px 16px 16px;
+      }
+      html body .home-pane{
+        flex:1 1 50%;
+        min-width:0;
+        min-height:0;
+        display:flex;
+        flex-direction:column;
+        background:var(--surface-2);
+        border:1px solid var(--line-2);
+        border-radius:var(--r-md);
+        overflow:hidden;
+        transition:border-color var(--t-fast) var(--ease);
+      }
+      html body .home-pane.on{ border-color:var(--accent); }
+      /* the head strip — the pane's own hint row: icon · name · count */
+      html body .home-pane-head{
+        flex:0 0 auto;
+        display:flex;
+        align-items:center;
+        gap:8px;
+        padding:10px 14px;
+        border-bottom:1px solid var(--line-2);
+        background:var(--surface-1);
+        cursor:pointer;
+      }
+      html body .home-pane-head i{ font-size:14px; color:var(--ink-3); }
+      html body .home-pane.on .home-pane-head i{ color:var(--accent); }
+      html body .home-pane-name{
+        font-size:10.5px;
+        font-weight:600;
+        text-transform:uppercase;
+        letter-spacing:.08em;
+        color:var(--ink-3);
+      }
+      html body .home-pane.on .home-pane-name{ color:var(--ink); }
+      html body .home-pane-count{
+        margin-left:auto;
+        font-size:9.5px;
+        font-weight:600;
+        color:var(--ink-4);
+        background:var(--surface-3);
+        padding:1px 7px;
+        border-radius:10px;
+      }
+      html body .home-pane.on .home-pane-count{ background:var(--surface-4); color:var(--ink-2); }
+      html body .home-pane-body{
+        flex:1 1 auto;
+        min-height:0;
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+        padding:12px 14px 14px;
+      }
+      html body .home-stats{
+        flex:0 0 auto;
+        display:flex;
+        flex-direction:row;
+        align-items:stretch;
+        padding:12px 14px;
+        background:var(--surface-1);
+        border:1px solid var(--line);
+        border-radius:var(--r-md);
+      }
+      html body .home-stats .cat-stats-half{
+        flex:1 1 0;
+        min-width:0;
+        display:flex;
+        flex-direction:column;
+        gap:8px;
+        padding-right:14px;
+      }
+      html body .home-stats .cat-stats-half-b{
+        padding-right:0;
+        padding-left:14px;
+        border-left:1px solid var(--line);
+      }
+      html body .home-stats .cat-dates{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:12px;
+        width:100%;
+      }
+      html body .home-stats .cat-stat-val{ font-size:17px; }
+      html body .home-pane-div{ flex:0 0 auto; height:1px; background:var(--line); }
+      html body .home-recent{
+        flex:1 1 auto;
+        min-height:0;
+        display:flex;
+        flex-direction:column;
+        gap:2px;
+      }
+      html body .home-recent .pages-grid-label{ margin-bottom:0; }
+      html body .home-recent .proj-list-head{ margin-bottom:6px; }
+      html body .home-proj-list{
+        flex:1 1 auto;
+        min-height:0;
+        overflow-y:auto;
+        padding-right:4px;
+        scrollbar-width:thin;
+        scrollbar-color:var(--line-3) transparent;
+      }
+      html body .home-proj-list .proj-item-wrap{ margin-bottom:4px; }
+      /* one column when there is no room for two */
+      @media (max-width:900px){
+        html body .home-panes{ flex-direction:column; overflow-y:auto; }
+        html body .home-pane{ flex:1 1 auto; min-height:320px; }
+      }
     </style>
   `;
 };

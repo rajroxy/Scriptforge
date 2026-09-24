@@ -138,6 +138,11 @@
   const markAsked = function(){ try{ localStorage.setItem(GATE_KEY, '1'); }catch(e){} };
 
   const gate = function(){
+    /* RETIRED — nothing asks the writer for a name any more: the dashboard no
+       longer greets by it and Settings no longer carries a row for it. A name
+       still arrives from a ?name= link, from GitHub or from an export, and it
+       still signs one. Delete this line to bring the one-time prompt back. */
+    return;
     if(userName() || askedAlready() || window.sfNameGateOpen) return;
     /* once the app has painted a page at all — whatever page it opened on,
        so the name is asked for on the way in, not when the dashboard is

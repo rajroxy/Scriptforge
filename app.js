@@ -93,6 +93,13 @@ if(t.closest('[data-act="go-overview"]')){
   if(typeof goPage === 'function') goPage('overview');
   return;
 }
+// Dashboard mode cards — switch mode and stay on the dashboard
+if(t.closest('[data-home-mode]')){
+  e.preventDefault();
+  const want = t.closest('[data-home-mode]').dataset.homeMode;
+  if(want && want !== S.mode && typeof switchMode === 'function') switchMode(want);
+  return;
+}
 
   // ─── Export project (from Write toolbar) ───
   if(t.closest('[data-act="export-project"]')){
@@ -120,6 +127,40 @@ if(t.closest('[data-act="go-overview"]')){
     } else {
       toast('Not saved to disk yet. Click Export to save it first.', 'warn');
     }
+    return;
+  }
+
+  // ─── Dashboard card: a recent-project row selects it — the card's stats ·
+  //     progress halves fill in above the list. Double-click opens. ───
+  const homePickEl = t.closest('[data-home-pick]');
+  if(homePickEl){
+    e.preventDefault();
+    e.stopPropagation();
+    if(typeof setHomePick === 'function') setHomePick(homePickEl.dataset.homePick);
+    return;
+  }
+
+  // ─── Dashboard card: Open project — the one selected in that card's list ───
+  const homeOpenSel = t.closest('[data-home-open-sel]');
+  if(homeOpenSel){
+    e.preventDefault();
+    e.stopPropagation();
+    const pid = (typeof getHomePick === 'function') ? getHomePick(homeOpenSel.dataset.homeOpenSel) : null;
+    if(!pid){ toast('Click a project in the list first, then Open', 'warn'); return; }
+    openProjectById(pid);
+    return;
+  }
+
+  // ─── Dashboard card: New project on the card that is not the active mode
+  //     switches to that mode first, then uses its own New project button ───
+  const homeNew = t.closest('[data-home-new]');
+  if(homeNew){
+    e.preventDefault();
+    e.stopPropagation();
+    const want = homeNew.dataset.homeNew;
+    if(want && want !== S.mode && typeof switchMode === 'function') switchMode(want);
+    const btn = document.querySelector('.home-pane.on [data-cat-new]');
+    if(btn) btn.click();
     return;
   }
 
@@ -155,6 +196,7 @@ if(t.closest('[data-act="go-overview"]')){
     const pid = projPin.dataset.projPin;
     if(typeof togglePinnedProject === 'function') togglePinnedProject(pid);
     if(typeof renderProjectsForCategory === 'function') renderProjectsForCategory(D().currentCategory);
+    if(typeof refreshHomeCards === 'function') refreshHomeCards();
     return;
   }
 
@@ -184,6 +226,7 @@ if(t.closest('[data-act="go-overview"]')){
     save();
     if(typeof renderProjectsForCategory === 'function') renderProjectsForCategory(d.currentCategory);
     if(typeof renderProjectStatsPanel === 'function') renderProjectStatsPanel();
+    if(typeof refreshHomeCards === 'function') refreshHomeCards();
     toast('Renamed');
     return;
   }
@@ -229,6 +272,7 @@ if(t.closest('[data-act="go-overview"]')){
     }
     save();
     if(typeof renderProjectsForCategory === 'function') renderProjectsForCategory(d.currentCategory);
+    if(typeof refreshHomeCards === 'function') refreshHomeCards();
     toast('Project deleted');
     return;
   }
@@ -407,6 +451,15 @@ if(pillEl){
   
   // Breadcrumb mode → open modes
   
+});
+
+/* A recent-project row on a dashboard card: the single click above only
+   selects it, so opening it is a double-click — or the card's Open button. */
+document.addEventListener('dblclick', function(e){
+  const row = e.target.closest('[data-home-pick]');
+  if(!row) return;
+  e.preventDefault();
+  openProjectById(row.dataset.homePick);
 });
 
 // Modes list needs click handlers — mode click opens pages panel on right
