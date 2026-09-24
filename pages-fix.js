@@ -1285,14 +1285,20 @@ const SF_FAB_OPT = function(o){
 
 const SF_FAB_AI = {
   /* The Outline page names its units by the form you are writing: a novel has
-     chapters and subchapters, a screenplay has scenes and sub-scenes. That
-     choice is made in outlineFabOpts() below, which swaps the two labels —
-     the option list here is the novel one and the fallback. */
+     chapters and subchapters, a screenplay has scenes and sub-scenes. The
+     novel is the list here and the fallback; fab-fix.js re-writes these four
+     labels in the form's own words as the panel is drawn.
+
+     Two of the four are the TITLE jobs and two are the DESCRIPTION jobs, and
+     they are separate jobs on purpose: a title is a name, a description is
+     what the section is for. The two here are the titles — the outline's own
+     rows carry the descriptions, and the description jobs (olChapterSubs ·
+     olSubSubs, added by outline-menu.js) sit right under each of these. */
   outline: [
-    { fn:'olChapterTitles', icon:'bookmark-fill', label:'Chapter description',
-      desc:'Describe what every chapter covers, from your outline' },
-    { fn:'olSubTitles', icon:'signpost-2', label:'Subchapter description',
-      desc:'Describe what happens in each subchapter' },
+    { fn:'olChapterTitles', icon:'bookmark-fill', label:'Chapter titles',
+      desc:'A name for every chapter, from your outline' },
+    { fn:'olSubTitles', icon:'signpost-2', label:'Subchapter titles',
+      desc:'A name for every subchapter' },
     { fn:'olStructure', icon:'list-nested', label:'Check the order',
       desc:'Is the chapter order working? What should move?' }
   ],

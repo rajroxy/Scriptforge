@@ -680,7 +680,6 @@ PAGE_RENDERERS.overview = function(root){
       <header class="ov-head">
         <div>
           <h1 class="ov-title">How to write fiction — novel and screenplay</h1>
-          <div class="ov-sub">Two halves, two crafts: the whole process for a novel on the left, for a screenplay on the right.</div>
         </div>
       </header>
       <div class="ov-guides">

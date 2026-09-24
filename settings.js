@@ -267,15 +267,31 @@ function applyConfig(key){
   const root = document.documentElement;
   switch(key){
     case 'theme': applyThemeVars(c.theme); break;
-    case 'font':
-      root.style.setProperty('--doc-font', `'${c.font}', serif`);
-      const ed = $('editor'); if(ed) ed.style.fontFamily = `'${c.font}', serif`;
+    case 'font': {
+      /* the writing face, written as the whole stack it belongs to — a sans
+         pick falls back to sans and a mono pick to mono, instead of every
+         family in the list falling back to a generic serif. font-pack.js
+         holds the table's stacks and fetches the chosen file. An empty
+         choice hands the property back to theme.css, which is the app's
+         own default face. */
+      const stack = (typeof window.sfFontStack === 'function')
+        ? window.sfFontStack(c.font)
+        : (c.font ? `'${c.font}', serif` : '');
+      root.style.setProperty('--doc-font', stack || '');
+      const ed = $('editor'); if(ed) ed.style.fontFamily = stack || '';
       break;
-    case 'uiFont':
-      // the typeface used across the whole interface
-      if(c.uiFont) root.style.setProperty('--ui', `'${c.uiFont}', -apple-system, BlinkMacSystemFont, system-ui, sans-serif`);
+    }
+    case 'uiFont': {
+      // the typeface used across the whole interface — the family's own
+      // stack, so the App font select really does set the app's face (it
+      // used to end in system-ui, which is what the default already is,
+      // so every pick looked like no change at all)
+      const stack = (typeof window.sfFontStack === 'function') ? window.sfFontStack(c.uiFont) : '';
+      if(stack) root.style.setProperty('--ui', stack);
+      else if(c.uiFont) root.style.setProperty('--ui', `'${c.uiFont}', -apple-system, BlinkMacSystemFont, system-ui, sans-serif`);
       else root.style.removeProperty('--ui');
       break;
+    }
     case 'fontSize':
       root.style.setProperty('--doc-size', c.fontSize + 'px');
       /* every writing surface, not only the manuscript: the draft/editor
@@ -400,16 +416,21 @@ function buildThemeGrid(){
   const grid = document.createElement('div');
   grid.className = 'grid-auto';
 
-  /* light mode shows its own nine palettes; dark mode shows its nine */
-  const isLight = (typeof window.sfThemeMode === 'function') && window.sfThemeMode() === 'light';
-  const list = (isLight && typeof window.sfLightThemes === 'function')
-    ? window.sfLightThemes()
-    : THEMES;
-  const active = isLight ? (S.config.themeLight || 'paper') : (S.config.theme || 'night');
+  /* EVERY theme, and every one of them dark. There is no second palette
+     to swap in: a theme is the palette on its tile, with nothing derived
+     from it, so the grid is the whole list and the pick falls to
+     S.config.theme. */
+  const list = THEMES;
+  const active = S.config.theme || 'night';
 
+  /* paint reads the LIVE pick, not the one the grid was built with. It used
+     to close over `active`, so choosing a theme moved the palette but left
+     the highlight on the tile that was selected when the tab was opened —
+     pick Noir and the ring stayed on Neon City. */
   const paint = () => {
+    const cur = S.config.theme || 'night';
     grid.querySelectorAll('[data-theme-pick]').forEach(x =>
-      x.classList.toggle('on', x.dataset.themePick === active));
+      x.classList.toggle('on', x.dataset.themePick === cur));
   };
 
   list.forEach(t => {
@@ -433,16 +454,6 @@ function buildThemeGrid(){
     if(!el) return;
     const id = el.dataset.themePick;
 
-    if(isLight){
-      S.config.themeLight = id;
-      applyThemeVars(id);
-      save();
-      paint();
-      const lt = (typeof window.sfLightThemeById === 'function') ? window.sfLightThemeById(id) : null;
-      toast('Theme: ' + ((lt && lt.name) || id));
-      return;
-    }
-
     setTheme(id);
     paint();
     toast('Theme: ' + themeById(resolveThemeId(id)).name);
@@ -455,11 +466,12 @@ function buildThemeGrid(){
 // ═══ APPEARANCE ═══
 SETTINGS.renderers.appearance = function(root){
 
-  // ── COLOR THEME — nine dark palettes and nine light palettes.
-  //    The Light / Dark switch sits right of the card title and swaps the grid.
+  // ── COLOR THEME — the whole list, twelve dark palettes, one grid.
   /* Every theme here is a dark one and the app runs dark, always — the
      Light / Dark switch is gone, and setThemeMode is pinned in
-     final-fix.js so nothing stored from before can bring light back. */
+     final-fix.js so nothing stored from before can bring light back.
+     Nothing is derived from a theme either: no light palette is worked
+     out of a dark one, so the tile is the palette you get. */
   const c0 = card('Color theme', 'palette2');
   c0.appendChild(buildThemeGrid());
   root.appendChild(c0);

@@ -6,9 +6,10 @@
 
      1 NAMES BY FORM    the Outline page names its units the way the form
                         does — a novel has chapters and subchapters, a
-                        screenplay has scenes and sub-scenes — and the two
-                        naming jobs ask for a DESCRIPTION, which is what the
-                        writer actually wants there, not a second title.
+                        screenplay has scenes and sub-scenes — and its four
+                        naming jobs keep two pairs apart: the TITLE jobs
+                        name a section, the DESCRIPTION jobs say what the
+                        section is for.
 
      2 THE PLAN BOARD   "Beat ideas" is "Beat the board": it fills the board
                         you are looking at with the beats it is missing.
@@ -52,14 +53,25 @@
     if(!table) return;
     const u = units();
 
-    /* ── outline ── */
+    /* ── outline ──
+       Four naming jobs, two pairs: the titles NAME a section and the
+       descriptions say what it is FOR. Each pair takes the form's own word
+       — Chapter/Subchapter in a novel, Scene/Sub-scene in a screenplay —
+       so a screenplay is never offered “Chapter titles” and a novel is
+       never offered “Scene description”. */
     if(Array.isArray(table.outline)){
       table.outline.forEach(function(o){
         if(!o || !o.fn) return;
         if(o.fn === 'olChapterTitles'){
+          o.label = u.one + ' titles';
+          o.desc  = 'A name for every ' + u.one.toLowerCase() + ', from your outline';
+        }else if(o.fn === 'olSubTitles'){
+          o.label = u.sub + ' titles';
+          o.desc  = 'A name for every ' + u.sub.toLowerCase();
+        }else if(o.fn === 'olChapterSubs'){
           o.label = u.one + ' description';
           o.desc  = 'Describe what every ' + u.one.toLowerCase() + ' covers, from your outline';
-        }else if(o.fn === 'olSubTitles'){
+        }else if(o.fn === 'olSubSubs'){
           o.label = u.sub + ' description';
           o.desc  = 'Describe what happens in each ' + u.sub.toLowerCase();
         }else if(o.fn === 'olStructure'){
@@ -134,11 +146,19 @@
   document.addEventListener('DOMContentLoaded', relabel);
   relabel();
 
-  /* ═══ 4 · THE TWO OUTLINE JOBS ═══
-     They used to ask for a TITLE, which is what the Outline page already
-     has a field for — the writer picked the option and got back the thing
-     they had just written. They ask for a description now, in the form's
-     own words, and they are told what the project is before they answer. */
+  /* ═══ 4 · THE TWO DESCRIPTION JOBS ═══
+     A title and a description are not the same job, and the app keeps both:
+     the title jobs NAME a section, the description jobs say what it is FOR.
+     What went wrong before was that the description was hung on the title
+     jobs — “Chapter description” where “Chapter titles” had been — so the
+     writer lost the naming job and, in the right-click menu, pressed a
+     button that said “Chapter titles” and got prose back.
+
+     These two functions are the DESCRIPTION side, in the form's own words
+     and with the project in front of them. They are put on olChapterSubs
+     and olSubSubs — the pair outline-menu.js adds under each title job —
+     and the title jobs are left alone: olChapterTitles and olSubTitles stay
+     pages-fix.js's own, which return names and nothing else. */
   const brief = function(){
     try{ return (typeof sfProjectBrief === 'function') ? sfProjectBrief() : ''; }catch(e){ return ''; }
   };
@@ -195,7 +215,7 @@
 
   /* swapped onto the shared table, so the panel, the keyboard and anything
      else that calls them by name all reach the same two functions */
-  F().olChapterTitles = olChapter;
-  F().olSubTitles     = olSub;
-  F().olStructure     = olOrder;
+  F().olChapterSubs = olChapter;      /* Chapter description    */
+  F().olSubSubs     = olSub;          /* Subchapter description */
+  F().olStructure   = olOrder;        /* Check the order        */
 })();

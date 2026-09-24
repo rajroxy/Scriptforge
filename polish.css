@@ -360,7 +360,10 @@ html body .fnt-prev-pane .write-doc.fnt-numbers .scene-heading::before{
   position:absolute;
   left:-28px;
   top:0;
-  font-family:var(--ui-font, inherit);
+  /* --ui is the interface face; --ui-font is a SIZE token, and asking for it
+     here made the declaration invalid, so the number fell back to the
+     script's own Courier. It is a margin number, so it wears the app face. */
+  font-family:var(--ui, inherit);
   font-size:11px;
   font-weight:500;
   letter-spacing:0;

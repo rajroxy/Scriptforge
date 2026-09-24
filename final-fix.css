@@ -9,7 +9,8 @@
                         row — the leftovers that read as "lines" in the
                         corners of the app.
      2 THE CONTROLS     the font-size sample under the slider, the canvas
-                        bar stripped to T · New card, the plan bar's two
+                        bar's readout kept off (T · New card on the left,
+                        magnifier · Clear on the right), the plan bar's two
                         groups in the order the writer asked for.
      3 THE CANVAS       the card an arm is sitting on while you click from
                         one card to another.
@@ -77,16 +78,50 @@ html body .font-size-sample{
   text-overflow:ellipsis;
 }
 
-/* CANVAS BAR — T and New card, and nothing else. The zoom & fit cluster
-   and Clear are off the bar: no readout is drawn there any more, so no
-   number can ever appear on it. Zooming is the wheel over the canvas and
-   the drag of empty space; Fit · Zoom in · Zoom out · Clear canvas are in
-   the page's own right-click list (final-fix.js). */
-html body #page-mindmap .mm-head .mm-zoomwrap,
-html body #page-mindmap .mm-head [data-mm="clear"],
+/* CANVAS BAR — T · New card on the left; on the right the magnifier, then
+   Fit to screen as its own icon, then Clear (Clear last, at the far right).
+   The magnifier's popup holds the two size steps.
+   Only the zoom READOUT stays off the bar: the number was the thing that
+   had no business being there, and a stale one could read “NaN”. The
+   commands themselves were never the problem — a hidden button is just a
+   command the writer cannot reach — and Fit · Zoom in · Zoom out · Clear
+   canvas are also in the page's own right-click list (final-fix.js). */
 html body #page-mindmap .mm-head .mm-zoom,
 html body #page-mindmap .mm-head [data-mm="zoom-label"]{
   display:none !important;
+}
+/* An earlier pass took the magnifier and Clear OFF the bar, and two sheets
+   still name them in a hide rule (polish.css, in the canvas-bar block).
+   This is the last sheet, so the two rules here are the ones that land:
+   the magnifier is a flex trigger holding its popup, Clear is a button. */
+html body #page-mindmap .mm-head .mm-zoomwrap{
+  display:flex !important;
+  align-items:center !important;
+}
+html body #page-mindmap .mm-head [data-mm="clear"]{
+  display:inline-flex !important;
+  align-items:center !important;
+  gap:6px !important;
+}
+/* Fit to screen is its OWN icon on the bar — one click, between the
+   magnifier and Clear (mindmap.js). polish.css orders the magnifier 1 and
+   Clear 2, so without an order of its own the new button sorts to the front
+   of the cluster and Clear is pushed to its left; the order here is what
+   puts the three in the order the bar draws them. */
+html body #page-mindmap .mm-head [data-mm="fit"]{
+  order:2 !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+html body #page-mindmap .mm-head .mm-zoomwrap{ order:1 !important; }
+html body #page-mindmap .mm-head [data-mm="clear"]{ order:3 !important; }
+
+/* STATS — the day rail sits flush under the writing-activity card. The rail
+   block carried its own 10px top margin on top of the page's rhythm, which
+   read as a stray gap between the “Last 30 days” card and the tube. */
+html body .stats-dayline-wrap{
+  margin-top:0 !important;
 }
 
 /* PLAN BAR — T · Add beat on the left, the board cluster at the right */
@@ -96,6 +131,54 @@ html body #page-plan .page-head .plan-picker{
   margin-left:auto !important;
 }
 html body #page-plan .page-head .plan-board-sel{ min-width:132px !important; }
+
+/* THE BOARD PICKER — the app's compact dropdown card, like every other
+   picker in the app (Focus · Tone, a beat's type), not the settings-width
+   card it fell back to. The enhanced card carries no width rule of its own,
+   so it inherited .stats-cat-card's 220–280px settings box and stretched to
+   fill the bar; here it hugs its label and ellipsises a long board name. */
+html body #page-plan .plan-picker .dd-card{
+  flex:0 0 auto !important;
+  min-width:132px !important;
+  max-width:190px !important;
+  align-self:center !important;
+  background:var(--surface-2) !important;
+  border:1px solid var(--line-2) !important;
+  border-radius:var(--r-md, 6px) !important;
+}
+html body #page-plan .plan-picker .dd-card .stats-cat-title{
+  padding:5px 9px !important;
+  min-height:28px !important;
+  gap:8px !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:var(--r-md, 6px) !important;
+  font-size:11.5px !important;
+  font-weight:500 !important;
+}
+html body #page-plan .plan-picker .dd-card .stats-cat-title:hover{ background:var(--surface-3) !important; }
+html body #page-plan .plan-picker .dd-card .dd-value{
+  flex:1 !important;
+  min-width:0 !important;
+  margin-left:0 !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+  font-size:11.5px !important;
+  font-weight:400 !important;
+  color:var(--ink-2) !important;
+}
+html body #page-plan .plan-picker .dd-card .stats-cat-caret{ margin-left:auto !important; font-size:10px !important; }
+html body #page-plan .plan-picker .dd-card.open .stats-cat-title{ border-radius:var(--r-md, 6px) var(--r-md, 6px) 0 0 !important; }
+html body #page-plan .plan-picker .dd-card .stats-cat-list{
+  max-height:220px !important;
+  background:var(--surface-2) !important;
+  border:1px solid var(--line-2) !important;
+  border-top:0 !important;
+  border-radius:0 0 var(--r-md, 6px) var(--r-md, 6px) !important;
+  box-shadow:var(--e-3) !important;
+}
+html body #page-plan .plan-picker .dd-card .stats-cat-item{ padding:6px 9px !important; font-size:11.5px !important; }
 
 /* the legend under the Intermixing sample: which face is which */
 html body .mix-legend{
@@ -192,3 +275,25 @@ html body #page-mindmap .mm-node.mm-armed .mm-port{
   background:var(--accent, var(--ink)) !important;
 }
 html body #page-mindmap .mm-node .mm-port{ cursor:crosshair !important; }
+
+/* ═══ 6 · THE SCRIPT PAGE WEARS NO BAR ═══
+   The Script page is a writing surface and nothing else, like the novel
+   manuscript: no row of buttons above the pages. The bar element is kept
+   as the host the script's own panels hang from — the Insert list that
+   ⇧@ opens, the scene list, the cast report, Find & replace — because
+   those panels are what the page is driven by; what goes is the strip
+   itself. The chrome is collapsed (its own 42px min-height, padding and
+   surface come from .sf-bar) and every direct child that is not a panel
+   is taken off the row, so nothing draws where the bar used to be. */
+html body .sf-script-page .sf-bar.fnt-bar{
+  margin:0 !important;
+  padding:0 !important;
+  min-height:0 !important;
+  height:0 !important;
+  background:none !important;
+  border:0 !important;
+  overflow:visible !important;
+}
+html body .sf-script-page .sf-bar.fnt-bar > :not(.fnt-jump){
+  display:none !important;
+}

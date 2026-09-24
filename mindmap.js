@@ -254,13 +254,30 @@
       +     '<button class="ol-btn ol-btn-icon" data-typop="mindmap" title="Font, size and leading"><i class="bi bi-fonts"></i></button>'
       +     '<button class="ol-btn" data-mm="add"><i class="bi bi-plus-lg"></i> New card</button>'
       +   '</div>'
-      /* The bar carries the two things you do on this page: the type for
-         the cards and a new card. Zooming is the wheel over the canvas and
-         the drag of empty space; Fit, Zoom in, Zoom out and Clear canvas
-         sit in the page's own menu (the round button's right-click list),
-         which is where the page's other commands already are. Nothing of
-         theirs is drawn here, so there is no readout on the bar that could
-         ever show anything but a real number. */
+      /* The right end of the bar: the magnifier and Clear, in that order —
+         Clear is the last thing on the bar, at its far right.
+
+         Fit to screen is its OWN icon on the bar, between the magnifier
+         and Clear — one click, no menu, the way it is used. The magnifier
+         keeps the two size steps: they are the same action at two
+         strengths and they stay open while you use them, so you can nudge
+         the size more than once without reopening it. The trigger is the
+         magnifier and nothing else, so no number is drawn on the bar —
+         there is no readout to go stale or read “NaN”.
+
+         Zooming is still the wheel over the canvas and the drag of empty
+         space; the popup is the same two commands by name. */
+      +   '<div class="ol-actions mm-actions">'
+      +     '<div class="mm-zoomwrap">'
+      +       '<button class="ol-btn ol-btn-icon" data-mm="zoom-panel" title="Zoom" aria-haspopup="true"><i class="bi bi-zoom-in"></i></button>'
+      +       '<div class="mm-zoombox" data-mm="zoom-box" hidden>'
+      +         '<button class="ol-btn" data-mm="zoom-in"><i class="bi bi-zoom-in"></i> Zoom in</button>'
+      +         '<button class="ol-btn" data-mm="zoom-out"><i class="bi bi-zoom-out"></i> Zoom out</button>'
+      +       '</div>'
+      +     '</div>'
+      +     '<button class="ol-btn ol-btn-icon" data-mm="fit" title="Fit to screen"><i class="bi bi-arrows-angle-contract"></i></button>'
+      +     '<button class="ol-btn" data-mm="clear" title="Clear canvas"><i class="bi bi-eraser"></i> Clear</button>'
+      +   '</div>'
       + '</div>'
       + '<div class="mm-wrap">'
       +   '<div class="mm-stage" data-mm="stage">'

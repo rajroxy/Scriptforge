@@ -6,11 +6,18 @@
    naming jobs, in the app's own menu language:
 
      Chapter titles        a name for every chapter
-     Chapter subtitles     one line under each chapter name
+     Chapter description   what every chapter covers
      Subchapter titles     a name for every subchapter
-     Subchapter subtitles  one line under each subchapter name
+     Subchapter description  what happens in each subchapter
      ———
      Check the order       does the structure hold?
+
+   The two pairs are DIFFERENT jobs and stay different: a title is a name
+   (2–5 words, dropped on the outline row), a description is what the
+   section is for (a sentence or two, for the writer and the assistant
+   rather than for the reader). They were called “subtitles”, which put
+   them next to the title jobs and made them read like a second name —
+   the app says “description” now, which is what they write.
 
    The naming jobs live on the Outline page and nowhere else: the
    manuscript is a writing page, so its right-click carries the writing
@@ -27,32 +34,38 @@
     catch(e){ return ''; }
   };
 
-  /* ── the two new jobs ── */
+  /* ── the two description jobs ──
+     The pair that used to ask for a SUBTITLE: one line of atmosphere under
+     a name, which is a second title by another route. What the writer wants
+     there is what the section IS — so these ask for a description, which is
+     a sentence or two about what happens and what the section is for. */
   F.olChapterSubs = function(){
-    ask('Chapter subtitles', 'Outline',
-      'You name chapters for a living.\n\n' + brief() + '\n\n' +
-      'Task: give EVERY chapter in the structure above a SUBTITLE — a single line that sits\n' +
-      'under the chapter name, the way a subtitle does on a book page.\n' +
-      'Rules: 3–9 words each, evocative but plain, never a repeat of the chapter title,\n' +
-      'the same voice across all of them, no numbers, no quotes, no punctuation at the end.\n' +
-      'Reply as a plain list — "chapter number — subtitle" — and nothing else.');
+    ask('Chapter description', 'Outline',
+      'You write reference notes on other writers\u2019 outlines.\n\n' + brief() + '\n\n' +
+      'Task: write a short DESCRIPTION of what EVERY chapter in the structure above covers —\n' +
+      'what happens in it and what it is for in the whole.\n' +
+      'Rules: two or three sentences each, plain and concrete; use only what the outline, the plan,\n' +
+      'the Bible and the drafts actually say and never invent events, names or places; where a\n' +
+      'chapter is still empty, write "not yet planned" and nothing more. No titles, no praise.\n' +
+      'Reply as a plain list — "chapter number — description" — and nothing else.');
   };
 
   F.olSubSubs = function(){
-    ask('Subchapter subtitles', 'Outline',
-      'You name scenes inside chapters.\n\n' + brief() + '\n\n' +
-      'Task: for every subchapter in the structure above, write a SUBTITLE — one line under\n' +
-      'its name, the turn the scene takes.\n' +
-      'Rules: 3–9 words, concrete, same voice, in order, no numbering in the line itself.\n' +
-      'Reply as a plain list — "chapter — subchapter: subtitle" — and nothing else.');
+    ask('Subchapter description', 'Outline',
+      'You write reference notes on other writers\u2019 outlines.\n\n' + brief() + '\n\n' +
+      'Task: for every subchapter in the structure above, write a short DESCRIPTION — one or two\n' +
+      'sentences on what happens in it, in order.\n' +
+      'Rules: plain and concrete; use only what the project actually says and never invent events,\n' +
+      'names or places; where one is still empty, write "not yet planned". No titles, no praise.\n' +
+      'Reply as a plain list — "chapter — subchapter: description" — and nothing else.');
   };
 
   /* ── the menu ── */
   const NAMING = [
-    { fn:'olChapterTitles', icon:'bookmark-fill', label:'Chapter titles' },
-    { fn:'olChapterSubs',   icon:'text-paragraph', label:'Chapter subtitles' },
-    { fn:'olSubTitles',     icon:'signpost-2',    label:'Subchapter titles' },
-    { fn:'olSubSubs',       icon:'text-indent-left', label:'Subchapter subtitles' }
+    { fn:'olChapterTitles', icon:'bookmark-fill',    label:'Chapter titles' },
+    { fn:'olChapterSubs',   icon:'text-paragraph',   label:'Chapter description' },
+    { fn:'olSubTitles',     icon:'signpost-2',       label:'Subchapter titles' },
+    { fn:'olSubSubs',       icon:'text-indent-left', label:'Subchapter description' }
   ];
   /* the writing actions — the same ones the editor's own menu carries, so the
      manuscript's right-click says the same thing wherever you click it */
@@ -156,13 +169,15 @@
   window.addEventListener('resize', close);
 
   /* the right-click assistant's menu on these pages says the same things:
-     the two subtitle jobs are added where the page's own names are used */
+     each description job is added under the title job it belongs to. The
+     labels here are the novel ones — fab-fix.js re-writes them in the
+     form's own words (Scene · Sub-scene) as the panel is drawn. */
   const FAB_SUBS = {
     outline: [
       { fn:'olChapterSubs', after:'olChapterTitles', icon:'text-paragraph',
-        label:'Chapter subtitles', desc:'One line under every chapter name' },
+        label:'Chapter description', desc:'Describe what every chapter covers, from your outline' },
       { fn:'olSubSubs', after:'olSubTitles', icon:'text-indent-left',
-        label:'Subchapter subtitles', desc:'One line under every subchapter name' }
+        label:'Subchapter description', desc:'Describe what happens in each subchapter' }
     ]
   };
   if(typeof SF_FAB_AI !== 'undefined' && SF_FAB_AI){

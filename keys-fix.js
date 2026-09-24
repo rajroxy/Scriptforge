@@ -8,15 +8,19 @@
      nowhere. pages.js still opens it, so this closes it again inside the
      same keystroke, before anything paints.
 
-   · Shift + @ — the element menu. It never reached the script page: the
-     script's source pane is a <textarea>, not a contenteditable, so the
-     menu's own guard found no editable and gave up. Here it opens the
-     script's own Insert list instead — the same scene heading · action ·
-     character · parenthetical · transition list, written as Fountain. The
-     list itself is a panel of the script page, so the shortcut opens it
-     directly, whether or not anything in the bar is on screen.
+   · Shift + @ — the element menu, claimed EARLY (see the window listener
+     below). On the Script page the source pane is a <textarea>, not a
+     contenteditable, so the writing page's own menu found no editable and
+     the keystroke went nowhere useful: the Insert list — scene heading ·
+     action · character · parenthetical · dialogue · transition, written as
+     Fountain — is what the writer wants there. On the novel manuscript the
+     writing page's own element menu (Paragraph · Heading 1-3 · Quote ·
+     Epigraph · Scene break) is the right one, and it is opened from here so
+     a single handler owns the key.
 
-   Loaded last, so its capture listeners run after pages.js's.
+   Loaded last, so anything bound on `document` runs after pages.js's; the
+   Shift + @ handler therefore binds on `window` instead, where the capture
+   phase runs before `document`'s and the keystroke can be settled once.
    ═══════════════════════════════════════════════════════════ */
 (function(){
   const page = function(){
@@ -29,6 +33,71 @@
   const isAt = function(e){
     return e.key === '@' || (e.key === '2' && e.shiftKey) || (e.code === 'Digit2' && e.shiftKey);
   };
+
+  /* ── Shift + @ ──
+     One handler, bound on `window` in the capture phase so it runs before
+     the writing page's own `document` listener and can stop the event there:
+
+       · Script page — a visible .fnt-src pane: open the script's own Insert
+         list (the page's panel, so it works whether or not a bar button for
+         it is on screen).
+       · Novel manuscript — open the writing page's element menu, which is
+         what write.js would have done, exactly once.
+       · Every other page — untouched. */
+  const onScreen = function(el){
+    if(!el) return false;
+    if(el.getClientRects) return el.getClientRects().length > 0;
+    return el.offsetParent !== null;
+  };
+
+  const scriptRoot = function(){
+    const active = document.querySelector('.sf-script-page.active');
+    if(active && active.querySelector('.fnt-src')) return active;
+    const any = document.querySelector('.fnt-src');
+    if(any && onScreen(any)) return any.closest('.page') || document;
+    return null;
+  };
+
+  const openInsert = function(root){
+    const panel = root.querySelector('.fnt-insert');
+    if(!panel) return false;
+    if(!panel.hidden) return true;                    /* already open — Esc closes it */
+    Array.prototype.forEach.call(root.querySelectorAll('.fnt-jump'), function(p){ p.hidden = true; });
+    panel.hidden = false;
+    const first = panel.querySelector('.fnt-jump-i');
+    if(first) setTimeout(function(){ try{ first.focus(); }catch(e){} }, 30);
+    return true;
+  };
+
+  window.addEventListener('keydown', function(e){
+    if(!isAt(e)) return;
+    if(page() !== 'manuscript') return;
+
+    const root = scriptRoot();
+    if(root){
+      if(openInsert(root)){
+        e.preventDefault(); e.stopImmediatePropagation();
+        return;
+      }
+      const btn = root.querySelector('[data-fnt-insert]');
+      if(btn){
+        e.preventDefault(); e.stopImmediatePropagation();
+        btn.click();
+        return;
+      }
+    }
+
+    /* the novel manuscript — the writing page's own element menu */
+    const menu = document.getElementById('sfElemMenu');
+    if(menu && !menu.hidden){
+      e.preventDefault(); e.stopImmediatePropagation();
+      return;
+    }
+    if(typeof window.sfOpenMenu === 'function'){
+      e.preventDefault(); e.stopImmediatePropagation();
+      window.sfOpenMenu();
+    }
+  }, true);
 
   const advPanel = function(){ return document.getElementById('advPanel'); };
 

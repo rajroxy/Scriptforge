@@ -2,7 +2,7 @@
    ScriptForge — the last pass
 
    Loaded after every other script, so its wrappers run after theirs.
-   Five jobs:
+   Six jobs:
 
      1 DARK, AND ONLY DARK     the app is dark. The Light mode that
                                themepack.js can paint is unreachable: the
@@ -28,6 +28,10 @@
                                screen. Free keys included — there is no
                                server-side memory to lean on, so the
                                brief is sent with each request.
+     6 NO MENU ON THE PAGE     the manuscript and the Script page are
+                               writing surfaces: a right-click on the
+                               text opens nothing at all — not the
+                               app's element menu, not the browser's.
    ═══════════════════════════════════════════════════════════ */
 (function(){
   'use strict';
@@ -202,10 +206,10 @@
   setTimeout(applyDocSize, 1200);
 
   /* ═══ 3 · THE CANVAS MENU ═══
-     Fit, the two size steps and Clear. The canvas page carries none of
-     them on its bar any more — they are in the round button's right-click
-     list, beside the three AI options the canvas already had (see
-     polish.js: SF_FAB_AI.mindmap). */
+     Fit, the two size steps and Clear — on the canvas bar (the magnifier
+     and Clear, see mindmap.js) AND in the round button's right-click list,
+     beside the three AI options the canvas already had (see polish.js:
+     SF_FAB_AI.mindmap), so the writer can reach them from either. */
   const C = function(){ return window.sfCanvas || null; };
   const F = window.AI_FNS || (window.AI_FNS = {});
   F.canvasFit = function(){
@@ -254,9 +258,12 @@
   }catch(e){}
 
   /* ═══ 4 · NO BARE READOUTS ═══
-     The canvas bar draws no number of its own any more (final-fix.css
-     hides the cluster). If a stale copy of the markup ever puts it back,
-     the text comes off it — a readout that says “NaN” is never right. */
+     The canvas bar draws no number: the magnifier button is the whole of
+     the zoom cluster on the bar, and its popup is three labelled commands.
+     If a stale copy of the markup ever puts a readout back — on the bar or
+     inside the popup — the text comes off it, because a readout that says
+     “NaN” is never right. The MARKUP itself is left alone: the buttons
+     come back as soon as one is found (mindmap.js draws them). */
   const cleanCanvasBar = function(){
     const head = document.querySelector('#page-mindmap .mm-head');
     if(!head) return;
@@ -266,9 +273,6 @@
          would be a mutation of its own, and the observer above would call
          this back for ever */
       if(txt && !/^\s*\d+(\.\d+)?\s*%?\s*$/.test(txt) && txt !== '') el.textContent = '';
-      if(!el.hidden) el.hidden = true;
-    });
-    Array.prototype.forEach.call(head.querySelectorAll('.mm-zoomwrap, [data-mm="clear"]'), function(el){
       if(!el.hidden) el.hidden = true;
     });
   };
@@ -447,4 +451,33 @@
     withMemory.__sfMemory = true;
     window.fetch = withMemory;
   }
+
+  /* ═══ 6 · THE EDITOR HAS NO RIGHT-CLICK ═══
+     The manuscript and the Script page are writing surfaces: a right-click
+     on the text opens nothing.
+
+     write.js binds its own element menu to the editor, split.js binds the
+     same menu to the split editor, and a dozen sheets bind document-level
+     menus as well; suppressing the key anywhere after the fact means the
+     menu has already been drawn. So this listener is on `window` in the
+     CAPTURE phase — it runs before every `document` listener, and before
+     the editor's own — and settles the keystroke once: the app's menu
+     never opens, and the browser's menu does not either, so the page stays
+     the page.
+
+     Two things it must not touch: the round button's right-click, which is
+     the AI assistant on an element of its own, and the canvas's right-click
+     list (job 3 above), which is a card surface and not the editor. */
+  const EDITOR_SURFACE = '#editor, .write-canvas, .fnt-src, .fnt-src-pane';
+  window.addEventListener('contextmenu', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    /* the surface first — it is what the key is about */
+    if(!t.closest(EDITOR_SURFACE)) return;
+    /* and the writing pages only, so a canvas card or a reader that happens
+       to carry one of the classes keeps its own menu */
+    try{ if(typeof isWritingPage === 'function' && !isWritingPage()) return; }catch(err){}
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }, true);
 })();

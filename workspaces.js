@@ -367,12 +367,6 @@
     goBtn.onclick = function(){ goTo(Number(pick.value) || 0, 1); badge(); };
     c.appendChild(row('Switch', 'Or hover the round button and press ← → , or scroll a notch over it', [goBtn]));
 
-    const hint = document.createElement('div');
-    hint.className = 'tiny muted';
-    hint.style.marginTop = '4px';
-    hint.textContent = 'Five workspaces in every project. They share the pages — Views, Outline, Plan, Board, Bible, Canvas, Reference — and hold their own copy of everything in them, so an alternate cut or a rewrite stays out of the book you already have. The assistant remembers each workspace separately, and never carries one project’s work into another.';
-    c.appendChild(hint);
-
     root.appendChild(c);
   }
 

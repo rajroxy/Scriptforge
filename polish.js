@@ -503,7 +503,11 @@
   /* ═══ 4 · THE PROMPT PAGE ═══ */
   const GENRES = ['None','Literary','Thriller','Mystery','Crime','Romance','Fantasy',
                   'Science fiction','Horror','Historical','Western','Comedy','Adventure',
-                  'Coming of age','Speculative'];
+                  'Coming of age','Speculative',
+                  'Dystopian','Cyberpunk','Paranormal','Urban fantasy','Magical realism',
+                  'Suspense','Noir','Satire','Fairy tale','Mythic','Steampunk','Space opera',
+                  'Cozy mystery','Legal thriller','Political thriller','Psychological',
+                  'Slice of life','Family saga','Young adult','New adult'];
   const TAGS   = ['None','Slow burn','Heist','Revenge','Family','Found family','Redemption',
                   'Survival','Political','Domestic','Supernatural','Road trip','Courtroom',
                   'War','School','Workplace','Enemies to lovers','Second chance',

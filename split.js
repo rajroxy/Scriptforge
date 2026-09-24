@@ -86,10 +86,17 @@
     });
     return d;
   }
+  /* A face is its whole stack, not just its name: font-pack.js holds the
+     table's own stacks (a mono pick falls back to mono, not to a serif) and
+     fetches the file behind the name. */
+  function faceStack(name){
+    if(!name) return '';
+    return (typeof window.sfFontStack === 'function') ? window.sfFontStack(name) : '"' + name + '", serif';
+  }
   function applyPaneStyle(side){
     const ed = editor(side); if(!ed) return;
     const st = styleStore()[side];
-    ed.style.fontFamily = st.font ? "'" + st.font + "', serif" : '';
+    ed.style.fontFamily = faceStack(st.font);
     ed.style.fontSize   = st.size ? st.size + 'px' : '';
   }
   function applyPaneStyles(){ applyPaneStyle('left'); applyPaneStyle('right'); }
@@ -266,7 +273,7 @@
       doc.setAttribute('spellcheck','false');
       doc.innerHTML   = keepHTML;
       if(keepStyle){
-        doc.style.fontFamily = keepStyle.font ? "'" + keepStyle.font + "', serif" : '';
+        doc.style.fontFamily = faceStack(keepStyle.font);
         doc.style.fontSize   = keepStyle.size ? keepStyle.size + 'px' : '';
       }
       host.appendChild(doc);
