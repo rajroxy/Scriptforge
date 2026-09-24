@@ -9,8 +9,8 @@
                       the “Book” label, the statistics tile's label
      · FAB AI         the manuscript and the canvas get their own
                       right-click options, and a divider before Translate
-     · PROMPT PAGE    Prompt me on the left, one button at the right that
-                      opens Genres · Tags · Themes — and no settings button
+     · PROMPT PAGE    Genres · Tags ride in the bar, and Clear at its right
+                      end — the page carries no AI of its own
 
    No page is re-rendered from here: it changes what is on screen.
    ═══════════════════════════════════════════════════════════ */
@@ -254,13 +254,14 @@
     if(typeof runAI === 'function') runAI(prompt, title, sub);
   };
 
-  /* the canvas options, dropped into the page-aware menu. The manuscript
-     carries no naming jobs of its own: those belong to the Outline page, and
-     the manuscript's right-click is text and structure-checking only. */
+  /* The per-page option lists (SF_FAB_AI). The round button's right-click no
+     longer offers these — it opens the manuscript's own panel on every page —
+     but the tables are still what a page's own menu is built from, so they are
+     filled here exactly as before. The manuscript carries no naming jobs of
+     its own: those belong to the Outline page. */
   const EXTRA = {
-    /* the Draft page's own menu. It is a writing page, so its actions are
-       about the draft, not the writing-helpers: those belong to the
-       manuscript and the screenplay (see keepsTextMenu below). */
+    /* the Draft page's own list. It is a writing page, so its actions are
+       about the draft, not the writing-helpers. */
     draft: [
       { fn:'fabDraftChat', icon:'chat-left-text', label:'Open the AI chat',
         desc:'The draft chat for this project' }
@@ -285,43 +286,15 @@
        layer may have put there */
     ['manuscript', 'write', 'chapters', 'scenes', 'episodes', 'acts', 'stanzas', 'verses']
       .forEach(function(k){ delete SF_FAB_AI[k]; });
-    /* the prompt page's right-click panel carries one option — Prompt me.
-       The bar's own button is only kept in the document for this to click,
-       since the generator lives in the page's own closure. */
-    ['inspire', 'idea'].forEach(function(k){
-      SF_FAB_AI[k] = [{ fn:'ideaPromptMe', icon:'lightbulb-fill', label:'Prompt me',
-                        desc:'A fresh prompt built from this project' }];
-    });
+    /* The prompt page carries no option of its own any more: the AI that wrote
+       the prompts is off that page, so nothing is listed for it here. */
   }
-
-  /* What the page on screen offers. For the canvas this file owns the list, so
-     the panel can never come up without it; every other page is read from the
-     shared table. */
-  const pageOptions = function(){
-    const ids = (typeof SF_FAB_AI !== 'undefined' && SF_FAB_AI) ? SF_FAB_AI : {};
-    if(ids[S.page] && ids[S.page].length) return ids[S.page];
-    if(S.page === 'canvas' || S.page === 'mindmap') return EXTRA.mindmap;
-    return null;
-  };
 
   const F = window.AI_FNS || (window.AI_FNS = {});
 
-  /* Prompt me on the prompt page. The generator belongs to the page's own
-     code, so this clicks its button — from anywhere in the app, landing on
-     the prompt page first if needed. */
-  F.ideaPromptMe = function(){
-    const find = function(){
-      return document.querySelector('#page-inspire [data-idea="prompt"], #page-inspire [data-ic-prompt]');
-    };
-    const b = find();
-    if(b){ b.click(); return; }
-    if(typeof goPage === 'function'){
-      goPage('inspire');
-      setTimeout(function(){ const n = find(); if(n) n.click(); }, 140);
-      return;
-    }
-    if(typeof toast === 'function') toast('Open the Idea page to use this', 'warn');
-  };
+  /* The prompt page's “Prompt me” is gone with the AI that wrote the prompts:
+     the six cards on that page make their own, from what the writer types in
+     them (idea-cards.js), so this file no longer carries that action. */
 
   F.mmGrow = function(){
     ask('Growing the canvas', 'Canvas',
@@ -378,16 +351,6 @@
     if(typeof window.sfRightClick !== 'function') return true;
     return window.sfRightClick()[k] !== false;
   };
-  /* Only the manuscript — and the screenplay, whose writing view is that
-     same page — keep the writing actions and Translate in this menu. Every
-     other page's panel is its own options and nothing else. */
-  const keepsTextMenu = function(){
-    try{
-      if(S.mode === 'screenplay') return true;
-      if(['manuscript', 'script', 'screenplay', 'write'].indexOf(S.page) >= 0) return true;
-    }catch(e){}
-    return false;
-  };
   /* the Draft page's one option, wired to the chat's own open() */
   F.fabDraftChat = function(){
     if(window.DraftChat && typeof window.DraftChat.open === 'function'){ window.DraftChat.open(); return; }
@@ -402,7 +365,7 @@
   /* The build this file is, written quietly onto the document element — it
      matches the polish.js version in index.html and is what the reload guard
      below compares. Nothing is drawn on screen for it. */
-  const BUILD = 'v24';
+  const BUILD = 'v29';
 
   /* The build this tab last ran is remembered, but the app no longer reloads
      itself onto a new one: that came up as the app loading twice on boot.
@@ -417,72 +380,44 @@
     try{ document.documentElement.setAttribute('data-sf-build', BUILD); }catch(e){}
   };
 
-  /* the menu itself: page options, then the writing actions, then Translate */
+  /* ═══ THE PANEL ITSELF — THE SAME ONE ON EVERY PAGE ═══
+     It used to open with the page's own jobs: “Prompt me” on the prompt page,
+     the outline's naming jobs, the canvas list, “Open the AI chat” on the
+     draft. Which page carried which was something the writer had to remember,
+     and the writing actions only ever sat on the manuscript. The round
+     button's right-click now opens the manuscript's own panel wherever it is
+     asked — the writing actions, then Translate — so the same buttons are in
+     the same place on every page.
+
+     The per-page lists in SF_FAB_AI are left as they are: the pages that
+     build menus of their own (outline-menu.js) still read them, they are just
+     no longer offered from the round button.
+
+     The Bible keeps its ask box: that is a free-text input, not one of the
+     page's option rows. */
   window.renderFabAI = function(){
     stampBuild();
     const body = document.getElementById('fabAIBody');
     if(!body) return;
     const defs = (typeof SF_FAB_DEFAULT !== 'undefined' && SF_FAB_DEFAULT) ? SF_FAB_DEFAULT : TEXT_ACTIONS;
-    /* the page's own options, and the writing actions, as Settings →
-       AI Assistance → Right-click menu leaves them */
-    const opts = rcFlag('pageOptions') ? pageOptions() : null;
-    const keepsMenu = keepsTextMenu();
-    const acts = keepsMenu ? liveActions() : [];
-
-    /* Two panels are their options and nothing else:
-         · the prompt page  — Prompt me alone, no headings at all
-         · the outline page — the naming jobs, no subtitle under an option
-                              and no writing or language actions
-       Both draw the row without its description line. */
-    const optionsOnly = (S.page === 'inspire' || S.page === 'idea' || S.page === 'outline');
-    if(optionsOnly && opts && opts.length){
-      body.innerHTML =
-        (S.page === 'outline' || S.page === 'inspire' || S.page === 'idea'
-          ? '<div class="fab-ai-sec">For this page</div>'
-          : '')
-        + opts.map(function(o){
-            return '<button class="fab-ai-opt" data-fabai="' + o.fn + '" title="' + esc(o.desc) + '">'
-              + '<span class="fa-ic"><i class="bi bi-' + o.icon + '"></i></span>'
-              + '<span class="fa-txt"><b>' + esc(o.label) + '</b></span>'
-              + '</button>';
-          }).join('');
-      return;
-    }
-
-    /* a page option is its label and its icon only — the description is a
-       tooltip, never a subtitle under the row */
-    const line = function(o){
-      return '<button class="fab-ai-opt" data-fabai="' + o.fn + '" title="' + esc(o.desc) + '">'
-        + '<span class="fa-ic"><i class="bi bi-' + o.icon + '"></i></span>'
-        + '<span class="fa-txt"><b>' + esc(o.label) + '</b></span>'
-        + '</button>';
-    };
+    /* the writing actions, as Settings → AI Assistance → Right-click menu
+       leaves them (all six until a switch says otherwise) */
+    const acts = liveActions();
 
     body.innerHTML =
-      (opts
-        ? '<div class="fab-ai-sec">For this page</div>' + opts.map(line).join('')
-          + (S.page === 'bible'
-              ? '<div class="fab-ai-ask"><input class="ai-input" data-fabai-input placeholder="Ask about a character, place or event…">'
-                + '<button class="ai-chip primary" data-fabai-ask><i class="bi bi-send"></i></button></div>'
-              : '')
-          + (acts.length ? '<div class="fab-ai-sec">Text</div>' + textChips(acts) : '')
-        : (keepsMenu && acts.length
-            ? '<div class="fab-ai-sec">Text</div>' + textChips(acts)
-            : defs.filter(function(a){ return rcOn(a.fn); }).map(function(a){
-                return '<button class="ai-chip" data-ai="' + a.fn + '"><i class="bi bi-' + a.icon + '"></i> ' + a.label + '</button>';
-              }).join('')))
-      + ((keepsMenu && rcFlag('translate'))
-          ? '<div class="fab-ai-sec">' + (opts || acts.length ? 'Language' : 'Text') + '</div>'
+      (S.page === 'bible'
+        ? '<div class="fab-ai-ask"><input class="ai-input" data-fabai-input placeholder="Ask about a character, place or event…">'
+          + '<button class="ai-chip primary" data-fabai-ask><i class="bi bi-send"></i></button></div>'
+        : '')
+      + (acts.length
+          ? '<div class="fab-ai-sec">Text</div>' + textChips(acts)
+          : defs.filter(function(a){ return rcOn(a.fn); }).map(function(a){
+              return '<button class="ai-chip" data-ai="' + a.fn + '"><i class="bi bi-' + a.icon + '"></i> ' + a.label + '</button>';
+            }).join(''))
+      + (rcFlag('translate')
+          ? '<div class="fab-ai-sec">' + (acts.length ? 'Language' : 'Text') + '</div>'
             + '<button class="ai-chip" data-ai="translate"><i class="bi bi-translate"></i> Translate</button>'
           : '');
-
-    /* a page with no options of its own and no writing menu still gets a
-       usable panel rather than a blank one */
-    if(!body.innerHTML){
-      body.innerHTML = defs.filter(function(a){ return rcOn(a.fn); }).map(function(a){
-        return '<button class="ai-chip" data-ai="' + a.fn + '"><i class="bi bi-' + a.icon + '"></i> ' + a.label + '</button>';
-      }).join('');
-    }
   };
 
   /* The panel's own options are handled by the app's listener, which is
@@ -501,13 +436,18 @@
   }, true);
 
   /* ═══ 4 · THE PROMPT PAGE ═══ */
-  const GENRES = ['None','Literary','Thriller','Mystery','Crime','Romance','Fantasy',
-                  'Science fiction','Horror','Historical','Western','Comedy','Adventure',
-                  'Coming of age','Speculative',
-                  'Dystopian','Cyberpunk','Paranormal','Urban fantasy','Magical realism',
-                  'Suspense','Noir','Satire','Fairy tale','Mythic','Steampunk','Space opera',
-                  'Cozy mystery','Legal thriller','Political thriller','Psychological',
-                  'Slice of life','Family saga','Young adult','New adult'];
+  /* Two lists, two different questions — and they used to answer each other:
+     Genres carried subgenres, age bands and shelf-talk like cyberpunk and
+     family saga, so the same word could be picked as a genre AND as a tag.
+     Genres is the shelf the book sits on and nothing else: a genre, a genre.
+     The narrower words belong to Tags (cyberpunk, heist, dystopia).
+
+     Themes is off this bar: Genres has taken its place on the left, and a
+     Clear sits where Genres used to — it takes the prompt out of the card
+     you are on. */
+  const GENRES = ['None','Adventure','Comedy','Crime','Drama','Fantasy','Historical',
+                  'Horror','Literary','Mystery','Romance','Satire','Science fiction',
+                  'Suspense','Thriller','Western'];
   const TAGS   = ['None','Slow burn','Heist','Revenge','Family','Found family','Redemption',
                   'Survival','Political','Domestic','Supernatural','Road trip','Courtroom',
                   'War','School','Workplace','Enemies to lovers','Second chance',
@@ -515,13 +455,6 @@
                   'Locked room','Whodunit','Amnesia','Time loop','Dystopia','Cyberpunk',
                   'Antihero','Small town','Mentor and student','Rivalry','Coming home',
                   'Haunted house','Court intrigue','Deep space','Prison break'];
-  const THEMES = ['None','Love and loss','Power','Identity','Memory','Grief','Freedom',
-                  'Betrayal','Hope','Justice','Obsession','Belonging','Time','Faith','Technology',
-                  'Duty and desire','Truth and lies','Guilt','Forgiveness','Courage','Loneliness',
-                  'Tradition and change','Fate and free will','Ambition','Sacrifice','Legacy',
-                  'Exile','Mortality','Art and the artist','Science and ethics',
-                  'Nature of evil','Class and money','War and peace','Beauty','Home',
-                  'Coming of age','Sisterhood and brotherhood','Nature and progress'];
 
   function promptPage(){
     const root = document.getElementById('page-inspire');
@@ -538,15 +471,15 @@
     if(!S.config.ideaAI) S.config.ideaAI = {};
     const cfg = S.config.ideaAI;
 
-    /* the three pickers sit in the bar itself: Themes then Tags on the left,
-       Genres at the right end of the card's top bar */
+    /* the two pickers sit in the bar itself: Genres on the left, where Themes
+       used to be, then Tags — and Clear where Genres used to sit, at the
+       right end of the bar */
     const box = document.createElement('div');
     box.className = 'idea-picks';
     box.setAttribute('data-sf-picks', '1');
     box.innerHTML =
-      [['theme', 'Themes', THEMES, cfg.theme, ''],
-       ['tag',   'Tags',   TAGS,   cfg.tag,   ''],
-       ['genre', 'Genres', GENRES, cfg.genre, ' idea-pick-end']]
+      [['genre', 'Genres', GENRES, cfg.genre, ''],
+       ['tag',   'Tags',   TAGS,   cfg.tag,   '']]
         .map(function(p){
           return '<label class="idea-pick' + p[4] + '">'
             + '<span>' + p[1] + '</span>'
@@ -555,7 +488,12 @@
                 return '<option value="' + esc(v) + '"' + ((p[3] || p[2][0]) === v ? ' selected' : '') + '>' + esc(v) + '</option>';
               }).join('')
             + '</select></label>';
-        }).join('');
+        }).join('')
+      /* Clear keeps the end of the bar: it empties the prompt the card you
+         are on is showing */
+      + '<button class="ol-btn idea-clear" data-sf-clear="1"'
+      +   ' title="Clear the prompt in the card you are on">'
+      +   '<i class="bi bi-eraser"></i><span>Clear</span></button>';
 
     bar.appendChild(box);
 
@@ -581,7 +519,6 @@
         const picks = [];
         if(c.genre && c.genre !== 'None') picks.push('genre: ' + c.genre);
         if(c.tag   && c.tag   !== 'None') picks.push('tags: '  + c.tag);
-        if(c.theme && c.theme !== 'None') picks.push('themes: '+ c.theme);
         if(picks.length) out += '\n\nCHOSEN ON THE PROMPT PAGE:\n' + picks.join('\n');
       }catch(e){}
       return out;

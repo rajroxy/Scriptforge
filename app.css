@@ -1,4 +1,15 @@
 /* ═══════════════════════════════════════════════════════════
+   app.css — the application chrome.
+
+   Merged, byte-for-byte and in this order, from:
+     1 layout.css
+     2 autocomplete.css
+     3 the inline <style> that used to sit in index.html
+   Nothing was rewritten or dropped. Original load order is preserved.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ══════════ 1 · layout.css ══════════ */
+/* ═══════════════════════════════════════════════════════════
    ScriptForge — Layout
    Vercel-style · All original classes preserved
    ═══════════════════════════════════════════════════════════ */
@@ -3550,3 +3561,950 @@ button .bi-x-lg{
   text-decoration: none;
 }
 .gh-error a:hover{ text-decoration: underline; }
+
+/* ══════════ 2 · autocomplete.css ══════════ */
+/* ═══════════════════════════════════════════════════════════
+   Word autocomplete — the popup
+
+   It hangs off the caret, so it is fixed-positioned and carries the
+   app's own surface, rule and radius. The accepted part of the word is
+   shown in the ink colour and the rest in the muted one, so what Tab
+   will add is obvious at a glance.
+   ═══════════════════════════════════════════════════════════ */
+html body .sf-complete{
+  position:fixed;
+  z-index:420;
+  min-width:150px;
+  max-width:min(340px, 60vw);
+  padding:4px;
+  background:var(--surface-2);
+  border:1px solid var(--line-2);
+  border-radius:var(--r-md, 6px);
+  box-shadow:var(--e-3);
+  font-family:var(--ui);
+  font-size:12.5px;
+  line-height:1.35;
+}
+html body .sf-complete[hidden]{ display:none !important; }
+
+html body .sf-complete .sf-complete-item{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  width:100%;
+  padding:5px 8px;
+  background:transparent;
+  border:0;
+  border-radius:var(--r-sm, 4px);
+  color:var(--ink-4);
+  text-align:left;
+  cursor:pointer;
+}
+html body .sf-complete .sf-complete-item b{
+  flex:0 0 auto;
+  font-weight:600;
+  color:var(--ink);
+}
+html body .sf-complete .sf-complete-item span{
+  flex:1 1 auto;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:11.5px;
+  color:var(--ink-4);
+}
+html body .sf-complete .sf-complete-item.on,
+html body .sf-complete .sf-complete-item:hover{
+  background:var(--overlay-strong, var(--surface-3));
+}
+html body .sf-complete .sf-complete-item.on b{ color:var(--accent, var(--ink)); }
+
+/* ══════════ 3 · index.html inline <style> ══════════ */
+/* Video control bar — docked underneath the video area instead of floating over it */
+#vpFloatBar{
+  position: static;
+  flex: 0 0 auto;
+  margin-top: 10px;
+  background: #fff;
+  border: 1px solid #eaeaea;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* White bar, Geist/Vercel style: hairline gray borders, black primary play button */
+#vpFloatBar .mv-btn{
+  color: #000 !important;
+  border: 1px solid #e5e5e5 !important;
+}
+#vpFloatBar .mv-btn:hover{ background: #fafafa !important; }
+#vpFloatBar .mv-btn.active{ background: #f0f0f0 !important; }
+#vpFloatBar .mv-play{ background: #000 !important; color: #fff !important; border: 1px solid #000 !important; }
+#vpFloatBar .mv-play i{ color: #fff !important; }
+#vpFloatBar .mv-play:hover{ background: #333 !important; }
+#vpFloatBar .vp-divider{ background: #eaeaea !important; }
+#vpFloatBar .vp-time,
+#vpFloatBar .vp-vol-pct,
+#vpFloatBar .vp-aspect-pct{ color: #666 !important; }
+
+<script>
+(function(){
+  function onDraftFab(e){
+    var t = e.target;
+    if(!(t && t.closest && t.closest('#fabBtn'))) return false;
+    var onDraft = (typeof S !== 'undefined' && S.page === 'draft') ||
+                  !!document.getElementById('draftBody');
+    return !!onDraft;
+  }
+  function block(e){
+    if(!onDraftFab(e)) return;
+    if(e.type !== 'contextmenu' && e.button !== 2) return;   // only right button
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    var ai = document.getElementById('fabAI');  if(ai) ai.hidden = true;
+    var mn = document.getElementById('fabMenu'); if(mn) mn.hidden = true;
+    var fw = document.getElementById('fabWrap'); if(fw) fw.classList.remove('menu-open');
+
+    if(e.type === 'contextmenu' && window.DraftChat && window.DraftChat.open){
+      window.DraftChat.open();                                // idempotent — never toggles shut
+      [0, 60, 200].forEach(function(ms){
+        setTimeout(function(){
+          var a = document.getElementById('fabAI');  if(a) a.hidden = true;
+          var m = document.getElementById('fabMenu'); if(m) m.hidden = true;
+        }, ms);
+      });
+    }
+  }
+  ['pointerdown','mousedown','pointerup','mouseup','auxclick','contextmenu']
+    .forEach(function(t){ window.addEventListener(t, block, true); });
+})();
+</script>
+
+/* Playing bar — identical treatment to the music player's playing bar:
+   a white capsule holding time · slider · time, flat track, round black thumb. */
+#vpFloatBar .vp-group-seek{
+  background: #fff !important;
+  border: 1px solid #eaeaea !important;
+  border-radius: 6px !important;
+  padding: 6px 12px !important;
+  margin: 0 8px !important;
+  gap: 10px !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+}
+#vpFloatBar .vp-group-seek input[type="range"]{
+  height: 4px !important;
+  background: #eaeaea !important;
+  border-radius: 2px !important;
+  overflow: visible !important;   /* let the round thumb show, like the music bar */
+}
+#vpFloatBar .vp-group-seek input[type="range"]::-webkit-slider-runnable-track{
+  height: 4px !important;
+  background: #eaeaea !important;
+  border-radius: 2px !important;
+}
+#vpFloatBar .vp-group-seek input[type="range"]::-webkit-slider-thumb{
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  background: #000 !important;
+  border: none !important;
+  margin-top: -4px !important;
+}
+#vpFloatBar .vp-group-seek input[type="range"]::-moz-range-thumb{
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  background: #000 !important;
+  border: none !important;
+}
+/* Video stage — Vercel-style rounded corners that hold while the video plays.
+   layout.css uses overflow:clip with a 260px clip-margin, which clips square
+   corners and lets the video bleed past the radius; hidden + radius fixes it. */
+#videoStage{
+  border-radius: var(--r-lg, 8px);
+  overflow: hidden;
+  overflow-clip-margin: 0;
+}
+
+/* ═══ Music player — Vercel style (Geist) ═══ */
+/* Play button: black pill, white glyph — the single primary control */
+#musicPanel .mv-play,
+.music-body .mv-play{
+  background: #000 !important;
+  color: #fff !important;
+  border: 1px solid #000 !important;
+  border-radius: 6px !important;
+}
+#musicPanel .mv-play i,
+.music-body .mv-play i{ color: #fff !important; }
+#musicPanel .mv-play:hover,
+.music-body .mv-play:hover{ background: #333 !important; }
+/* Secondary transport buttons: hairline outlines */
+#musicPanel .mv-controls .mv-btn,
+.music-body .mv-controls .mv-btn{
+  color: #000 !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 6px !important;
+}
+#musicPanel .mv-controls .mv-btn:hover,
+.music-body .mv-controls .mv-btn:hover{ background: #fafafa !important; }
+/* Play stays the one solid black control, even inside the outlined row */
+#musicPanel .mv-controls .mv-play,
+.music-body .mv-controls .mv-play{
+  background: #000 !important;
+  color: #fff !important;
+  border: 1px solid #000 !important;
+}
+#musicPanel .mv-controls .mv-play i,
+.music-body .mv-controls .mv-play i{ color: #fff !important; }
+#musicPanel .mv-controls .mv-play:hover,
+.music-body .mv-controls .mv-play:hover{ background: #333 !important; }
+/* Playlist area sized for a full 5-row page (5×52px rows + 4×2px gaps) and
+   free to grow when the panel has spare room — extra height goes to the
+   playlist body, never to the bottom pager bar */
+#musicPanel .mv-playlist-wrap{
+  flex: 1 1 auto !important;
+  min-height: 300px !important;   /* playlist head (32px) + full 5-row page (268px) */
+}
+#musicPanel .mv-playlist{
+  flex: 1 1 auto !important;
+  height: auto !important;
+  min-height: 268px !important;
+  max-height: none !important;
+}
+/* Bottom pager bar — same shape as the video playlist panel's .vpl-pager */
+#musicPanel > .mv-pager{
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  padding: 8px 14px !important;
+  border-top: 1px solid var(--line) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+}
+/* Video playlist row actions (play · rename · close) — ghost buttons, matching the music rows */
+#videoPlaylistPanel .vpl-play,
+#videoPlaylistPanel .vpl-rename,
+#videoPlaylistPanel .vpl-del{
+  padding: 0 !important;
+  line-height: 1 !important;
+}
+#videoPlaylistPanel .vpl-play:hover,
+#videoPlaylistPanel .vpl-rename:hover,
+#videoPlaylistPanel .vpl-del:hover{
+  background: var(--overlay-strong) !important;
+  color: var(--ink) !important;
+}
+#videoPlaylistPanel .vpl-play i,
+#videoPlaylistPanel .vpl-rename i,
+#videoPlaylistPanel .vpl-del svg{
+  pointer-events: none !important;
+}
+/* Inline rename field */
+#videoPlaylistPanel .vpl-rename-edit{
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  font: inherit !important;
+  font-size: 12.5px !important;
+  line-height: 1.35 !important;
+  color: var(--ink) !important;
+  background: var(--surface-1) !important;
+  border: 1px solid var(--line-3) !important;
+  border-radius: 4px !important;
+  padding: 1px 5px !important;
+  margin: -2px 0 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Empty playlist — no icon, just the "+ to add" hint */
+#videoPlaylistPanel .vpl-empty{
+  padding: 46px 20px !important;
+}
+.vpl-empty-hint{
+  font-size: 12.5px !important;
+  color: var(--ink-3) !important;
+  line-height: 1.5 !important;
+}
+.vpl-empty-key{
+  color: var(--ink-2) !important;
+  font-family: var(--mono) !important;
+  font-weight: 600 !important;
+}
+
+/* Pager range label — same numbering system as the music player (page-last item) */
+.vpl-range{
+  flex: 1 1 auto !important;
+  text-align: center !important;
+  font-family: var(--mono) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: var(--ink-3) !important;
+  font-variant-numeric: tabular-nums !important;
+  letter-spacing: .02em !important;
+  user-select: none !important;
+}
+
+/* Pager chevrons — Vercel hairline outline, matching the video player buttons */
+#musicPanel .mv-pager-btn{
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 36px !important;
+  height: 36px !important;
+  color: #000 !important;
+  border: 1px solid #e5e5e5 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  font-size: 14px !important;
+}
+#musicPanel .mv-pager-btn:hover{ background: #fafafa !important; }
+#musicPanel .mv-pager-btn:disabled{ opacity: .3 !important; }
+/* Volume button + percentage, matching the video player bar */
+#musicPanel .mp-vol-btn,
+.music-body .mp-vol-btn{ color: #000 !important; border: 1px solid #e5e5e5 !important; border-radius: 6px !important; }
+#musicPanel .mp-vol-btn:hover,
+.music-body .mp-vol-btn:hover{ background: #fafafa !important; }
+#musicPanel .mp-vol-pct,
+.music-body .mp-vol-pct{
+  font-size: 11px;
+  font-family: var(--mono);
+  color: #666 !important;
+  font-variant-numeric: tabular-nums;
+  min-width: 32px;
+  pointer-events: none;
+}
+
+/* Music control row: shuffle far left · prev/play/next + volume centred ·
+   loop far right. The two outer zones are the same width, so the middle
+   group always lands dead centre and nothing can overlap. */
+#musicPanel .mv-controls{
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+#musicPanel .mv-controls-left,
+#musicPanel .mv-controls-center,
+#musicPanel .mv-controls-right{
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+#musicPanel .mv-controls-left,
+#musicPanel .mv-controls-right{
+  flex: 0 0 36px !important;    /* equal sides keep the centre group centred */
+  justify-content: center !important;
+}
+/* Volume button + percentage ride along with the transport in the centre */
+#musicPanel .mv-volume{
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin-left: 2px !important;
+}
+#musicPanel .mv-controls .mv-btn.active{
+  background: #f0f0f0 !important;
+  color: #000 !important;
+  border-color: #e5e5e5 !important;
+}
+/* Playing bar — the same white docked bar as the video player's control bar */
+#musicPanel .mv-seek{
+  gap: 10px !important;
+  background: #fff !important;
+  border: 1px solid #eaeaea !important;
+  border-radius: 6px !important;
+  padding: 6px 12px !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+}
+#musicPanel .mv-seek span{ color: #666 !important; }
+/* Body takes the extra height; the chevron bar keeps its natural size.
+   If the window is too short for the whole panel, the BODY scrolls —
+   a row can never be clipped, and the pager bar never stretches. */
+#musicPanel.panel-shell{
+  height: 700px !important;
+  max-height: calc(100vh - 40px) !important;
+}
+#musicPanel .music-body{
+  flex: 1 1 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  justify-content: flex-start !important;
+  scrollbar-width: none !important;
+}
+#musicPanel .music-body::-webkit-scrollbar{ display: none !important; width: 0 !important; }
+#musicPanel > .mv-pager{ flex: 0 0 auto !important; }
+#musicPanel .mv-seek input[type="range"],
+#musicPanel .mv-seek input[type="range"]::-webkit-slider-runnable-track{
+  height: 4px !important;
+  background: #eaeaea !important;
+  border-radius: 2px !important;
+}
+#musicPanel .mv-seek input[type="range"]::-webkit-slider-thumb{
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  background: #000 !important;
+  border: none !important;
+  margin-top: -4px !important;
+}
+#musicPanel .mv-seek input[type="range"]::-moz-range-thumb{
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  background: #000 !important;
+  border: none !important;
+}
+
+/* CSS fallback fullscreen when the browser rejects requestFullscreen
+   (e.g. right-click without enough user activation) */
+.vp-fs-fallback{
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  transform: none !important;
+  border-radius: 0 !important;
+  background: #000 !important;
+  padding: 0 !important;
+}
+.vp-fs-fallback .video-stage{ border-radius: 0 !important; }
+.vp-fs-fallback .vp-float-bar{ margin: 0 !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; }
+/* Pager chevrons — identical treatment to the shuffle / repeat buttons */
+html body #musicPanel > .mv-pager .mv-pager-btn{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:36px !important;
+  height:36px !important;
+  padding:0 !important;
+  background:var(--surface-3) !important;   /* same fill as shuffle / repeat */
+  border:0 !important;                      /* kills the old white hairline */
+  border-radius:var(--r-md,6px) !important;
+  color:var(--ink-2) !important;
+  font-size:14px !important;
+  opacity:1 !important;
+  visibility:visible !important;
+}
+html body #musicPanel > .mv-pager .mv-pager-btn:hover{
+  background:var(--surface-4) !important;
+  color:var(--ink) !important;
+}
+html body #musicPanel > .mv-pager .mv-pager-btn:disabled{ opacity:.45 !important; }
+
+/* Music play button — the video player's colour (no white), nothing else touched */
+html body #musicPanel .mv-play,
+html body #musicPanel .mv-controls .mv-play,
+html body .music-body .mv-controls .mv-play{
+  background:var(--accent) !important;
+  border:0 !important;
+  border-radius:var(--r-md,6px) !important;
+}
+html body #musicPanel .mv-play i,
+html body #musicPanel .mv-controls .mv-play i{ color:var(--accent-ink) !important; }
+html body #musicPanel .mv-play:hover,
+html body #musicPanel .mv-controls .mv-play:hover{ background:var(--accent-2) !important; }
+/* ═══════════════════════════════════════════════════════════
+   MUSIC PLAYER — video player's frame · black stage · one bar
+   ═══════════════════════════════════════════════════════════ */
+
+/* 1 · same frame and size as the video player */
+html body #musicPanel.panel-shell{
+  width:min(880px, calc(100vw - 80px)) !important;
+  height:min(560px, calc(100vh - 140px)) !important;
+  min-height:0 !important;
+  max-height:calc(100vh - 140px) !important;
+}
+
+/* 2 · two rows: the stage (fills) + one bar (hugs) */
+html body #musicPanel .music-body{
+  display:grid !important;
+  grid-template-rows:1fr auto !important;
+  grid-template-columns:auto auto auto auto minmax(0,1fr) auto auto !important;
+  gap:0 8px !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+}
+
+/* ── row 1 · the black stage — full width, no outline ── */
+html body #musicPanel .mv-now-row{
+  grid-row:1 !important; grid-column:1 !important;
+  display:flex !important; align-items:stretch !important;
+  min-height:0 !important; background:transparent !important;
+  border:0 !important; box-shadow:none !important;
+}
+html body #musicPanel .mv-now{
+  height:100% !important; width:100% !important;
+  flex:1 1 auto !important; flex-basis:auto !important;
+  min-height:0 !important; background:#000 !important;
+  border:0 !important; box-shadow:none !important;
+  border-radius:var(--r-lg,8px) !important; overflow:hidden !important;
+}
+html body #musicPanel .mv-visualizer{ height:100% !important; background:transparent !important; }
+html body #musicPanel .mv-visualizer span{ max-width:9px !important; background:var(--ink) !important; }
+
+@keyframes mvVisScreen{ from{ height:3%; } to{ height:88%; } }
+html body #musicPanel .mv-visualizer.playing span{ animation:mvVisScreen 800ms ease-in-out infinite alternate !important; }
+html body #musicPanel .mv-visualizer.playing span:nth-child(4n+1){ animation-duration:700ms !important; }
+html body #musicPanel .mv-visualizer.playing span:nth-child(4n+2){ animation-duration:850ms !important; }
+html body #musicPanel .mv-visualizer.playing span:nth-child(4n+3){ animation-duration:620ms !important; }
+html body #musicPanel .mv-visualizer.playing span:nth-child(4n+4){ animation-duration:780ms !important; }
+
+/* ── row 2 · ONE bar — a copy of #vpFloatBar ── */
+html body #musicPanel .music-body{
+  display:grid !important;
+  grid-template-rows:1fr auto !important;
+  grid-template-columns:minmax(0,1fr) !important;
+  gap:10px !important; padding:10px !important;
+  min-height:0 !important; overflow:hidden !important;
+}
+html body #musicPanel .mv-controls{
+  grid-row:2 !important; grid-column:1 !important;
+  display:flex !important; align-items:center !important;
+  gap:0 !important; padding:4px 8px !important;
+  background:var(--surface-2) !important;   /* same as #vpFloatBar */
+  border:0 !important; border-radius:var(--r-md,6px) !important;
+  min-width:0 !important;
+}
+html body #musicPanel .mv-controls-center{
+  display:flex !important; align-items:center !important;
+  gap:2px !important; padding:0 6px !important; flex:0 0 auto !important;
+}
+html body #musicPanel .mv-controls-left,
+html body #musicPanel .mv-controls-right{
+  display:flex !important; align-items:center !important;
+  gap:2px !important; padding:0 6px !important;
+  flex:0 0 auto !important;                  /* kills the 78px box */
+  justify-content:flex-start !important;
+}
+html body #musicPanel .mv-volume{
+  display:flex !important; align-items:center !important;
+  gap:8px !important; padding:0 6px !important; flex:0 0 auto !important;
+}
+html body #musicPanel .mv-seek{
+  flex:1 1 auto !important; min-width:0 !important;
+  gap:10px !important; padding:4px 12px !important; margin:0 2px !important;
+  background:var(--surface-3) !important; border:0 !important;
+  border-radius:var(--r-md,6px) !important;
+}
+
+/* the four hairlines, in the video bar's positions */
+html body #musicPanel .mv-controls-center::before,
+html body #musicPanel .mv-controls-center::after,
+html body #musicPanel .mv-volume::before,
+html body #musicPanel .mv-controls-right::before{
+  content:'' !important; flex:0 0 1px !important;
+  width:1px !important; height:20px !important;
+  margin:0 6px !important; background:var(--line) !important;
+}
+
+/* ── the two align dots — in the bar, after Loop, stacked vertically ── */
+html body #musicPanel .mv-controls-right .mv-align-dots{
+  display:flex !important; flex-direction:column !important;
+  gap:4px !important; width:auto !important;
+  align-items:center !important; margin-left:6px !important;
+}
+html body #musicPanel .mv-align-dot{ width:8px !important; height:8px !important; }
+html body #musicPanel .mv-align-dot:hover{ border-color:rgba(255,255,255,.7) !important; }
+html body #musicPanel .mv-align-dot.active{ background:var(--ink) !important; border-color:var(--ink) !important; }
+
+/* 4 · one bar, the video order:
+      playlist · prev · play · next · seek · volume · shuffle + loop */
+html body #musicPanel .mv-controls,
+html body #musicPanel .mv-controls-center{ display:contents !important; }
+
+html body #musicPanel .mv-controls-left      { grid-row:2 !important; grid-column:1 !important; align-self:center !important; }
+html body #musicPanel [data-act="mp-prev"]   { grid-row:2 !important; grid-column:2 !important; align-self:center !important; }
+html body #musicPanel [data-act="mp-toggle"] { grid-row:2 !important; grid-column:3 !important; align-self:center !important; }
+html body #musicPanel [data-act="mp-next"]   { grid-row:2 !important; grid-column:4 !important; align-self:center !important; }
+html body #musicPanel .mv-seek               { grid-row:2 !important; grid-column:5 !important; align-self:center !important; }
+html body #musicPanel .mv-volume             { grid-row:2 !important; grid-column:6 !important; align-self:center !important; }
+html body #musicPanel .mv-controls-right     { grid-row:2 !important; grid-column:7 !important; align-self:center !important; }
+
+/* 5 · chevrons — one style for both playlist panels */
+html body .mv-pager-btn{
+  width:36px !important; height:36px !important; padding:0 !important;
+  display:flex !important; align-items:center !important; justify-content:center !important;
+  background:var(--surface-3) !important; color:var(--ink-2) !important;
+  border:0 !important; border-radius:var(--r-md,6px) !important;
+  font-size:14px !important; opacity:1 !important; visibility:visible !important;
+}
+html body .mv-pager-btn:hover{ background:var(--surface-4) !important; color:var(--ink) !important; }
+html body .mv-pager-btn:disabled{ opacity:.45 !important; }
+}
+
+/* ═══════ FINAL — music player: full-width stage + video-style bar ═══════ */
+html body #musicPanel .music-body{
+  display:flex !important; flex-direction:column !important;
+  gap:10px !important; padding:10px !important;
+  min-height:0 !important; overflow:hidden !important;
+}
+html body #musicPanel .mv-now-row{
+  display:flex !important; flex:1 1 auto !important;
+  align-items:stretch !important; width:100% !important;
+  min-height:0 !important; background:transparent !important;
+  border:0 !important; box-shadow:none !important;
+}
+html body #musicPanel .mv-now{
+  flex:1 1 auto !important; flex-basis:auto !important;
+  width:100% !important; height:100% !important; min-height:0 !important;
+  background:#000 !important; border:0 !important; box-shadow:none !important;
+  border-radius:var(--r-lg,8px) !important; overflow:hidden !important;
+}
+html body #musicPanel .mv-visualizer{ height:100% !important; background:transparent !important; }
+html body #musicPanel .mv-visualizer span{ max-width:9px !important; background:var(--ink) !important; }
+html body #musicPanel .mv-now-row .mv-align-dots{ display:none !important; }
+
+html body #musicPanel .mv-controls{
+  display:flex !important; flex:0 0 auto !important;
+  align-items:center !important; gap:0 !important; width:100% !important;
+  padding:4px 8px !important;
+  background:var(--surface-2) !important; border:0 !important;
+  border-radius:var(--r-md,6px) !important; min-width:0 !important;
+}
+html body #musicPanel .mv-controls-center{
+  display:flex !important; align-items:center !important;
+  gap:2px !important; padding:0 6px !important; flex:0 0 auto !important;
+}
+html body #musicPanel .mv-controls-left,
+html body #musicPanel .mv-controls-right{
+  display:flex !important; align-items:center !important;
+  gap:2px !important; padding:0 6px !important;
+  flex:0 0 auto !important; justify-content:flex-start !important;
+}
+html body #musicPanel .mv-volume{
+  display:flex !important; align-items:center !important;
+  gap:8px !important; padding:0 6px !important; flex:0 0 auto !important;
+}
+html body #musicPanel .mv-seek{
+  flex:1 1 auto !important; min-width:0 !important;
+  gap:10px !important; padding:4px 12px !important; margin:0 2px !important;
+  background:var(--surface-3) !important; border:0 !important;
+  border-radius:var(--r-md,6px) !important;
+}
+html body #musicPanel .mv-controls-center::before,
+html body #musicPanel .mv-controls-center::after,
+html body #musicPanel .mv-volume::before,
+html body #musicPanel .mv-controls-right::before{
+  content:'' !important; flex:0 0 1px !important;
+  width:1px !important; height:20px !important;
+  margin:0 6px !important; background:var(--line) !important;
+}
+html body #musicPanel .mv-controls-right .mv-align-dots{
+  display:flex !important; flex-direction:column !important;
+  gap:4px !important; width:auto !important;
+  align-items:center !important; margin-left:6px !important;
+}
+html body #musicPanel .mv-align-dot{ width:8px !important; height:8px !important; }
+
+/* ═══════ LAST WORD — music bar matches the video bar ═══════ */
+html body #musicPanel.panel-shell .music-body{
+  display:flex !important; flex-direction:column !important;
+  gap:10px !important; padding:10px !important;
+  min-height:0 !important; overflow:hidden !important;
+}
+html body #musicPanel.panel-shell .mv-now-row{
+  display:flex !important; flex:1 1 auto !important;
+  align-items:stretch !important; width:100% !important; min-height:0 !important;
+  border:0 !important; box-shadow:none !important; background:transparent !important;
+}
+html body #musicPanel.panel-shell .mv-now{
+  flex:1 1 auto !important; flex-basis:auto !important;
+  width:100% !important; height:100% !important; min-height:0 !important;
+  background:#000 !important; border:0 !important; box-shadow:none !important;
+  border-radius:var(--r-lg,8px) !important; overflow:hidden !important;
+}
+html body #musicPanel.panel-shell .mv-now-row .mv-align-dots{ display:none !important; }
+
+html body #musicPanel.panel-shell .mv-controls{
+  display:flex !important; flex:0 0 auto !important;
+  align-items:center !important; gap:0 !important;
+  width:100% !important; padding:4px 8px !important;
+  background:var(--surface-2) !important; border:0 !important;
+  border-radius:var(--r-md,6px) !important; min-width:0 !important;
+}
+html body #musicPanel.panel-shell .mv-controls-left,
+html body #musicPanel.panel-shell .mv-controls-right{
+  display:flex !important; align-items:center !important;
+  gap:2px !important; padding:0 6px !important;
+  flex:0 0 auto !important; width:auto !important; min-width:0 !important;
+  justify-content:flex-start !important;
+}
+html body #musicPanel.panel-shell .mv-controls-center{
+  display:flex !important; align-items:center !important;
+  gap:2px !important; padding:0 6px !important; flex:0 0 auto !important;
+}
+html body #musicPanel.panel-shell .mv-volume{
+  display:flex !important; align-items:center !important;
+  gap:8px !important; padding:0 6px !important; flex:0 0 auto !important;
+}
+html body #musicPanel.panel-shell .mv-seek{
+  flex:1 1 auto !important; min-width:0 !important; gap:10px !important;
+  padding:4px 12px !important; margin:0 2px !important;
+  background:var(--surface-3) !important; border:0 !important;
+  border-radius:var(--r-md,6px) !important;
+}
+html body #musicPanel.panel-shell .mv-controls-center::before,
+html body #musicPanel.panel-shell .mv-controls-center::after,
+html body #musicPanel.panel-shell .mv-volume::before,
+html body #musicPanel.panel-shell .mv-controls-right::before{
+  content:'' !important; flex:0 0 1px !important;
+  width:1px !important; height:20px !important;
+  margin:0 6px !important; background:var(--line) !important;
+}
+
+/* buttons: the video bar's own size and rounding, no exceptions */
+html body #musicPanel.panel-shell .mv-controls .mv-btn{
+  width:36px !important; height:36px !important;
+  border-radius:var(--r-sm) !important; flex-shrink:0 !important;
+}
+html body #musicPanel.panel-shell .mv-controls .mv-play{
+  width:42px !important; height:36px !important;
+}
+
+/* the dots: perfect vertical stack, with real space after Repeat */
+html body #musicPanel.panel-shell .mv-controls-right .mv-align-dots{
+  display:flex !important; flex-direction:column !important;
+  align-self:center !important; align-items:center !important;
+  justify-content:center !important; gap:5px !important;
+  width:auto !important; height:auto !important; margin:0 0 0 12px !important;
+}
+html body #musicPanel.panel-shell .mv-align-dot{
+  width:8px !important; height:8px !important; min-width:8px !important;
+  flex:0 0 8px !important; padding:0 !important; box-sizing:border-box !important;
+}
+/* ═══ MUSIC BAR = VIDEO BAR (v2) ═══ */
+html body #musicPanel{ --mp-bar:1; }
+
+html body #musicPanel.panel-shell .music-body{
+  display:flex !important; flex-direction:column !important;
+  gap:10px !important; padding:10px !important;
+  min-height:0 !important; overflow:hidden !important;
+}
+html body #musicPanel.panel-shell .mv-now-row{
+  display:flex !important; flex:1 1 auto !important;
+  align-items:stretch !important; width:100% !important; min-height:0 !important;
+  border:0 !important; box-shadow:none !important; background:transparent !important;
+}
+html body #musicPanel.panel-shell .mv-now{
+  flex:1 1 auto !important; flex-basis:auto !important;
+  width:100% !important; height:100% !important; min-height:0 !important;
+  background:#000 !important; border:0 !important; box-shadow:none !important;
+  border-radius:var(--r-lg,8px) !important; overflow:hidden !important;
+}
+html body #musicPanel.panel-shell .mv-now-row .mv-align-dots{ display:none !important; }
+
+html body #musicPanel.panel-shell .mv-controls{
+  display:flex !important; flex:0 0 auto !important;
+  align-items:center !important; gap:0 !important;
+  width:100% !important; padding:4px 8px !important;
+  background:var(--surface-2) !important; border:0 !important;
+  border-radius:var(--r-md,6px) !important; min-width:0 !important;
+}
+html body #musicPanel.panel-shell .mv-controls-left,
+html body #musicPanel.panel-shell .mv-controls-center,
+html body #musicPanel.panel-shell .mv-controls-right,
+html body #musicPanel.panel-shell .mv-volume{
+  display:flex !important; align-items:center !important;
+  gap:2px !important; padding:0 6px !important;
+  flex:0 0 auto !important; width:auto !important; min-width:0 !important;
+  justify-content:flex-start !important;
+}
+html body #musicPanel.panel-shell .mv-seek{
+  flex:1 1 auto !important; min-width:0 !important;
+  gap:10px !important; padding:6px 12px !important; margin:0 8px !important;
+  background:var(--surface-3) !important; border:0 !important;
+  border-radius:var(--r-md,6px) !important;
+}
+html body #musicPanel.panel-shell .mv-controls-center::before,
+html body #musicPanel.panel-shell .mv-controls-center::after,
+html body #musicPanel.panel-shell .mv-volume::before,
+html body #musicPanel.panel-shell .mv-controls-right::before{
+  content:'' !important; flex:0 0 1px !important;
+  width:1px !important; height:20px !important;
+  margin:0 !important; background:var(--line) !important;
+}
+html body #musicPanel.panel-shell .mv-controls .mv-btn{
+  width:36px !important; height:36px !important; border-radius:var(--r-sm) !important;
+}
+html body #musicPanel.panel-shell .mv-controls .mv-play{ width:42px !important; height:36px !important; }
+
+html body #musicPanel.panel-shell .mv-controls-right .mv-align-dots{
+  display:flex !important; flex-direction:column !important;
+  align-self:center !important; align-items:center !important; justify-content:center !important;
+  gap:5px !important; width:auto !important; height:auto !important;
+  margin:0 0 0 10px !important;
+}
+html body #musicPanel.panel-shell .mv-align-dot{
+  width:8px !important; height:8px !important; min-width:8px !important;
+  flex:0 0 8px !important; padding:0 !important; box-sizing:border-box !important;
+}
+/* gaps: the video's exact 13px (cancels the group's own 2px gap) */
+html body #musicPanel.panel-shell .mv-controls-center::before,
+html body #musicPanel.panel-shell .mv-volume::before,
+html body #musicPanel.panel-shell .mv-controls-right::before{
+  margin:0 -2px 0 0 !important;
+}
+html body #musicPanel.panel-shell .mv-controls-center::after{
+  margin:0 0 0 -2px !important;
+}
+
+/* dots: smaller and tighter so the seek keeps the video's width */
+html body #musicPanel.panel-shell .mv-controls-right .mv-align-dots{
+  gap:4px !important;
+  margin:0 0 0 6px !important;
+}
+html body #musicPanel.panel-shell .mv-align-dot{
+  width:6px !important; height:6px !important;
+  min-width:6px !important; flex:0 0 6px !important;
+}
+/* turn off the drawn (invisible) fake dividers */
+html body #musicPanel.panel-shell .mv-controls-center::before,
+html body #musicPanel.panel-shell .mv-controls-center::after,
+html body #musicPanel.panel-shell .mv-volume::before,
+html body #musicPanel.panel-shell .mv-controls-right::before{
+  content:none !important;
+}
+
+/* ONE divider style for both bars — same width, height and colour */
+html body #vpFloatBar .vp-divider,
+html body #musicPanel.panel-shell .mv-controls > .vp-divider{
+  width:1px !important;
+  height:20px !important;
+  background:var(--line-2) !important;
+  flex:0 0 1px !important;
+  margin:0 !important;
+}
+
+/* with real dividers the 13px rhythm happens by itself */
+html body #musicPanel.panel-shell .mv-controls-center,
+html body #musicPanel.panel-shell .mv-controls-right,
+html body #musicPanel.panel-shell .mv-volume{
+  padding:0 6px !important;
+}
+/* 1 · buttons: one radius for BOTH bars, a little rounder than before */
+html body #vpFloatBar .mv-btn,
+html body #musicPanel.panel-shell .mv-controls .mv-btn,
+html body #musicPanel.panel-shell .mp-vol-btn{
+  border-radius:6px !important;
+}
+html body #vpFloatBar .mv-play,
+html body #musicPanel.panel-shell .mv-controls .mv-play{
+  border-radius:6px !important;
+}
+
+/* 2 · the empty 10px box after "80%" */
+html body #musicPanel.panel-shell .mp-vol-pct{
+  min-width:0 !important;
+  width:auto !important;
+  text-align:left !important;
+  margin:0 !important;
+}
+
+/* 3 · volume group: the video's own internal spacing (icon ↔ number) */
+html body #musicPanel.panel-shell .mv-volume{
+  gap:8px !important;
+  padding:0 6px !important;
+}
+/* a little breathing room between Shuffle and Loop */
+html body #musicPanel.panel-shell .mv-controls-right [data-act="mp-shuffle"]{
+  margin-right:6px !important;
+}
+/* a little breathing room between Aspect and Fullscreen */
+html body #vpFloatBar .vp-group #vpAspectBtn{
+  margin-right:6px !important;
+}
+/* ══════════ ONE DOT · CANVAS MOTION VISUALIZER ══════════ */
+
+/* old dot pairs stay gone */
+html body #musicPanel .mv-align-dots{ display:none !important; }
+
+/* the stage is now the coordinate box for the canvas */
+html body #musicPanel .mv-visualizer{ position:relative !important; }
+html body #musicPanel .mv-visualizer > canvas.mp-motion{
+  position:absolute !important; inset:0 !important;
+  width:100% !important; height:100% !important;
+  display:block !important; pointer-events:none !important; z-index:2;
+}
+/* motion on → the equalizer bars step aside */
+html body #musicPanel .mv-visualizer.motion-on > span{ display:none !important; }
+
+/* the dot + its settings button — bottom-right corner of the stage */
+html body #musicPanel .mv-visualizer > .motion-corner{
+  position:absolute !important;
+  right:10px !important; bottom:10px !important;
+  z-index:3;
+  display:flex !important; align-items:center !important; gap:6px !important;
+}
+html body #musicPanel .motion-corner .viz-dot{
+  width:11px !important; height:11px !important; flex:0 0 11px !important;
+  min-width:11px !important; padding:0 !important; margin:0 !important;
+  border:1px solid var(--ink-4) !important; border-radius:50% !important;
+  background:transparent !important;
+  transition:background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+html body #musicPanel .motion-corner .viz-dot:hover{ border-color:var(--ink-2) !important; transform:scale(1.15); }
+html body #musicPanel .motion-corner .viz-dot.active{
+  background:#fab387 !important; border-color:#fab387 !important;
+  box-shadow:0 0 0 3px rgba(250,179,135,.16) !important;
+}
+html body #musicPanel .motion-corner .viz-picker-btn{
+  width:22px !important; height:22px !important; flex:0 0 22px !important;
+  padding:0 !important; margin:0 !important; border:0 !important;
+  background:transparent !important; color:var(--ink-4) !important;
+  border-radius:var(--r-sm,4px) !important; font-size:13px !important;
+}
+html body #musicPanel .motion-corner .viz-picker-btn:hover{
+  background:rgba(255,255,255,.08) !important; color:var(--ink) !important;
+}
+
+
+/* the picker */
+html body #motionPicker{
+  position:fixed; z-index:400; width:256px;
+  background:var(--surface-2); border:1px solid var(--line-2);
+  border-radius:var(--r-lg,8px); box-shadow:var(--e-3);
+  padding:10px; font:inherit; font-size:12px; color:var(--ink);
+}
+html body #motionPicker[hidden]{ display:none !important; }
+html body #motionPicker .motion-picker-head{
+  display:flex; align-items:center; justify-content:space-between;
+  font-size:12.5px; font-weight:600; margin-bottom:6px;
+}
+html body #motionPicker .motion-picker-head button{
+  color:var(--ink-3); font-size:12px; padding:2px 4px; border-radius:4px;
+}
+html body #motionPicker .motion-picker-head button:hover{ background:var(--overlay); color:var(--ink); }
+html body #motionPicker .motion-row{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; padding:5px 0;
+}
+html body #motionPicker .motion-row > span{ color:var(--ink-3); }
+html body #motionPicker select{
+  width:132px; padding:4px 6px; font-size:12px;
+  background:var(--surface-3); border:1px solid var(--line-2);
+  border-radius:var(--r-sm,4px); color:var(--ink);
+}
+html body #motionPicker input[type="range"]{ width:132px; }
+html body #motionPicker input[type="color"]{
+  width:36px; height:24px; padding:0; background:none;
+  border:1px solid var(--line-2); border-radius:4px;
+}
+

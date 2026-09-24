@@ -41,7 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showInFolder: (p) => ipcRenderer.invoke('show-in-folder', p)
 });
 
-/* the backup bridge — autosave.js prefers this over a download */
+/* the backup bridge — the autosave section of app.js prefers this over a download */
 contextBridge.exposeInMainWorld('sfDesktop', {
   isDesktop: true,
   platform: process.platform,

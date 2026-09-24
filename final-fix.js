@@ -1,11 +1,391 @@
 /* ═══════════════════════════════════════════════════════════
+   final-fix.js — merged file.
+
+   The whole contents of these scripts were moved here, at the bottom, in
+   their original load order:
+     · fab-fix.js
+     · context-fix.js
+     · final-fix.js
+     · font-pack.js
+   Nothing was rewritten, removed or reordered. Because every script
+   below was contiguous in index.html, concatenation keeps the exact
+   execution order they had as separate files.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ══════════ fab-fix.js ══════════ */
+/* ═══════════════════════════════════════════════════════════
+   ScriptForge — the round button's menus, corrected
+
+   Loaded after pages-fix.js and polish.js, so everything it changes is
+   theirs to change and it only has to say what is different:
+
+     1 NAMES BY FORM    the Outline page names its units the way the form
+                        does — a novel has chapters and subchapters, a
+                        screenplay has scenes and sub-scenes — and its four
+                        naming jobs keep two pairs apart: the TITLE jobs
+                        name a section, the DESCRIPTION jobs say what the
+                        section is for.
+
+     2 THE PLAN BOARD   "Beat ideas" is "Beat the board": it fills the board
+                        you are looking at with the beats it is missing.
+
+     3 TEXT & LANGUAGE  the writing actions and Translate are on every page
+                        now: the round button's right-click opens the
+                        manuscript's own panel wherever it is asked, so
+                        nothing takes the Text or the Language section off a
+                        page any more.
+
+     4 WHICH PAGE       the two outline jobs know which page and which form
+                        they were asked from, so a screenplay gets scenes.
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  const F  = function(){ return window.AI_FNS || (window.AI_FNS = {}); };
+  const modeId = function(){
+    try{ if(S.mode) return S.mode; }catch(e){}
+    try{ return document.body.getAttribute('data-writing-mode') || 'novel'; }catch(e){}
+    return 'novel';
+  };
+  /* the form that writes in scenes rather than chapters */
+  const isScreenplay = function(){
+    return ['screenplay', 'tv', 'stage', 'script'].indexOf(modeId()) >= 0;
+  };
+  /* the pages whose unit is a SCENE in the form's own language */
+  const units = function(){
+    if(isScreenplay()) return { one:'Scene', many:'Scenes', sub:'Sub-scene', subs:'Sub-scenes' };
+    return { one:'Chapter', many:'Chapters', sub:'Subchapter', subs:'Subchapters' };
+  };
+
+  /* ═══ 1 · NAMES BY FORM ═══
+     SF_FAB_AI is the app's own table and the option objects inside it are
+     plain objects, so its labels are re-written in place on every render —
+     no second copy of the menu to drift out of step. */
+  const relabel = function(){
+    let table = null;
+    try{ table = SF_FAB_AI; }catch(e){ table = null; }
+    if(!table) return;
+    const u = units();
+
+    /* ── outline ──
+       Four naming jobs, two pairs: the titles NAME a section and the
+       descriptions say what it is FOR. Each pair takes the form's own word
+       — Chapter/Subchapter in a novel, Scene/Sub-scene in a screenplay —
+       so a screenplay is never offered “Chapter titles” and a novel is
+       never offered “Scene description”. */
+    if(Array.isArray(table.outline)){
+      table.outline.forEach(function(o){
+        if(!o || !o.fn) return;
+        if(o.fn === 'olChapterTitles'){
+          o.label = u.one + ' titles';
+          o.desc  = 'A name for every ' + u.one.toLowerCase() + ', from your outline';
+        }else if(o.fn === 'olSubTitles'){
+          o.label = u.sub + ' titles';
+          o.desc  = 'A name for every ' + u.sub.toLowerCase();
+        }else if(o.fn === 'olChapterSubs'){
+          o.label = u.one + ' description';
+          o.desc  = 'Describe what every ' + u.one.toLowerCase() + ' covers, from your outline';
+        }else if(o.fn === 'olSubSubs'){
+          o.label = u.sub + ' description';
+          o.desc  = 'Describe what happens in each ' + u.sub.toLowerCase();
+        }else if(o.fn === 'olStructure'){
+          o.desc = 'Is the ' + u.one.toLowerCase() + ' order working? What should move?';
+        }
+      });
+    }
+
+    /* ── plan ── */
+    if(Array.isArray(table.plan)){
+      table.plan.forEach(function(o){
+        if(!o || o.fn !== 'planBeats') return;
+        o.label = 'Beat the board';
+        o.desc  = 'Fill this board — the beats it is still missing, in order';
+      });
+    }
+  };
+
+  /* ═══ 3 · TEXT & LANGUAGE ═══
+     Nothing is taken off a page any more. The round button's right-click is
+     the manuscript's own panel wherever it opens (polish.js), so the Text
+     section and Translate are meant to be there on every page; the trim that
+     used to remove them from the plan board, the Bible, the canvas and the
+     board is gone with the page-specific menus it belonged to. */
+
+  /* ── wrap the renderer ── */
+  if(typeof window.renderFabAI === 'function'){
+    const orig = window.renderFabAI;
+    const wrapped = function(){
+      relabel();
+      return orig.apply(this, arguments);
+    };
+    window.renderFabAI = wrapped;
+  }
+
+  document.addEventListener('DOMContentLoaded', relabel);
+  relabel();
+
+  /* ═══ 4 · THE TWO DESCRIPTION JOBS ═══
+     A title and a description are not the same job, and the app keeps both:
+     the title jobs NAME a section, the description jobs say what it is FOR.
+     What went wrong before was that the description was hung on the title
+     jobs — “Chapter description” where “Chapter titles” had been — so the
+     writer lost the naming job and, in the right-click menu, pressed a
+     button that said “Chapter titles” and got prose back.
+
+     These two functions are the DESCRIPTION side, in the form's own words
+     and with the project in front of them. They are put on olChapterSubs
+     and olSubSubs — the pair outline-menu.js adds under each title job —
+     and the title jobs are left alone: olChapterTitles and olSubTitles stay
+     pages-fix.js's own, which return names and nothing else. */
+  const brief = function(){
+    try{ return (typeof sfProjectBrief === 'function') ? sfProjectBrief() : ''; }catch(e){ return ''; }
+  };
+  const ask = function(title, sub, prompt){
+    try{
+      if(typeof sfAsk === 'function') return sfAsk(title, sub, prompt);
+    }catch(e){}
+  };
+
+  const olChapter = function(){
+    const u = units();
+    ask(u.one + ' description', 'From your outline',
+      'You are a story editor writing reference notes on a writer\u2019s own outline.\n\n' +
+      brief() + '\n\n' +
+      'Task: write a short DESCRIPTION of what each ' + u.one.toLowerCase() +
+      ' covers, one per ' + u.one.toLowerCase() + ' listed in the structure above.\n' +
+      'Rules:\n' +
+      '- Two or three sentences each: what happens, and what it is for in the whole.\n' +
+      '- Use only what the outline, the plan, the Bible and the drafts actually say. Never invent events, names or places.\n' +
+      '- Where the outline is still empty for a ' + u.one.toLowerCase() + ', write "not yet planned" and nothing more.\n' +
+      '- No titles, no numbering of your own, no praise.\n' +
+      'Reply as a plain list — "' + u.one + ' 1 — description" — and nothing else.');
+  };
+
+  const olSub = function(){
+    const u = units();
+    ask(u.sub + ' description', 'From your outline',
+      'You are a story editor writing reference notes on a writer\u2019s own outline.\n\n' +
+      brief() + '\n\n' +
+      'Task: for every ' + u.one.toLowerCase() + ' above that has ' + u.subs.toLowerCase() +
+      ', write a short DESCRIPTION of each ' + u.sub.toLowerCase() + '.\n' +
+      'Rules:\n' +
+      '- One or two sentences each: what happens in it, in order.\n' +
+      '- Use only what the outline, the plan, the Bible and the drafts actually say. Never invent events, names or places.\n' +
+      '- Where one is still empty, write "not yet planned".\n' +
+      '- No titles, no praise, no suggestions.\n' +
+      'Reply as a plain list — "' + u.one + ' — ' + u.sub + ': description" — and nothing else.');
+  };
+
+  /* the order check speaks in the form's own words too, and reads the whole
+     project before it judges the order */
+  const olOrder = function(){
+    const u = units();
+    const one = u.one.toLowerCase(), subs = u.subs.toLowerCase();
+    ask('Structure check', 'Outline',
+      'You are a developmental editor.\n\n' + brief() + '\n\n' +
+      'Task: read the ' + one + ' and ' + subs + ' order above against everything you were given — the plan, the Bible, the drafts — and tell the writer, plainly:\n' +
+      '1. what the order is doing well, in one or two lines,\n' +
+      '2. which ' + one + ' or ' + u.sub.toLowerCase() + ' is in the wrong place, and where it should go,\n' +
+      '3. the single change that would help most.\n' +
+      'Judge only from what is actually in the project. If the outline is too thin to judge, say so in one line instead of inventing structure.\n' +
+      'Under 250 words. No praise padding.');
+  };
+
+  /* swapped onto the shared table, so the panel, the keyboard and anything
+     else that calls them by name all reach the same two functions */
+  F().olChapterSubs = olChapter;      /* Chapter description    */
+  F().olSubSubs     = olSub;          /* Subchapter description */
+  F().olStructure   = olOrder;        /* Check the order        */
+})();
+
+
+/* ══════════ context-fix.js ══════════ */
+/* ═══════════════════════════════════════════════════════════
+   ScriptForge — what the assistant already knows
+
+   Every AI request carries the project, in the order the writer built it:
+
+       the prompt page  →  the drafts (and the chat on them)  →
+       the outline  →  the plan / beat board  →  the board  →
+       the reference page  →  the Bible  →  what is on screen now
+
+   so the answer at each stage is written by something that has read the
+   stages before it. The Outline page sees the drafts and the chat about
+   them; the Plan sees the outline; the manuscript sees the plan. The board
+   and the reference page are always carried, because they are the record
+   the rest of the book is checked against.
+
+   It is built fresh from the ACTIVE project and the ACTIVE workspace on
+   every request, and nothing is cached — so a second project, or a second
+   workspace inside this one, is a different book to the assistant, with no
+   way for one to leak into the other.
+
+   This layer only adds to the brief the app already builds (sfProjectBrief
+   in pages-fix.js, which carries the title, the form, the structure, the
+   Bible, the beats and the current section). It runs after every other
+   script, and both AI doors — callAI, and the Draft chat's own request
+   builder — read the result.
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  const CAP = 5200;                 /* the chain's own ceiling, in characters */
+
+  const data = function(){
+    try{ return (typeof D === 'function') ? (D() || null) : null; }catch(e){ return null; }
+  };
+  const projOf = function(){
+    try{
+      const d = D();
+      return (d.projects || []).filter(function(p){ return p.id === d.currentProject; })[0] || null;
+    }catch(e){ return null; }
+  };
+  const flat = function(s){ return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); };
+  const cut = function(s, n){
+    const t = flat(s);
+    return t.length > n ? t.slice(0, n - 1) + '…' : t;
+  };
+  const html = function(s){ return flat(String(s || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ')); };
+  const words = function(s){
+    try{ if(typeof olWords === 'function') return olWords(s); }catch(e){}
+    return flat(s).split(' ').filter(Boolean).length;
+  };
+
+  /* ── the drafts, with their prose: what the writing actually says ── */
+  const drafts = function(d){
+    const list = (d && Array.isArray(d.drafts)) ? d.drafts : [];
+    if(!list.length) return '';
+    return list.slice(0, 8).map(function(x, i){
+      const body = html(x.body);
+      return (i + 1) + '. ' + cut(x.title || 'Untitled', 60) + ' (' + words(body).toLocaleString() + ' words)' +
+             (body ? '\n   "' + cut(body, 240) + '"' : '');
+    }).join('\n');
+  };
+
+  /* ── what has already been said about it, on the draft page ── */
+  const chat = function(d){
+    const list = (d && Array.isArray(d.aiChats)) ? d.aiChats : [];
+    if(!list.length) return '';
+    /* the chat the writer is in, or the one used most recently */
+    let c = d.aiChatActive ? list.filter(function(x){ return x && x.id === d.aiChatActive; })[0] : null;
+    if(!c) c = list[list.length - 1];
+    if(!c || !Array.isArray(c.messages) || !c.messages.length) return '';
+    const tail = c.messages.slice(-8).map(function(m){
+      return (m.role === 'user' ? 'Writer: ' : 'Assistant: ') + cut(m.text, 260);
+    }).join('\n');
+    const name = c.title ? '“' + cut(c.title, 50) + '”' : 'the chat';
+    return name + ':\n' + tail;
+  };
+
+  /* ── the board: which list each piece stands in ──
+     The cards are the same ones the Board page draws: every chapter and
+     every subchapter, in the list it has been moved to. */
+  const board = function(d){
+    let proj = null, cols = [], state = {};
+    try{ proj = (typeof kbProj === 'function') ? kbProj() : null; }catch(e){}
+    try{ cols = (typeof kbColumns === 'function') ? kbColumns() : []; }catch(e){}
+    try{
+      state = (proj && proj.kanban) || {};
+      if(state && Array.isArray(state.columns)) state = {};       /* the old shape */
+    }catch(e){ state = {}; }
+    if(!proj || !cols.length) return '';
+
+    const cards = [];
+    ((d && d.chapters) || []).forEach(function(c, i){
+      cards.push({ id:c.id, title:c.title || ('Chapter ' + (i + 1)), body:c.content });
+      (c.children || []).forEach(function(x, j){
+        cards.push({ id:x.id, title:x.title || ('Subchapter ' + (j + 1)), body:x.content });
+      });
+    });
+    if(!cards.length) return '';
+
+    /* a card with no explicit list sits where the app would put it: drafted
+       once it has words, in the first list before that */
+    const auto = cols[0] ? cols[0].id : '';
+    const drafted = cols[1] ? cols[1].id : auto;
+    const out = [];
+    cols.forEach(function(col){
+      const inCol = cards.filter(function(c){
+        const st = state[c.id];
+        const at = (st && cols.some(function(x){ return x.id === st; })) ? st
+                 : (words(c.body) > 0 ? drafted : auto);
+        return at === col.id;
+      });
+      if(!inCol.length) return;
+      out.push(col.name + ': ' + inCol.slice(0, 14).map(function(c){
+        return cut(c.title, 50) + (words(c.body) ? ' (' + words(c.body) + 'w)' : '');
+      }).join(', '));
+    });
+    return out.join('\n');
+  };
+
+  /* ── the reference page: what the writer looked up and kept ── */
+  const refs = function(d){
+    const list = (d && Array.isArray(d.references)) ? d.references : [];
+    if(!list.length) return '';
+    return list.slice(0, 20).map(function(r){
+      const t = cut(r.title || r.name || r.url || 'Reference', 70);
+      const note = cut(r.note || r.summary || r.text || '', 90);
+      return '- ' + t + (note ? ' — ' + note : '');
+    }).join('\n');
+  };
+
+  /* ── the plan, when the beads are not already in the brief ── */
+  const plan = function(d){
+    const list = (d && Array.isArray(d.beats)) ? d.beats : [];
+    if(!list.length) return '';
+    return list.slice(0, 30).map(function(b, i){
+      return (i + 1) + '. [' + (b.type || 'beat') + '] ' + cut(b.text || b.title || '', 110);
+    }).join('\n');
+  };
+
+  const chain = function(){
+    const d = data();
+    if(!d) return '';
+    const out = [];
+    const push = function(head, body){ if(body) out.push(head + ':\n' + body); };
+
+    push('DRAFTS IN THIS PROJECT', drafts(d));
+    push('WHAT HAS ALREADY BEEN SAID ABOUT IT (the draft page chat)', chat(d));
+    /* the structure, the beats and the Bible are in the brief above; the
+       plan gets its own lines here when the brief could not carry them all */
+    push('PLAN — BEAT BOARD', plan(d));
+    push('THE BOARD (which list each piece stands in)', board(d));
+    push('REFERENCE PAGE — kept by the writer', refs(d));
+
+    let text = out.join('\n\n');
+    if(text.length > CAP) text = text.slice(0, CAP - 1) + '…';
+    return text;
+  };
+
+  const head = '\n\nTHE PROJECT SO FAR — the stages this one comes after, each one a ' +
+               'separate part of the same book. Use it. Do not invent anything that ' +
+               'contradicts it, and do not restate it back to the writer.\n';
+
+  if(typeof window.sfProjectBrief === 'function' && !window.sfProjectBrief.__sfChain){
+    const orig = window.sfProjectBrief;
+    const wrapped = function(){
+      let base = '';
+      try{ base = String(orig.apply(this, arguments) || ''); }catch(e){ base = ''; }
+      let more = '';
+      try{ more = chain(); }catch(e){ more = ''; }
+      return more ? (base + head + more) : base;
+    };
+    wrapped.__sfChain = true;
+    window.sfProjectBrief = wrapped;
+  }
+})();
+
+
+/* ══════════ final-fix.js ══════════ */
+/* ═══════════════════════════════════════════════════════════
    ScriptForge — the last pass
 
    Loaded after every other script, so its wrappers run after theirs.
    Six jobs:
 
      1 DARK, AND ONLY DARK     the app is dark. The Light mode that
-                               themepack.js can paint is unreachable: the
+                               settings.js can paint is unreachable: the
                                stored preference is pinned to dark, the
                                mode can be set to nothing else, and a
                                light paint is undone the moment it lands.
@@ -56,7 +436,7 @@
   };
 
   /* ═══ 1 · DARK, AND ONLY DARK ═══
-     themepack.js owns setThemeMode and the light palettes. This pins the
+     settings.js owns setThemeMode and the light palettes. This pins the
      mode to dark and re-paints if anything ever writes light back — a
      stored preference from an older build, a stale localStorage value, or
      a line of code that still asks for it. */
@@ -481,3 +861,211 @@
     e.stopImmediatePropagation();
   }, true);
 })();
+
+
+/* ══════════ font-pack.js ══════════ */
+/* ═══════════════════════════════════════════════════════════
+   ScriptForge — the faces the two font pickers offer
+
+   THE THING THAT DID NOT HAPPEN
+   Settings → Font → App font offers 67 families and the writing toolbar
+   offers the same 67. Picking one set a font-family and nothing else —
+   because not one @font-face for those families was ever in the app. The
+   sheet that was meant to carry them, vendor/webfonts/fonts.css, is
+   linked from index.html and is not in the build, so every family
+   resolved to the first fallback the browser could find:
+
+     · in the writing face that is a generic serif, so all 26 serif picks
+       looked like each other, and like the default;
+     · in the interface it was `system-ui` — which is what the app
+       already uses — so “App font” could be set to anything at all and
+       the app went on looking exactly the same.
+
+   THE FIX, in four parts
+
+     1 · A TRUTHFUL STACK. FONTS carries each family's own stack, generic
+         and all (`'Merriweather',serif`, `'Space Mono',monospace`), so
+         the name is turned into that stack rather than into a hairline
+         family with a serif tail glued on. A serif pick now falls back
+         to serif and a mono pick to monospace: the pick changes the app
+         even before a font file arrives, and what is missing is the face,
+         not the choice.
+
+     2 · THE FACE ITSELF, on demand. The chosen family is fetched once and
+         only the chosen one — never all 67 — with the link added rather
+         than waited on, so the app keeps painting and the type sharpens
+         when the file lands. Two requests go out per family: the 400/700
+         pair (real bold instead of a synthesised one), and the bare
+         family, because a family that publishes no 700 — Patrick Hand is
+         one — answers the first with an error and would stay missing.
+
+     2b · THE APP'S OWN FOUR FACES, too. theme.css names Inter for the
+         interface, Fraunces for display type, JetBrains Mono for source
+         and Merriweather for the page you write on — and this build
+         ships no file for any of them either. So the app has never been
+         drawn in its own face: the interface fell to system-ui, and the
+         two serif tokens to Georgia. Those four come down once, on boot,
+         with the same pass, so the app is itself before anything is
+         picked — and a pick is a change from that, not from a fallback.
+
+     3 · THE APP'S OWN COPY WINS. If a build did ship
+         vendor/webfonts/fonts.css, the sheet is in the document and names
+         real faces, and nothing is fetched at all: the offline desktop
+         build keeps its own fonts. With no network and no local copy the
+         stack in (1) is what shows, which is a real face's fallback
+         rather than the default under a different name.
+
+   Both pickers are followed — the app face and the writing face — because
+   they read the same table of faces.
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  const configOf = function(){
+    try{ return (typeof S !== 'undefined' && S.config) ? S.config : null; }catch(e){ return null; }
+  };
+  const faces = function(){
+    try{ return (typeof FONTS !== 'undefined' && Array.isArray(FONTS)) ? FONTS : []; }catch(e){ return []; }
+  };
+
+  /* ═══ 1 · the stack a family name stands for ═══
+     The table is the only place that knows which generic a face belongs
+     to. An unknown name is quoted and left to the browser, which is what
+     the app did for every name before this file. */
+  const stackOf = function(name){
+    if(!name) return '';
+    const f = faces().filter(function(x){ return x && x.name === name; })[0];
+    return (f && f.f) ? f.f : '"' + String(name) + '"';
+  };
+  /* what a setting writes when it wants that face, generic and all */
+  window.sfFontStack = function(name){ return stackOf(name); };
+
+  /* ═══ 2 · the app's own copy, when the build shipped one ═══
+     index.html links vendor/webfonts/fonts.css. A sheet that answered
+     with rules is the app's own copy and is the end of the question; a
+     sheet that 404'd has no rules, which is how this file knows the
+     families have to come from somewhere. */
+  let local = null;
+  const vendored = function(){
+    if(local !== null) return local;
+    local = false;
+    const sheets = document.styleSheets || [];
+    for(let i = 0; i < sheets.length; i++){
+      let href = '';
+      try{ href = String(sheets[i].href || ''); }catch(e){ continue; }
+      if(href.indexOf('webfonts/fonts.css') < 0) continue;
+      try{
+        if(sheets[i].cssRules && sheets[i].cssRules.length){ local = true; return true; }
+      }catch(e){}
+    }
+    return false;
+  };
+
+  /* ═══ 3 · the face itself, once, and only the one in use ═══ */
+  const asked = {};
+  const url = function(name, axes){
+    return 'https://fonts.googleapis.com/css2?family='
+      + encodeURIComponent(name).replace(/%20/g, '+') + axes + '&display=swap';
+  };
+  const tag = function(name, axes){
+    const el = document.createElement('link');
+    el.rel = 'stylesheet';
+    el.href = url(name, axes);
+    el.setAttribute('data-sf-face', name);
+    document.head.appendChild(el);
+    return el;
+  };
+  const load = function(name){
+    if(!name || asked[name]) return;
+    asked[name] = 1;
+    if(vendored()) return;                       /* the build carries them */
+    tag(name, ':wght@400;700');                  /* regular, and real bold */
+    tag(name, '');                               /* the regular alone */
+  };
+
+  /* the four faces theme.css's own tokens name — the interface, the two
+     kinds of display type and the page. With no file shipped for them the
+     app wears its fallbacks everywhere, which is what makes a pick in the
+     App font select look like the app it already was. Fetched once, on
+     boot, and a no-op the moment a build carries the folder again. */
+  const OWN = ['Inter', 'Fraunces', 'JetBrains Mono', 'Merriweather'];
+  const ownFaces = function(){
+    for(let i = 0; i < OWN.length; i++) load(OWN[i]);
+  };
+
+  /* ═══ 4 · the app face ═══
+     `--ui` is the family across the whole interface (theme.css holds the
+     default, here it is replaced or handed back). A face is written as
+     its whole stack, so an interface in a serif face really is a serif
+     interface — and says so even where the file is still coming. */
+  const paintUi = function(){
+    const c = configOf();
+    const stack = c ? stackOf(c.uiFont) : '';
+    try{
+      const root = document.documentElement;
+      if(stack) root.style.setProperty('--ui', stack);
+      else root.style.removeProperty('--ui');
+    }catch(e){}
+  };
+
+  /* ═══ 5 · follow both settings ═══
+     The two change in four places — the Appearance selects, the toolbar's
+     own font list, a split pane, and a project switch (a project carries
+     its own writing face), so the settings are read rather than the
+     controls hooked: anything that writes S.config is caught. */
+  const last = { f:null, u:null };
+  const sync = function(){
+    const c = configOf();
+    if(!c) return;
+    if(c.font !== last.f){
+      last.f = c.font;
+      load(c.font);
+    }
+    if(c.uiFont !== last.u){
+      last.u = c.uiFont;
+      paintUi();
+      load(c.uiFont);
+    }
+  };
+  window.sfFontSync = sync;
+
+  /* the two calls the app already makes, answered at once rather than on
+     the next tick of the watch below */
+  const wrap = function(name, after){
+    const orig = window[name];
+    if(typeof orig !== 'function' || orig.__sfFaces) return;
+    const fn = function(){
+      const r = orig.apply(this, arguments);
+      try{ after.apply(null, arguments); }catch(e){}
+      return r;
+    };
+    fn.__sfFaces = true;
+    window[name] = fn;
+  };
+  wrap('applyConfig', function(key){ if(key === 'font' || key === 'uiFont') sync(); });
+  wrap('applyAllConfig', sync);
+
+  /* The writing page's own font control (and its keyboard step) ends in
+     write.js's applyFont, which writes the bare family with a serif tail:
+     a mono or sans pick would fall to a serif while the file is on its way.
+     That one line cannot be reached from here, so the face is said again,
+     whole, right after it runs — the same value the line was aiming for. */
+  wrap('applyFont', function(){
+    const c = configOf();
+    load(c && c.font);
+    const stack = stackOf(c && c.font);
+    if(!stack) return;
+    const ed = document.getElementById('editor');
+    if(ed) ed.style.fontFamily = stack;
+  });
+
+  /* and the net under them: a slow read of the two settings, so a path
+     this file never heard of still lands. It writes only on a change. */
+  setInterval(function(){ try{ sync(); }catch(e){} }, 1500);
+
+  ownFaces();
+  if(document.body) sync();
+  else document.addEventListener('DOMContentLoaded', sync);
+  setTimeout(function(){ try{ sync(); }catch(e){} }, 400);
+})();
+

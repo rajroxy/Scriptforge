@@ -135,14 +135,14 @@ check("selecting keeps the choice out of saved state", vm.runInContext("delete D
 
 // The overlay itself is sized to the content, so there is no dead space to the
 // right of the stats column: 2 tiles (164 each) + gap + stats (240) + padding.
-const layout = fs.readFileSync("layout.css", "utf8");
+const layout = fs.readFileSync("app.css", "utf8");
 const overlayW = Number((layout.match(/\.pages-overlay\{[\s\S]*?width:(\d+)px/) || [])[1]);
 const statsW = Number((fs.readFileSync("pages.css", "utf8").match(/\.cat-stats\{[\s\S]*?width:(\d+)px/) || [])[1]);
 const needed = 2 * 164 + 8 + statsW + 40 + 2;
 check("overlay width fits tiles + stats (no empty space right of the stats)",
   overlayW > 0 && overlayW >= needed && overlayW <= needed + 20);
 
-// Button styling lives in layout.css with the tile
+// Button styling lives in app.css with the tile
 check("New project button is a filled, full-width tile action",
   /\.cat-new-btn\{[^}]*margin-top:auto/.test(layout) && /\.cat-new-btn\{[^}]*width:100%/.test(layout) && /\.cat-new-btn\{[^}]*background:var\(--accent\)/.test(layout));
 check("old icon-button CSS removed", !/\.cat-icon-btn\{/.test(layout) && !/\.cat-actions\{/.test(layout));
@@ -157,7 +157,7 @@ check("panel CSS: boxed card beside the tiles", /\.cat-stats\{[^}]*border:1px so
 check("card has no horizontal divider", !/\.cat-stats-name\{/.test(css));
 check("ghost buttons match the playlist rows (22px, borderless, fade in on hover)",
   /\.proj-btn\{[^}]*width:22px/.test(css) && /\.proj-btn\{[^}]*border:none/.test(css) && /\.proj-btn\{[^}]*opacity:0/.test(css) && /\.proj-row:hover \.proj-btn[^{]*\{[^}]*opacity:1/.test(css));
-check("no legacy per-item card box in layout.css", !/\.proj-item\{[^}]*border:1px solid/.test(layout));
+check("no legacy per-item card box in app.css", !/\.proj-item\{[^}]*border:1px solid/.test(layout));
 check("panel CSS: fits the tile height", /\.cat-row\{[^}]*align-items:stretch/.test(css));
 check("dead expand CSS removed", !/\.proj-expand\{/.test(css) && !/\.proj-action\{/.test(css) && !/\.proj-open-btn\{/.test(css));
 check("panel CSS: created top-right, numbers bottom row", /\.cat-stats-top\{[^}]*justify-content:space-between/.test(css) && /\.cat-stats-bottom\{[^}]*justify-content:space-between/.test(css) && /\.cat-stat-created\{[^}]*max-width/.test(css));

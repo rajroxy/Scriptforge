@@ -15,12 +15,11 @@ const MODES = [
     name: 'Novel',
     icon: 'book',
     desc: 'Long-form prose writing',
-    /* exactly two kinds of novel work, and nothing else: a project is
-       fiction or it is not. See also the statistics page, which reads
-       these rather than keeping a list of its own. */
+    /* ONE kind of novel work. There is no second category: the
+       statistics page, the sidebar filters and the project lists all
+       read these, so adding one here would invent it everywhere. */
     categories: [
       { id: 'fiction',    name: 'Fiction',     icon: 'book-half',    desc: 'Novels, novellas, and short stories' },
-      { id: 'nonfiction', name: 'Non-fiction', icon: 'journal-text', desc: 'Memoir, reportage, essays — true stories' },
     ],
     editorViews:    ['draft', 'outline', 'plan', 'manuscript', 'kanban', 'bible'],
     fabGroups: [
@@ -43,7 +42,6 @@ const MODES = [
     desc: 'Scripted writing',
     categories: [
       { id: 'fiction',    name: 'Fiction',     icon: 'book-half',    desc: 'Screenplays and scripts' },
-      { id: 'nonfiction', name: 'Non-fiction', icon: 'journal-text', desc: 'Documentary, true-story and essay films' },
     ],
     editorViews:    ['draft', 'outline', 'plan', 'manuscript', 'kanban', 'bible'],
     fabGroups: [
@@ -284,6 +282,32 @@ const THEMES = [
       acc:'#5eead4', acc2:'#a78bfa', accInk:'#06121f', accSoft:'rgba(94,234,212,.12)', accLine:'rgba(94,234,212,.32)',
       grad:'linear-gradient(135deg,#5eead4 0%,#a78bfa 100%)',
       docBg:'#0e1530', docInk:'#dae2f7', caret:'#a78bfa', sel:'#7c5cff', selInk:'#0b1020'
+    }
+  },
+  {
+    id:'sakura', name:'Sakura', c1:'#17101a', c2:'#f09ab8', dark:true,
+    note:'Deep plum with rose and lilac — soft, and still dark',
+    palette:{
+      bg:'#17101a', s1:'#1f1622', s2:'#271c2b', s3:'#312335', s4:'#3d2c42', s5:'#4b3752',
+      ov:'rgba(255,180,220,.05)', ovs:'rgba(255,180,220,.10)',
+      ink:'#f2e9f2', ink2:'#cdbcd0', ink3:'#a291a9', ink4:'#7b6a83',
+      line:'#241a28', line2:'#2e2133', line3:'#3d2c43',
+      acc:'#f09ab8', acc2:'#b98cf0', accInk:'#20101a', accSoft:'rgba(240,154,184,.13)', accLine:'rgba(240,154,184,.34)',
+      grad:'linear-gradient(135deg,#f09ab8 0%,#b98cf0 100%)',
+      docBg:'#1c1320', docInk:'#ecdfef', caret:'#f09ab8', sel:'#a8648f', selInk:'#fdf3f9'
+    }
+  },
+  {
+    id:'cobalt', name:'Cobalt', c1:'#0c1226', c2:'#6f8bff', dark:true,
+    note:'Deep blue paper with a bright ink — clean and precise',
+    palette:{
+      bg:'#0c1226', s1:'#121a33', s2:'#18213f', s3:'#1f2a4d', s4:'#28355d', s5:'#34426f',
+      ov:'rgba(150,175,255,.06)', ovs:'rgba(150,175,255,.11)',
+      ink:'#e8edfb', ink2:'#bcc7e6', ink3:'#8e9cc2', ink4:'#67739a',
+      line:'#16203c', line2:'#1f2a4c', line3:'#2f3c66',
+      acc:'#6f8bff', acc2:'#4fd1c5', accInk:'#081026', accSoft:'rgba(111,139,255,.14)', accLine:'rgba(111,139,255,.34)',
+      grad:'linear-gradient(135deg,#6f8bff 0%,#4fd1c5 100%)',
+      docBg:'#101836', docInk:'#dde5fb', caret:'#6f8bff', sel:'#3f61e0', selInk:'#f2f6ff'
     }
   }
 ];

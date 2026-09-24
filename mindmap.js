@@ -1,4 +1,187 @@
 /* ═══════════════════════════════════════════════════════════
+   mindmap.js — merged file.
+
+   The whole contents of these scripts were moved here, at the bottom, in
+   their original load order:
+     · chapter-align.js
+     · mindmap.js
+     · fab-tip.js
+   Nothing was rewritten, removed or reordered. Because every script
+   below was contiguous in index.html, concatenation keeps the exact
+   execution order they had as separate files.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ══════════ chapter-align.js ══════════ */
+/* ═══════════════════════════════════════════════════════════
+   Writer — the chapter bar sits on the toolbar's columns.
+
+   Two rows, two jobs:
+
+   · ICONS   Notes → Bold · Book → Italic · Utilities → Subscript
+             each icon takes its own transform until its centre lands on
+             the centre of the toolbar button it belongs under.
+
+   · DIVIDERS
+             the hairline BEFORE the note icon lands on the toolbar's own
+             divider before Bold, and the hairline AFTER the utility icon
+             lands on the toolbar's divider after Subscript — so the two
+             rows read as one grid down the page.
+
+   WHY THE LINE WANDERED OFF ITS MARK
+
+   A divider is placed with its left margin. The stylesheet declares
+   `margin:0 10px !important` on .cc-sep, and an important stylesheet rule
+   beats an inline style — so every margin this file wrote was thrown away
+   and the hairline simply sat where the CSS left it. That is why the bar
+   showed a divider of its own instead of the toolbar's. The margin is now
+   written with !important too (setProperty with a priority), so it is the
+   one that wins, and the line lands where it is aimed.
+
+   A margin moves the line AND everything after it, so the row keeps its
+   order and the icons are measured after the hairlines. The margin is
+   clamped into the gap the line owns: it can never be dragged onto the
+   selects on one side or onto the note icon on the other.
+
+   Re-measured whenever either bar redraws and on resize. Every shift is
+   wiped before each pass, so a redraw can never stack two of them.
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  /* [ the tool in the chapter bar , the toolbar button it sits under ] */
+  const PAIRS = [
+    ['[data-act="notes-open"]',                      '[data-cmd="bold"]'],
+    ['[data-act="go-page"][data-page="notebook"]',   '[data-cmd="italic"]'],
+    ['[data-act="util-open"]',                       '[data-cmd="subscript"]']
+  ];
+
+  const groupOf = function(tb, sel){
+    const btn = tb.querySelector(sel);
+    return btn ? btn.closest('.tb-group') : null;
+  };
+
+  /* the .cc-sep immediately before / after the group holding a button */
+  const sepNear = function(bar, sel, side){
+    const btn = bar.querySelector(sel);
+    if(!btn) return null;
+    const group = btn.closest('.chapter-control') || btn.parentElement;
+    if(!group) return null;
+    const s = side === 'before' ? group.previousElementSibling : group.nextElementSibling;
+    return (s && s.classList && s.classList.contains('cc-sep')) ? s : null;
+  };
+
+  /* [ the chapter-bar hairline , where it must land in the toolbar ]
+     A toolbar divider is the right border of the group before the next one,
+     so the line to aim at is that group's right edge. */
+  const DIVIDERS = [
+    { sep: function(bar){ return sepNear(bar, '[data-act="notes-open"]', 'before'); },
+      at:  function(tb){
+        const g = groupOf(tb, '[data-cmd="bold"]');
+        if(!g) return null;
+        const before = g.previousElementSibling;
+        return before ? before.getBoundingClientRect().right
+                      : g.getBoundingClientRect().left;
+      } },
+    { sep: function(bar){ return sepNear(bar, '[data-act="util-open"]', 'after'); },
+      at:  function(tb){
+        const g = groupOf(tb, '[data-cmd="subscript"]');
+        return g ? g.getBoundingClientRect().right : null;
+      } }
+  ];
+
+  const SEP_BASE = 10;          /* the resting margin .cc-sep wears (polish.css) */
+  const SEP_MAX  = 520;
+  const SEP_MIN  = -160;        /* it may travel back a little too */
+
+  const shift = function(el, dx){
+    if(!el || Math.abs(dx) < 0.5) return;
+    const d = Math.max(-520, Math.min(520, dx));
+    el.setAttribute('data-align-shift', '1');
+    el.style.transform = 'translateX(' + (Math.round(d * 10) / 10) + 'px)';
+  };
+
+  /* the margin has to be written with a priority, or the stylesheet's
+     `margin:0 10px !important` wins and the line never moves (see above) */
+  const setMargin = function(sep, px){
+    try{ sep.style.setProperty('margin-left', px + 'px', 'important'); }
+    catch(e){ sep.style.marginLeft = px + 'px'; }
+  };
+
+  /* one hairline: back to its resting margin, measure, then the margin that
+     lands its centre on the toolbar's line — kept inside its own gap */
+  const place = function(sep, at){
+    if(!sep || at == null) return;
+    setMargin(sep, SEP_BASE);
+    const g = sep.getBoundingClientRect();
+    if(!g.width) return;
+
+    const dx = at - (g.left + g.width / 2);
+    let m = SEP_BASE + dx;
+    m = Math.max(SEP_MIN, Math.min(SEP_MAX, m));
+
+    /* It may never be dragged onto the selects on its left. Moving right is
+       always safe: its margin carries the whole rest of the row with it, so
+       the space the line has on either side never shrinks. */
+    const prev = sep.previousElementSibling;
+    if(prev){
+      const pr = prev.getBoundingClientRect().right;
+      if(pr) m = Math.max(m, SEP_BASE + (pr + 2 - g.left));
+    }
+    m = Math.max(SEP_MIN, Math.min(SEP_MAX, m));
+    setMargin(sep, Math.round(m * 10) / 10);
+  };
+
+  const align = function(){
+    const bar = document.getElementById('chapterControls');
+    const tb  = document.getElementById('writeToolbar');
+    if(!bar || !tb) return;
+    if(!bar.getBoundingClientRect().height || !tb.getBoundingClientRect().height) return;
+
+    /* wipe last pass's shifts before measuring */
+    Array.prototype.slice.call(bar.querySelectorAll('[data-align-shift]')).forEach(function(el){
+      el.style.transform = '';
+      el.removeAttribute('data-align-shift');
+    });
+    Array.prototype.slice.call(bar.querySelectorAll('.cc-sep')).forEach(function(el){
+      setMargin(el, SEP_BASE);
+    });
+
+    /* 1 · the hairlines first — a margin moves the layout, so the icons are
+           measured after it, never before */
+    DIVIDERS.forEach(function(d){ place(d.sep(bar), d.at(tb)); });
+
+    /* 2 · the icons, centre to centre */
+    PAIRS.forEach(function(p){
+      const icon = bar.querySelector(p[0]);
+      const ref  = tb.querySelector(p[1]);
+      if(!icon || !ref) return;
+      const g = icon.getBoundingClientRect();
+      const r = ref.getBoundingClientRect();
+      if(!g.width || !r.width) return;
+      shift(icon, (r.left + r.width / 2) - (g.left + g.width / 2));
+    });
+  };
+
+  let raf = 0;
+  const schedule = function(){
+    if(raf) return;
+    raf = requestAnimationFrame(function(){ raf = 0; align(); });
+  };
+  window.SF_ALIGN_CHAPTER = schedule;
+
+  window.addEventListener('resize', schedule);
+
+  if(typeof MutationObserver === 'function' && document.body){
+    /* childList only — our own inline margins must not re-trigger this */
+    new MutationObserver(schedule).observe(document.body, { childList:true, subtree:true });
+  }
+
+  const start = function(){ schedule(); setTimeout(schedule, 120); setTimeout(schedule, 400); };
+  if(document.body) start();
+  else document.addEventListener('DOMContentLoaded', start);
+})();
+
+
+/* ══════════ mindmap.js ══════════ */
+/* ═══════════════════════════════════════════════════════════
    ScriptForge — Canvas (visual relationships)
 
    A canvas for visual relationships, in the spirit of Obsidian's canvas:
@@ -628,3 +811,134 @@
 
   window.addEventListener('resize', schedule);
 })();
+
+
+/* ══════════ fab-tip.js ══════════ */
+/* ═══════════════════════════════════════════════════════════
+   FAB — one tooltip for both menus
+
+   Left-click menu  → a page: its name, its command-box key and what
+                      the page is for.
+   Right-click menu → an AI option: its name and what it does.
+   The FAB itself    → both gestures.
+
+   The menus are scrolled cards, so a CSS tooltip would be clipped;
+   this one floats beside the card. The item's own native title is
+   removed on hover so only this tip shows.
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  const ABOUT = {
+    home:       'The dashboard — Overview and Statistics',
+    inspire:    'Prompts and exercises written from your own project',
+    draft:      'Plain-text passes — the quick, unformatted work',
+    outline:    'Chapters and subchapters, in the order you want',
+    plan:       'A visual beat board for the story',
+    manuscript: 'The writing view — formatted pages, chapter by chapter',
+    script:     'The writing view — formatted script pages',
+    bible:      'Characters, places, items, events and the timeline',
+    kanban:     'A production board of your sections',
+    mindmap:    'Canvas — cards you place freely and links between them',
+    notebook:   'Projects, snapshots and everything you kept',
+    reader:     'Read it back as a finished book',
+    stats:      'Words, sessions and the day rail',
+    overview:   'A guided tour of the whole app'
+  };
+
+  let tip = null;
+  const box = function(){
+    if(!tip){
+      tip = document.createElement('div');
+      tip.className = 'sf-tip';
+      tip.hidden = true;
+      document.body.appendChild(tip);
+    }
+    return tip;
+  };
+  const hide = function(){ if(tip) tip.hidden = true; };
+
+  const place = function(el, r){
+    const w = el.offsetWidth, h = el.offsetHeight, vw = window.innerWidth || 1200, vh = window.innerHeight || 800;
+    let left = r.left - w - 10;
+    if(left < 8) left = r.right + 10;                 /* no room left → go right */
+    if(left + w > vw - 8) left = Math.max(8, vw - w - 8);
+    const top = Math.min(Math.max(8, r.top + r.height / 2 - h / 2), vh - h - 8);
+    el.style.left = Math.round(left) + 'px';
+    el.style.top  = Math.round(top) + 'px';
+  };
+
+  /* left-click menu item */
+  const pageTip = function(item){
+    const id   = item.dataset.fabGo || '';
+    const name = (item.querySelector('span') || {}).textContent || id;
+    const keys = (typeof CMD_PAGE_KEYS !== 'undefined') ? CMD_PAGE_KEYS : {};
+    const about = ABOUT[id] || '';
+    return {
+      html: '<b>' + esc(name) + (keys[id] ? '  ·  ' + esc(keys[id]) : '') + '</b>'
+          + (about ? '<span>' + esc(about) + '</span>' : '')
+    };
+  };
+
+  /* right-click AI option */
+  const optTip = function(opt){
+    const b  = opt.querySelector('b');
+    const em = opt.querySelector('em');
+    return { html: '<b>' + esc(b ? b.textContent : 'AI') + '</b>'
+                 + (em ? '<span>' + esc(em.textContent) + '</span>' : '') };
+  };
+
+  const show = function(item, info){
+    item.removeAttribute('title');                    /* no native tip on top of ours */
+    const el = box();
+    el.innerHTML = info.html;
+    el.hidden = false;
+    place(el, item.getBoundingClientRect());
+  };
+
+  document.addEventListener('mouseover', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+
+    const page = t.closest('#fabMenu .fab-item[data-fab-go]');
+    if(page){ show(page, pageTip(page)); return; }
+
+    const opt = t.closest('#fabAI .fab-ai-opt');
+    if(opt){ show(opt, optTip(opt)); return; }
+
+    const chip = t.closest('#fabAI .ai-chip');
+    if(chip){
+      show(chip, { html: '<b>' + esc((chip.textContent || '').trim()) + '</b>' });
+      return;
+    }
+
+    const fab = t.closest('#fabBtn');
+    if(fab){
+      const el = box();
+      el.innerHTML = '<b>Pages menu  ·  left click</b><span>Every view of this project</span>'
+                   + '<b style="margin-top:4px">AI assistant  ·  right click</b><span>Rewrite, continue, translate…</span>';
+      el.hidden = false;
+      place(el, fab.getBoundingClientRect());
+      return;
+    }
+
+    hide();
+  }, true);
+
+  document.addEventListener('mouseout', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    if(!t.closest('#fabWrap')) return;
+    const to = e.relatedTarget;
+    if(!to || !to.closest || !to.closest('#fabWrap')) hide();   /* left the FAB area */
+  }, true);
+
+  document.addEventListener('click', hide, true);
+  window.addEventListener('resize', hide);
+
+  const labelFab = function(){
+    const fab = document.getElementById('fabBtn');
+    if(fab) fab.removeAttribute('title');
+  };
+  if(document.body) labelFab();
+  else document.addEventListener('DOMContentLoaded', labelFab);
+})();
+
