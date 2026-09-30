@@ -7587,6 +7587,11 @@
     tag(name, ':wght@400;700');                  /* regular, and real bold */
     tag(name, '');                               /* the regular alone */
   };
+  /* the same fetch, on demand, for anything that draws type outside the two
+     pickers. The IMF rotation asks for its three faces with this, which is
+     the whole of why three picks used to type as one: nothing ever asked for
+     them, so each painted as its generic fallback. Idempotent per family. */
+  window.sfLoadFont = load;
 
   /* the four faces theme.css's own tokens name — the interface, the two
      kinds of display type and the page. With no file shipped for them the
@@ -11422,13 +11427,13 @@
 
     let r = null;
     if(typeof row === 'function'){
-      try{ r = row('App colour', 'Colour of the text across the interface', ctl); }catch(e){ r = null; }
+      try{ r = row('Font colour', 'Colour of the text across the interface', ctl); }catch(e){ r = null; }
     }
     if(!r){
       r = document.createElement('div');
       r.className = 'set-row';
       const l = document.createElement('div');
-      l.innerHTML = '<div class="set-label">App colour</div>';
+      l.innerHTML = '<div class="set-label">Font colour</div>';
       const c = document.createElement('div');
       c.className = 'set-ctrl';
       c.appendChild(ctl);
@@ -12198,15 +12203,40 @@
      pages.css's `display:flex !important`) never once showed on screen.
      The bar's own list is kept in full on the drop, so switching modes puts
      a family back where it was. */
+  /* A manuscript is set in a novel face and a script in a screenplay one.
+     The bar offered Inter, Fira Sans and JetBrains Mono on the manuscript —
+     three families no book is printed in — so the prose pack is the prose
+     serifs and nothing else. A face the writer is already in is kept
+     whatever the pack says (below), so a project set in a sans keeps it. */
   const PACK_SCRIPT = ['Courier Prime','Courier New','Courier Final Draft'];
   const PACK_PROSE  = ['Merriweather','Lora','EB Garamond','Source Serif 4',
-                       'Inter','Fira Sans','JetBrains Mono'];
+                       'Crimson Text','Libre Baskerville','Spectral','Literata'];
   const sfOnScript = function(){
     try{ return S.mode === 'screenplay'; }catch(e){ return false; }
   };
-  /* the pack for the page the writer is on — 17j reads it for the script
-     page's own face, so it is published */
-  const fontPack = function(){ return sfOnScript() ? PACK_SCRIPT : PACK_PROSE; };
+  /* ── ONE SCRIPT LIST, NOT TWO ──────────────────────────────
+     There were two lists for the same page and they disagreed: this one kept
+     the three screenplay faces (Courier Prime · Courier New · Courier Final
+     Draft) and §22's own pass kept the typewriter group plus the neutral
+     faces a modern script page is set in. Each removed what the other had
+     kept, so the Font list on the script page came down to ONE row — Courier
+     Prime — which is what the writer saw and reported.
+     The list is §21's (window.sfScriptFaces, published for exactly this), the
+     three screenplay faces stay at its head, and the fallback below is used
+     only if that list has not been built yet. */
+  const fontPack = function(){
+    if(!sfOnScript()) return PACK_PROSE;
+    const out = PACK_SCRIPT.slice();
+    try{
+      if(typeof window.sfScriptFaces === 'function'){
+        window.sfScriptFaces().forEach(function(f){
+          const n = f && f.name;
+          if(n && out.indexOf(n) < 0) out.push(n);
+        });
+      }
+    }catch(e){}
+    return out;
+  };
   window.sfFontPack = fontPack;
   const fontShortList = function(){
     const pack = fontPack();
@@ -12651,18 +12681,15 @@
 /* ═══════════════════════════════════════════════════════════
    15 · THE PLAN PAGE'S BAR, IN THE ORDER IT IS READ
 
-   plan-boards.js draws that head: T · Add beat on the left, and the board's
-   own cluster — new · rename · remove · which board · count — before All
-   boards and Clear on the right. Three things about it are asked for here,
-   and every node is the app's own — the buttons keep their handlers, and
-   the option is a real entry in the select the app drew, so picking it does
-   exactly what pressing the switch does:
+   plan-boards.js draws that head: T · Add board · Add beat on the left, and
+   the board's own cluster — which board · rename · remove — before All
+   boards and Clear on the right. plan-boards.js owns that order now (it
+   rebuilds the row on every paint, which is what made an order written here
+   come undone), so this layer only holds the two things the select needs:
 
-     · T · All boards · Add beat reads down the left. The switch that says
-       “every board at once” comes before the button that adds a card to the
-       board you are on, and both sit with the type button;
-     · the board picker moves to the right and ends the row, immediately
-       before Reset, where the board's own controls belong;
+     · the row carries no count of its own — “1 board” said again, in a
+       number, what the picker already says in words — and it is taken out
+       of every pass so a repaint cannot bring it back;
      · the picker's list carries All boards as its own first entry, so
        choosing a board is one control rather than two.
    ═══════════════════════════════════════════════════════════ */
@@ -12676,8 +12703,6 @@
     const typo    = b.querySelector('[data-typop]');
     const allSw   = b.querySelector('[data-act="plan-all"]');
     const addBeat = b.querySelector('[data-act="add-beat"]');
-    const picker  = b.querySelector('[data-plan-picker]');
-    const reset   = b.querySelector('[data-act="clear-beats"]');
 
     /* and the head carries no count of its own: “2 boards” sat beside the
        picker and said again, in a number, what the picker already says in
@@ -12688,18 +12713,20 @@
       function(el){ el.remove(); }
     );
 
-    /* left: T · All boards · Add beat — appendChild moves what is already
-       there, so this is the sort as well as the move */
+    /* left: T · Add board · Add beat — appendChild moves what is already
+       there, so this is the sort as well as the move. The board adder is
+       plan-boards.js's own button now (it builds it there, because it
+       rebuilds the row on every paint); this only holds the order. */
+    const addBoard = b.querySelector('[data-sf-plan-add]');
     if(typo && left.firstElementChild !== typo) left.insertBefore(typo, left.firstChild);
-    if(allSw)   left.appendChild(allSw);
+    if(addBoard && addBeat && addBeat.parentNode === left) left.insertBefore(addBoard, addBeat);
+    else if(addBoard) left.appendChild(addBoard);
     if(addBeat) left.appendChild(addBeat);
 
-    /* right: … · the board picker · Reset */
-    if(picker && reset && reset.parentNode){
-      if(picker.parentNode !== reset.parentNode || picker.nextElementSibling !== reset){
-        reset.parentNode.insertBefore(picker, reset);
-      }
-    }
+    /* right: the picker keeps the board's own marks — ✎ · 🗑 — and the row
+       ends with All boards and Clear, which is the order plan-boards.js
+       builds. Nothing is moved here: the two layers used to disagree, and
+       the row changed shape on every repaint. */
 
     const sel = b.querySelector('select.plan-board-sel, [data-plan-board]');
     if(!sel) return;
@@ -12945,6 +12972,9 @@
     try{ realMenu(); }catch(e){}
     try{ clearMenuMark(); }catch(e){}
   };
+  /* the one door onto the paragraph/element menu, for anything drawn later —
+     the script page's own Book mark opens it as “Script formatting” (§23) */
+  window.sfOpenStyles = openStyles;
   const openAdvanced = function(){
     closeStyles();                 /* one menu at a time */
     if(typeof window.advToggle !== 'function') return;
@@ -12965,29 +12995,70 @@
     return e.shiftKey && (e.key === '?' || e.code === 'Slash');
   };
 
-  /* ── 17c · the advanced panel's chips, moved one at a time ────
-     pages.js has its own mover, but it is a private function and its keys
-     are ↑ ↓; the row is walked here instead, over the same chips and with
-     the same mark (.adv-on) the panel's own handler paints, so the pointer
-     and the keys agree about which chip is picked. */
-  const advStep = function(dir){
+  /* ── 17c · the advanced panel's chips, moved by the arrow you press ─
+     pages.js has its own mover, but it is a private function and it walks
+     the chips in a flat list whatever key you press. The panel is a grid,
+     so the four arrows are read as four directions here: ← → move to the
+     chip on that side, ↑ ↓ to the chip above or below. The mark is the
+     panel's own (.adv-on), so the pointer and the keys agree about which
+     chip is picked.
+
+     The neighbour is found from the chips' own boxes — the nearest one in
+     the direction pressed, with a sideways move counted against it — so it
+     keeps working whatever the panel's column count turns out to be. */
+  const advMove = function(dx, dy){
     const p = document.getElementById('advPanel');
     if(!p) return;
-    const b = Array.prototype.slice.call(p.querySelectorAll('.adv-btn'));
-    if(!b.length) return;
-    let i = -1;
-    for(let n = 0; n < b.length; n++){ if(b[n].classList.contains('adv-on')){ i = n; break; } }
-    if(i < 0) i = dir > 0 ? -1 : 0;
-    i = (i + dir + b.length) % b.length;
-    b.forEach(function(x){ x.classList.remove('adv-on'); });
-    b[i].classList.add('adv-on');
-    if(b[i].scrollIntoView) b[i].scrollIntoView({ block:'nearest' });
+    const all = Array.prototype.slice.call(p.querySelectorAll('.adv-btn'));
+    if(!all.length) return;
+    const clear = function(){
+      all.forEach(function(x){ x.classList.remove('adv-on'); });
+    };
+    const land = function(x){
+      clear();
+      x.classList.add('adv-on');
+      if(x.scrollIntoView){ try{ x.scrollIntoView({ block:'nearest' }); }catch(e){} }
+    };
+    let cur = null;
+    for(let n = 0; n < all.length; n++){ if(all[n].classList.contains('adv-on')){ cur = all[n]; break; } }
+    /* nothing picked yet: ← ↑ start at the far end, → ↓ at the near one */
+    if(!cur){ land((dx < 0 || dy < 0) ? all[all.length - 1] : all[0]); return; }
+    if(!cur.getBoundingClientRect) return;
+    const a = cur.getBoundingClientRect();
+    const ax = a.left + a.width / 2, ay = a.top + a.height / 2;
+    let best = null, bestScore = 0;
+    all.forEach(function(x){
+      if(x === cur || !x.getBoundingClientRect) return;
+      const r = x.getBoundingClientRect();
+      if(!r.width && !r.height) return;
+      const cx = r.left + r.width / 2 - ax, cy = r.top + r.height / 2 - ay;
+      const along  = dx ? cx * dx : cy * dy;        /* how far the way we are going */
+      if(along <= 1) return;                        /* not that way at all */
+      const across = dx ? Math.abs(cy) : Math.abs(cx);
+      const score  = along + across * 2;            /* stay in the row / column */
+      if(best === null || score < bestScore){ best = x; bestScore = score; }
+    });
+    if(best) land(best);
   };
 
+  /* ── the one field the two keys have to reach ────────────────
+     A script is written in fountain-script.js's own <textarea>, and every
+     key arriving there looks like “a real field”, so both keys stopped at
+     the door: the screenplay element menu and the formatting panel are
+     exactly what a script needs, and neither opened. */
+  const scriptField = function(el){
+    return !!el && !!el.classList && el.classList.contains('fnt-src');
+  };
   window.addEventListener('keydown', function(e){
     if(e.isComposing) return;
-    if(isField(e.target)) return;          /* a real field still types every key */
-    /* Shift + Q — the paragraph-style menu */
+    const script = scriptField(e.target);
+    if(isField(e.target) && !script) return;   /* a real field still types every key */
+    /* Shift + Q — the app's one door to the element menu, on a script too.
+       It used to press the script's own “Insert an element” panel instead;
+       that panel is still in the ⋯ menu, and the element list is the menu
+       the writer is asking for — the screenplay's six elements, drawn over
+       the page they are written on (see §22, which seats it at the caret in
+       the Fountain source and lands the pick in the source itself). */
     if(shiftLetter(e, 'Q', 'KeyQ')){
       e.preventDefault(); e.stopImmediatePropagation();
       openStyles();
@@ -12999,21 +13070,29 @@
       openAdvanced();
       return;
     }
-    /* the two keys that are gone: nothing under this one sees them */
+    /* the two keys that are gone: nothing under this one sees them — and on
+       the script page they are gone too. “@” and “/” are Fountain there, so
+       welcome.js has already stopped the key before this listener runs and
+       the character is left to type; this is the second lock, for a build
+       where that guard is not in the file (see welcome.js · THE SCRIPT
+       PAGE'S OWN TWO KEYS). Nothing is prevented, so the key still types. */
     if(atKey(e) || slashKey(e)){
-      e.preventDefault(); e.stopImmediatePropagation();
+      e.stopImmediatePropagation();
+      if(!script) e.preventDefault();
       return;
     }
-    /* the advanced panel walks left and right — ↑ ↓ are not its keys */
+    /* the advanced panel's chips walk by direction: ↑ ↓ are up and down,
+       ← → are left and right, from where the chip actually sits. */
     const panel = document.getElementById('advPanel');
     if(panel && !panel.hidden){
-      if(e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+      const step = e.key === 'ArrowLeft'  ? [-1, 0]
+                 : e.key === 'ArrowRight' ? [ 1, 0]
+                 : e.key === 'ArrowUp'    ? [ 0,-1]
+                 : e.key === 'ArrowDown'  ? [ 0, 1]
+                 : null;
+      if(step){
         e.preventDefault(); e.stopImmediatePropagation();
-        advStep(e.key === 'ArrowRight' ? 1 : -1);
-        return;
-      }
-      if(e.key === 'ArrowUp' || e.key === 'ArrowDown'){
-        e.preventDefault(); e.stopImmediatePropagation();
+        advMove(step[0], step[1]);
       }
     }
   }, true);
@@ -13431,6 +13510,2415 @@
     }, ms);
   });
 })();
+
+
+/* ═══════════════════════════════════════════════════════════
+   18 · THE PANES, THE DIVIDER, THE POWER SWITCH AND THE BOOK
+
+   · AN OVERLAY PANE'S PAGE KEEPS A SCROLLBAR. It used to be stripped — the
+     pane is an iframe sized to its own frame (index.html?sView=1, which puts
+     `.sf-view` on both <html> and <body>), and the bar down the right edge
+     belonged to a page that always fitted. At an interface scale above 100%
+     the page no longer fits, and a pane with no bar cannot be scrolled: the
+     work below the fold cannot be reached at all. The bar is back.
+
+   · THE SPLIT DIVIDER IS A GRIP, NOT A RULE. It was an 8px column painted
+     with --line-2, so the seam between the two halves read as a full-height
+     line with a speck of an icon in the middle of it. The rule is gone and
+     the grip is the thing you see: a small pill at the seam's middle, which
+     takes the accent under the hand.
+
+   · THE NOTES POPUP AND THE IMF CARD WEAR AN EDGE. They float over the
+     writing surface, and with a hairline a shade off the editor's own
+     colour and a soft lift they dissolved into it — the notes card read as
+     part of the page it was floating over. Both take a --line-3 hairline and
+     the deeper lift the utility popup already has.
+
+   · THE IMF CARD GETS ITS POWER SWITCH. “Intermixing fonts” could be turned
+     on only from the side (picking a face or a scope switched it on for
+     you); there was no way to turn it off again, and the app's own sheet had
+     the switch written and hidden. It is in the card's head now — the head
+     has always reserved the room for it — and it is the app's own switch.
+
+   · THE UTILITY PANEL LOSES ITS DRAFT GROUP. Name generator was the whole
+     of it, and the utilities are the everyday tools.
+
+   · AND THE BOOK PAGE IS THE DRAFT PAGE'S SHELL. The two icons that sat
+     beside “back to manuscript” — Export this book as EPUB and Publish
+     online — are gone from the tree's head (the Publish panel behind the
+     reader's own button still has both); the left card wears the Idea
+     page's own card (--surface-2, no border, the tighter radius); and the
+     chapter title has left the reader's top-left corner, where the row you
+     picked in the list already says the same thing — the globe takes that
+     corner instead, so the chapter's publish mark sits where the eye goes
+     first.
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  /* ── 18a · the sheet ──────────────────────────────────────────
+     The overlay rules answer to a class index.html puts on <html> and
+     <body> before anything is drawn, so they land with the first paint and
+     there is no frame with a bar in it. */
+  const CSS = [
+    /* ── 1 · AN OVERLAY PANE'S PAGE KEEPS A BAR ──
+       The pane is an iframe sized to its own frame (?sfView=1 puts `.sf-view`
+       on <html> and <body>), and every page inside it lives in the grid's
+       `stage` row: `overflow:hidden`, and `.page{height:100%}` against it. At
+       an interface scale above 100% — or on any page taller than a laptop
+       window — the page is taller than that row, the row clips it, and what
+       is below the fold cannot be reached at all: the pane had no bar on any
+       page, the dashboard included.
+       So the stage is a scroll container in the pane, and the page is allowed
+       to grow past it: the whole document scrolls, on every page, on the
+       dashboard, and in a panel that is taller than the pane. In the window
+       itself nothing here matches — this is `.sf-view` only. */
+    'html.sf-view body.sf-view, html body.sf-view{ overflow:hidden !important; }',
+    'html body.sf-view .stage{',
+    '  overflow-y:auto !important; overflow-x:hidden !important; min-height:0 !important; }',
+    'html body.sf-view .page{',
+    '  height:auto !important; min-height:100% !important; overflow:visible !important; }',
+    'html body.sf-view .write-wrap, html body.sf-view .write-canvas{',
+    '  height:auto !important; min-height:100% !important; }',
+    /* Eight pages pin a height of their own and clip it, and a page id
+       out-ranks the class rule above, so they are named: each keeps its own
+       inner list (the outline's, the dashboard's guide cards) but the page
+       itself grows and the pane's stage is what scrolls it. */
+    'html body.sf-view :is(#page-draft,#page-inspire,#page-kanban,#page-mindmap,#page-notebook,#page-outline,#page-overview,#page-plan){',
+    '  height:auto !important; min-height:100% !important; overflow:visible !important; }',
+
+    /* ── 2 · THE SEAM IS A GRIP ── */
+    'html body .sf-split-divider{ background:transparent !important; color:var(--ink-4) !important; }',
+    'html body .sf-split-divider i{',
+    '  display:flex !important; align-items:center !important; justify-content:center !important;',
+    '  width:12px !important; height:36px !important; opacity:1 !important; font-size:11px !important;',
+    '  background:var(--surface-4) !important; color:var(--ink-3) !important;',
+    '  border-radius:999px !important;',
+    '  transition:background var(--t-fast, .15s) var(--ease, ease),',
+    '    color var(--t-fast, .15s) var(--ease, ease) !important; }',
+    'html body .sf-split-divider:hover{ background:transparent !important; color:var(--ink-4) !important; }',
+    'html body .sf-split-divider:hover i, html body .sf-split-divider:focus i,',
+    'html body.sf-split-resizing .sf-split-divider i{',
+    '  background:var(--accent) !important; color:var(--accent-ink) !important; }',
+    /* and the older split's own rule, in case a build still draws it */
+    'html body #writeCanvas.split-on .split-divider{',
+    '  background:transparent !important; box-shadow:none !important; }',
+
+    /* ── 3 · THE TWO FLOATING CARDS LIFT — THEY ARE NOT OUTLINED ──
+       A hairline all the way round a card that already floats is an outline,
+       and the writer pointed at it twice: the notes card and the IMF card
+       keep their depth and lose their edge. */
+    'html body .notes-panel, html body .imf-drop-list{',
+    '  border:0 !important;',
+    '  border-radius:var(--r-lg, 8px) !important;',
+    '  box-shadow:0 18px 44px rgba(0,0,0,.66) !important; }',
+    'html body .notes-head{ border-bottom:1px solid var(--line-2) !important; }',
+
+    /* ── 4 · THE IMF POWER SWITCH ──
+       index.html's own sheet writes `.imf-power{display:none!important}` —
+       the switch was drawn and then taken out of the layout. The head has
+       always kept the room for it (`justify-content:space-between`), so it
+       comes back as the app's own .tgl switch. */
+    'html body .imf-drop .imf-power{ display:block !important; }',
+    'html body .imf-drop .imf-power.tgl{',
+    '  width:36px !important; height:20px !important; margin-left:auto !important; }',
+    'html body .imf-drop .imf-power.tgl.on{',
+    '  background:var(--accent) !important; border-color:var(--accent) !important; }',
+
+    /* ── 5 · THE BOOK PAGE ── */
+    'html body #page-notebook #nbChTitle{ display:none !important; }',
+    'html body #page-notebook .draft-split > .draft-list{',
+    '  background:var(--surface-2) !important; border:0 !important;',
+    '  border-radius:var(--r-md, 6px) !important; overflow:hidden !important; }',
+    'html body #page-notebook .draft-list-head{',
+    '  background:transparent !important; border-bottom:0 !important;',
+    '  padding:8px 10px !important; }',
+    /* The reader's head needs no rule at all: with the title out of the flow
+       the globe is its first live child, and `.draft-list-acts` already
+       carries `margin-left:auto` (pages.css:3521), so the remaining three
+       marks stay where they were — at the head's right end. */
+  ].join('\n');
+  const sheet = document.createElement('style');
+  sheet.id = 'sfPanesSheet';
+  sheet.textContent = CSS;
+  (document.head || document.documentElement).appendChild(sheet);
+
+  /* ── 18b · the utility panel loses its Draft group ────────────
+     UTIL_GROUPS is utils.js's own table, declared at the top level of a
+     plain script, so it is the same object here and the group goes out of
+     the list every picker reads. A saved choice that pointed at it falls
+     back to the first group; the chip is taken out of a panel that is
+     already open as well, so nothing has to be reopened. */
+  const dropDraftGroup = function(){
+    try{
+      if(typeof UTIL_GROUPS !== 'undefined' && Array.isArray(UTIL_GROUPS)){
+        for(let i = UTIL_GROUPS.length - 1; i >= 0; i--){
+          if(UTIL_GROUPS[i] && UTIL_GROUPS[i].id === 'draft') UTIL_GROUPS.splice(i, 1);
+        }
+      }
+    }catch(e){}
+    try{ if(S.config.util && S.config.util.group === 'draft') S.config.util.group = 'time'; }catch(e){}
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#utilTabs [data-util-group="draft"]'),
+      function(b){ b.remove(); });
+  };
+
+  /* ── 18c · the IMF card's power switch ────────────────────────
+     One writer's switch for one setting: S.config.expMixedFonts, which the
+     app paints as `body.mixed-fonts`. Flipping it here runs the app's own
+     applyConfig pass, so the editor follows at once, and the panel's own
+     button is asked to repaint from the setting rather than from the click,
+     so the switch and the bar can never disagree. */
+  const imfOn = function(){
+    try{ return !!S.config.expMixedFonts; }catch(e){ return false; }
+  };
+  const imfSwitch = function(){
+    const head = document.querySelector('#imfDropList .imf-drop-head');
+    if(!head) return;
+    let b = head.querySelector('[data-sf-imf-power]');
+    if(!b){
+      b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tgl imf-power';
+      b.setAttribute('data-sf-imf-power', '1');
+      b.title = 'Intermixing fonts on or off';
+      head.appendChild(b);
+    }
+    const on = imfOn();
+    if(b.classList.contains('on') !== on) b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.setAttribute('aria-label', on ? 'Intermixing fonts: on' : 'Intermixing fonts: off');
+  };
+  const imfSet = function(on){
+    try{ S.config.expMixedFonts = !!on; }catch(e){}
+    try{ if(typeof applyConfig === 'function') applyConfig('expMixedFonts'); }catch(e){}
+    try{ if(typeof save === 'function') save(); }catch(e){}
+    try{ if(typeof window.paintImfPreview === 'function') window.paintImfPreview(); }catch(e){}
+    try{ imfSwitch(); }catch(e){}
+  };
+  document.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    if(!t.closest('[data-sf-imf-power]')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const on = !imfOn();
+    imfSet(on);
+    if(typeof toast === 'function') toast('Intermixing fonts ' + (on ? 'on' : 'off'));
+  }, true);
+
+  /* ── 18d · the Book page ─────────────────────────────────────
+     plan-boards.js puts the two buttons into the tree's head by name; they
+     are taken out here (the Publish panel behind the reader's own button
+     keeps EPUB and the read link), the globe is moved to the corner the
+     chapter title had, and the left card is left to the sheet below. */
+  const nbBook = function(){
+    const page = document.getElementById('page-notebook');
+    if(!page) return;
+    Array.prototype.forEach.call(
+      page.querySelectorAll('.draft-list-head [data-sf-epub], .draft-list-head [data-sf-share]'),
+      function(b){ b.remove(); });
+    const head = page.querySelector('.draft-pane-head');
+    if(!head) return;
+    const globe = head.querySelector('[data-nb-publish]');
+    if(globe && head.firstElementChild !== globe) head.insertBefore(globe, head.firstElementChild);
+  };
+
+  /* ── the beat ──
+     All three are markup-owned and all three are built at a different
+     moment: the utility panel on its first open, the IMF card on every
+     render of the chapter strip, the Book page on its own render. Each pass
+     returns at once when its markup is not on screen, and the whole beat is
+     one animation frame's worth of lookups. */
+  let raf = 0;
+  const beat = function(){
+    if(raf) return;
+    raf = requestAnimationFrame(function(){
+      raf = 0;
+      try{ dropDraftGroup(); }catch(e){}
+      try{ imfSwitch(); }catch(e){}
+      try{ nbBook(); }catch(e){}
+    });
+  };
+  dropDraftGroup();
+  if(typeof MutationObserver === 'function' && document.body){
+    new MutationObserver(beat).observe(document.body, { childList:true, subtree:true });
+  }  document.addEventListener('click', beat, true);
+  [0, 120, 400, 1200, 2600].forEach(function(ms){ setTimeout(beat, ms); });
+})();
+
+
+/* ═══════════════════════════════════════════════════════════
+   19 · THE LIGHT, THE KEYS, AND THE THREE MARKS
+
+   · A LITTLE MORE LIGHT, and the ground it stands on stays where it is.
+     The lift is multiplicative, so the near-black the app sits on moves by
+     about one step per channel — 0x1b to 0x1c — while the surfaces (0x22
+     to 0x45) and the ink (0xd9) take it where it shows. A writer who has
+     the “brightness” slider in Settings keeps their own filter; theirs is
+     composed with this one rather than replaced by it.
+
+   · THE KEYBOARD GETS THE ACCENT. pages.css answered :focus-visible with a
+     grey --line-3 ring while the pointer hovered in the accent, so a menu
+     walked with the keys looked unlit next to one walked with the mouse.
+     The ring is the accent now, and the rows that carry an accent on hover
+     (the style menu, the bar's dropdown lists, the advanced panel's chips)
+     carry the same one under the keys.
+
+   · THREE MARKS THAT WERE ALWAYS LIT. IMF, Split screen and Overlay screen
+     were given --surface-3 at rest by this file's own bar pass, so all three
+     read as “on” whether they were or not — the writer's word was that they
+     stick. At rest they are flat; the fill is the answer to a press. Split
+     and Overlay are lit from what is really open (ScriptForgeSplit.isOpen()
+     and body.overlay-open), and IMF from S.config.expMixedFonts, which its
+     own preview already paints.
+
+   · AND THE POINTER LEAVING THE STYLE MENU TAKES ITS BOX WITH IT. The box
+     followed the pointer *into* a row and never left it, so a menu the mouse
+     had passed over kept one row lit until something else was pressed — the
+     “deselection” the rows in the pages list do for free, because their mark
+     is a :hover the browser takes back by itself.
+
+   · AND THE NOTE MARK SITS UNDER THE BOLD MARK. The section strip's icons are
+     laid out beside the chapter pickers and the toolbar's commands are laid
+     out from the row's own left edge, so nothing lined them up. Measured
+     here, and only corrected when the two are close: a row that would have
+     to be rearranged to line up is left alone.
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  /* ── 19a · the sheet ─────────────────────────────────────── */
+  const CSS = [
+    /* ── 1 · A LITTLE MORE LIGHT — ON THE WORK, NOT ON THE FRAME ──
+       The lift is one step bigger (1.05 → 1.09), and the app's own ground
+       — the page behind the cards, the top and bottom bars — is painted a
+       shade darker to take it back. A filter multiplies everything under
+       it, so without the second half the outside dark background came up
+       with the text; with it the frame reads exactly where it was and the
+       work inside is the only thing that got brighter.
+       Both grounds answer to the built-in theme's own id, so a profile on
+       either palette is taken care of and nothing here fights the tokens
+       applyThemeVars writes (those are inline, and a stylesheet's
+       !important on a custom property would out-rank them). */
+    'html body:not(.ui-bright){ filter:brightness(1.09) !important; }',
+    'html body.ui-bright{ filter:brightness(calc(var(--ui-bright, 1) * 1.09)) !important; }',
+    'html body[data-theme="night"] .topbar, html body[data-theme="night"] .menubar,',
+    'html body[data-theme="night"] .toolbar, html body[data-theme="night"] .statusbar,',
+    'html body[data-theme="night"] .stage, html body[data-theme="night"] .page{',
+    '  background-color:#171614 !important; }',
+    'html body[data-theme="cool"] .topbar, html body[data-theme="cool"] .menubar,',
+    'html body[data-theme="cool"] .toolbar, html body[data-theme="cool"] .statusbar,',
+    'html body[data-theme="cool"] .stage, html body[data-theme="cool"] .page{',
+    '  background-color:#161819 !important; }',
+    /* nothing in the two writing bars may animate a transform: they are
+       pinned in place so a pass that measures them reads a settled row */
+    'html body #writeToolbar, html body #chapterControls{ transform:none !important; }',
+
+    /* ── 2 · THE KEYBOARD GETS THE ACCENT ── */
+    'html body :focus-visible{',
+    '  outline:2px solid var(--accent) !important; outline-offset:2px !important; }',
+    /* …but not around a writing surface: the ring belongs to a control */
+    'html body #editor:focus-visible, html body .write-doc:focus-visible,',
+    'html body .fnt-src:focus-visible, html body .nb-reader-body:focus-visible,',
+    'html body [contenteditable="true"]:focus-visible{ outline:none !important; }',
+    /* the rows that carry an accent under the pointer carry it under the keys */
+    'html body .sf-elem-item:focus-visible, html body .tb-drop-item:focus-visible,',
+    'html body .draft-row:focus-visible, html body .nb-tree-row:focus-visible,',
+    'html body .idea-row:focus-visible{',
+    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+    'html body .sf-elem-item:focus-visible i, html body .tb-drop-item:focus-visible i{',
+    '  color:var(--accent) !important; opacity:1 !important; }',
+    'html body .adv-btn:focus-visible{',
+    '  background:var(--accent-soft) !important; color:var(--accent) !important; }',
+
+    /* ── 3 · THE THREE MARKS REST FLAT ──
+       The weight is raised by doubling the class ON THE SAME ELEMENT: the
+       rule this answers was written with :is() around the two bars, which
+       takes the id's weight. */
+    'html body #chapterControls [data-act="split-open"][data-act="split-open"],',
+    'html body #chapterControls [data-act="overlay-open"][data-act="overlay-open"],',
+    'html body .imf-drop .imf-drop-btn.imf-drop-btn{',
+    '  background:transparent !important; border-color:transparent !important;',
+    '  color:var(--ink-2) !important; box-shadow:none !important; }',
+    'html body #chapterControls [data-act="split-open"]:hover,',
+    'html body #chapterControls [data-act="overlay-open"]:hover,',
+    'html body .imf-drop .imf-drop-btn.imf-drop-btn:hover{',
+    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+    /* the lit state: the split is open, the overlay is open, IMF is on */
+    'html body #chapterControls .icon-btn-sm.sf-on,',
+    'html body #chapterControls .icon-btn-sm.active,',
+    'html body .imf-drop .imf-drop-btn.imf-drop-btn.active,',
+    'html body .imf-drop.open .imf-drop-btn{',
+    '  background:var(--accent-soft) !important; color:var(--accent) !important; }',
+    'html body #chapterControls .icon-btn-sm.sf-on i,',
+    'html body #chapterControls .icon-btn-sm.active i,',
+    'html body .imf-drop .imf-drop-btn.active i{ color:var(--accent) !important; }'
+  ].join('\n');
+  const sheet = document.createElement('style');
+  sheet.id = 'sfLightKeysSheet';
+  sheet.textContent = CSS;
+  (document.head || document.documentElement).appendChild(sheet);
+
+  /* ── 19b · the three marks follow what is really open ───────── */
+  const lit = function(el, on){
+    if(!el) return;
+    if(el.classList.contains('sf-on') !== !!on) el.classList.toggle('sf-on', !!on);
+  };
+  const paintMarks = function(){
+    const cc = document.getElementById('chapterControls');
+    if(!cc) return;
+    let split = false, overlay = false;
+    try{
+      const api = window.ScriptForgeSplit;
+      split = !!(api && typeof api.isOpen === 'function' && api.isOpen());
+    }catch(e){ split = false; }
+    if(!split) split = document.body.classList.contains('sf-writing-split');
+    overlay = document.body.classList.contains('overlay-open');
+    lit(cc.querySelector('[data-act="split-open"]'), split);
+    lit(cc.querySelector('[data-act="overlay-open"]'), overlay);
+  };
+
+  /* ── 19c · the note mark sits under the bold mark ─────────────
+     Both rects are read with this correction taken back off first, so the
+     numbers cannot compound over passes. Only a small one is applied: the
+     two rows are laid out from different things, and a gap of more than a
+     few tens of pixels is not a nudge, it is a different layout. */
+  const lineUp = function(){
+    const bar = document.getElementById('writeToolbar');
+    const cc  = document.getElementById('chapterControls');
+    if(!bar || !cc) return;
+    const bold = bar.querySelector('.tb-btn[data-cmd="bold"]');
+    const note = cc.querySelector('[data-act="notes-open"]');
+    if(!bold || !note || !bold.getBoundingClientRect || !note.getBoundingClientRect) return;
+    if(note.style.marginLeft) note.style.marginLeft = '';
+    if(note.style.marginRight) note.style.marginRight = '';
+    const a = bold.getBoundingClientRect();
+    const b = note.getBoundingClientRect();
+    if(!a.width || !b.width) return;
+    const d = (b.left + b.width / 2) - (a.left + a.width / 2);
+    if(Math.abs(d) < 0.5 || Math.abs(d) > 40) return;
+    note.style.marginLeft = (-d) + 'px';
+    note.style.marginRight = d + 'px';
+  };
+
+  /* ── 19d · the pointer leaving a row takes its box with it ──── */
+  document.addEventListener('mouseout', function(e){
+    const m = document.getElementById('sfElemMenu');
+    if(!m || m.hidden) return;
+    const it = e.target && e.target.closest ? e.target.closest('.sf-elem-item') : null;
+    if(!it) return;
+    const to = e.relatedTarget;
+    if(to && it.contains && it.contains(to)) return;      /* still on the row */
+    it.classList.remove('sf-elem-active');
+  }, true);
+  /* and a menu that closes leaves nothing lit behind it */
+  if(typeof window.sfMenuClose === 'function' && !window.sfMenuClose.__sfUnmark){
+    const origClose = window.sfMenuClose;
+    const closeFn = function(){
+      const out = origClose.apply(this, arguments);
+      try{
+        const m = document.getElementById('sfElemMenu');
+        if(m && typeof window.sfClearMenuMark === 'function') window.sfClearMenuMark();
+      }catch(e){}
+      return out;
+    };
+    closeFn.__sfUnmark = true;
+    window.sfMenuClose = closeFn;
+  }
+
+  /* ── the beat ── */
+  let raf = 0;
+  const beat = function(){
+    if(raf) return;
+    raf = requestAnimationFrame(function(){
+      raf = 0;
+      try{ paintMarks(); }catch(e){}
+      try{ lineUp(); }catch(e){}
+    });
+  };
+  if(typeof MutationObserver === 'function' && document.body){
+    new MutationObserver(beat).observe(document.body, { childList:true, subtree:true });
+  }
+  document.addEventListener('click', beat, true);
+  window.addEventListener('resize', beat);
+  [0, 120, 400, 1200, 2600].forEach(function(ms){ setTimeout(beat, ms); });
+})();
+
+
+/* ═══════════════════════════════════════════════════════════
+   20 · THE ARCHIVE
+
+   What Ctrl + Z cannot give back. Undo is a stack of the last few changes
+   and it is gone when the tab is: a paragraph cut by accident, a run
+   deleted too fast to notice, or a stretch of text that walked off the end
+   of the stack because the writer pressed Ctrl + Z one time too many — the
+   very press that was meant to bring something back. None of that is
+   recoverable, and all of it was written work.
+
+   THIS IS NOT AN UNDO HISTORY. It does not try to reverse anything, it
+   keeps the text itself: every string that was on the page and is not any
+   more, with when it went and where it was. It lives in the config the app
+   already persists, so the archive a writer opens tomorrow holds what they
+   lost today.
+
+   HOW IT IS CAUGHT — by reading, not by listening to keys. Every writing
+   surface is snapshotted: on any input the new text is compared with the
+   last one seen, and the longest common head and tail are taken off both.
+   Whatever is left in the middle of the OLD text is what the writer no
+   longer has. Nothing here knows about Backspace, Cut, Delete or an
+   overwrite, and it does not have to: a deletion is a deletion, including
+   the ones an undo makes when it takes back more than the writer meant.
+
+   THREE THINGS IT MUST NOT MISTAKE FOR A DELETION:
+     · a section swap — opening another chapter replaces the whole surface,
+       so the surface's own key (page · mode · section) is remembered with
+       its text and a changed key is a fresh start, not a loss;
+     · a big wholesale replace of a long text, which is the same thing
+       arriving without the key having moved;
+     · text typed straight back in — the entry is dropped again, so
+       delete-and-retype leaves no litter.
+
+   A RUN OF DELETIONS IS ONE ENTRY — but only a run. Backspacing through a
+   sentence arrives as a burst of small diffs and they are joined, because
+   each one touches the last: the removed stretches are contiguous, so the
+   run is rebuilt in reading order (a run of Backspace reads forwards, a
+   run of Delete is appended). A deletion somewhere else — the same word
+   taken out again later, or a line removed on the other side of the page —
+   does not touch it and is kept as the separate loss it is.
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  const MAX_ITEMS = 200;      /* entries kept */
+  const MAX_TEXT  = 20000;    /* characters per entry */
+  const MAX_TOTAL = 400000;   /* characters across the archive */
+  const COALESCE  = 1500;     /* ms — a run of deletions inside this is one entry */
+  const SWAP_MIN  = 800;      /* a wholesale replace is judged from here up */
+
+  /* ── 20a · the store ──────────────────────────────────────────
+     S.config is what save() writes to localStorage, so this survives the
+     session the way every other setting does. */
+  const store = function(){
+    try{
+      if(!S.config) return [];
+      if(!Array.isArray(S.config.textArchive)) S.config.textArchive = [];
+      return S.config.textArchive;
+    }catch(e){ return []; }
+  };
+  const persist = function(){
+    if(window.SF_VIEW) return;                 /* a pane never writes */
+    try{ if(typeof save === 'function') save(); }catch(e){}
+  };
+  const place = function(){
+    let page = '';
+    try{ page = (S.page === 'write' || S.page === 'manuscript') ? (S.mode === 'screenplay' ? 'Script' : 'Manuscript') : ''; }catch(e){}
+    let title = '';
+    try{ const c = (typeof window.curCh === 'function') ? window.curCh() : null; title = (c && c.title) ? c.title : ''; }catch(e){}
+    return (page || 'Writing') + (title ? ' · ' + title : '');
+  };
+  const cap = function(list){
+    if(list.length > MAX_ITEMS) list.length = MAX_ITEMS;
+    let total = 0;
+    for(let i = 0; i < list.length; i++){
+      total += String(list[i].text || '').length;
+      if(total > MAX_TOTAL){ list.length = i + 1; break; }
+    }
+  };
+  const keep = function(text, key, at){
+    text = String(text == null ? '' : text);
+    if(!text.trim()) return false;
+    if(!S.config) return false;                  /* nothing to persist into */
+    const list = store();
+    const last = list[0];
+    const now  = Date.now();
+    const hasAt = (typeof at === 'number') && last && (typeof last.off === 'number');
+    /* only the deletion that CONTINUES the last one is joined to it: the run
+       has to touch, not merely sit near in time. Backspacing walks the
+       removed stretch leftwards, Delete walks it rightwards, and anything
+       removed somewhere else — the same word deleted again later included —
+       is its own loss and gets its own entry. */
+    const back = hasAt && (at + text.length) === last.off;    /* removed just before the run */
+    const fwd  = hasAt && at === last.off;                    /* removed just after it */
+    if(last && last.key === key && (now - (last.at || 0)) < COALESCE &&
+       (String(last.text || '').length + text.length) <= MAX_TEXT && (back || fwd)){
+      /* prepending keeps a backspaced run reading forwards; a Delete run
+         comes off the far side and is appended instead */
+      last.text = fwd ? (String(last.text || '') + text) : (text + String(last.text || ''));
+      last.off  = at;
+      last.at   = now;
+      last.parts = (last.parts || 1) + 1;
+      last.where = place();
+    } else {
+      list.unshift({
+        id: 'a' + now.toString(36) + Math.random().toString(36).slice(2, 6),
+        at: now,
+        off: (typeof at === 'number') ? at : null,
+        text: text.length > MAX_TEXT ? text.slice(0, MAX_TEXT) : text,
+        key: key,
+        where: place()
+      });
+    }
+    cap(list);
+    persist();
+    return true;
+  };
+
+  /* ── 20b · reading the surfaces ───────────────────────────────
+     The write editor, a book chapter opened for editing, the split screen's
+     two halves, and the script page's own Fountain source. */
+  const SURFACES = '#editor, #nbReaderBody, .fnt-src, .sf-split-editor';
+  const seen = new WeakMap();
+  const textOf = function(el){
+    if(!el) return '';
+    const t = el.tagName;
+    if(t === 'TEXTAREA' || t === 'INPUT') return String(el.value == null ? '' : el.value);
+    return String(el.textContent == null ? '' : el.textContent);
+  };
+  const keyOf = function(el){
+    let id = '';
+    try{ const c = (typeof window.curCh === 'function') ? window.curCh() : null; id = (c && c.id) ? c.id : ''; }catch(e){}
+    let page = '', mode = '';
+    try{ page = String(S.page || ''); mode = String(S.mode || ''); }catch(e){}
+    return [el.id || el.className || 'surface', page, mode, id].join('@');
+  };
+  const reading = function(el){
+    const now = textOf(el);
+    const key = keyOf(el);
+    const prev = seen.get(el);
+    seen.set(el, { text: now, key: key });
+    if(!prev) return '';                       /* first look: nothing to say */
+    if(prev.key !== key) return '';             /* another section — not a loss */
+    if(prev.text === now) return '';
+    const oldT = prev.text;
+    let p = 0;
+    const maxP = Math.min(oldT.length, now.length);
+    while(p < maxP && oldT.charCodeAt(p) === now.charCodeAt(p)) p++;
+    let s = 0;
+    const maxS = Math.min(oldT.length - p, now.length - p);
+    while(s < maxS && oldT.charCodeAt(oldT.length - 1 - s) === now.charCodeAt(now.length - 1 - s)) s++;
+    const gone = oldT.slice(p, oldT.length - s);
+    const came = now.slice(p, now.length - s);
+    /* a wholesale replace of a long text: the same thing as a section swap,
+       arriving without the key having moved */
+    if(gone && gone.length >= SWAP_MIN && gone.length > oldT.length * 0.6){
+      return { gone:'', came: came, key: key };
+    }
+    /* p is where the removed stretch began in the old text, so the next
+       diff can tell whether it touches this one */
+    return { gone: gone, came: came, key: key, p: p };
+  };
+
+  /* ── 20c · the sweep ──
+     One pass over whatever is on screen. Debounced, because a keystroke is
+     not a change worth its own diff, and flushed on blur and on the tab
+     going away so the last thing said before leaving is archived. */
+  const sweep = function(){
+    const els = document.querySelectorAll(SURFACES);
+    let changed = false;
+    Array.prototype.forEach.call(els, function(el){
+      let r = null;
+      try{ r = reading(el); }catch(e){ return; }
+      if(!r) return;
+      const list = store();
+      /* typed straight back in: the entry it made is dropped again — but
+         only while it is still the thing that just happened, so deleting
+         the same word again later is archived as its own loss */
+      if(r.came && list[0] && String(list[0].text || '') === r.came &&
+         (Date.now() - (list[0].at || 0)) < COALESCE){
+        list.shift();
+        persist();
+        changed = true;
+      }
+      if(!r.gone) return;
+      if(keep(r.gone, keyOf(el), r.p)) changed = true;
+    });
+    if(changed) paint();
+  };
+  let timer = 0;
+  const soon = function(){
+    if(timer) return;
+    timer = setTimeout(function(){ timer = 0; try{ sweep(); }catch(e){} }, 320);
+  };
+  const flush = function(){ if(timer){ clearTimeout(timer); timer = 0; } try{ sweep(); }catch(e){} };
+  document.addEventListener('input', soon, true);
+  document.addEventListener('change', soon, true);
+  window.addEventListener('blur', flush);
+  document.addEventListener('visibilitychange', function(){ if(document.hidden) flush(); }, true);
+
+  /* ── 20d · the mark in the bar ─────────────────────────────────
+     The chapter strip is the one bar both the manuscript and the script
+     page wear (fountain-script.js keeps it and hides the rich-text
+     toolbar), so one button covers both. */
+  const countOf = function(){ return store().length; };
+  /* ── THE BADGE COUNTS THE PAGE'S OWN ARCHIVE ─────────────────
+     The panel is the page's (20e(1)), so the number on the mark has to be
+     the page's too: the whole store counts pieces from both kinds, and a
+     badge reading four over a panel reading none is the glitch that leaving
+     the two tabs behind could have caused. paint() knows which page's
+     archive it is, so it says the number; a mark painted before the panel
+     has ever been opened — at boot, or by its own mount — still counts what
+     is really there. */
+  const paintMark = function(only){
+    const b = document.querySelector('#chapterControls [data-act="archive-open"]');
+    if(!b) return;
+    const n = (typeof only === 'number') ? only : countOf();
+    const tag = b.querySelector('.sf-arc-n');
+    if(tag){
+      tag.textContent = n > 99 ? '99+' : String(n);
+      tag.hidden = !n;
+    }
+    b.title = n
+      ? 'Archive — ' + n + (n === 1 ? ' deleted piece' : ' deleted pieces') + ' kept. Nothing here is ever written back by itself.'
+      : 'Archive — words and lines you delete are kept here, so they can be taken back';
+    b.classList.toggle('sf-on', n > 0 || panelOpen());
+  };
+  const mountMark = function(){
+    const bar = document.getElementById('chapterControls');
+    if(!bar) return;
+    if(bar.querySelector('[data-act="archive-open"]')) { paintMark(); return; }
+    const host = bar.querySelector('.cc-right') || bar;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'icon-btn-sm';
+    b.setAttribute('data-act', 'archive-open');
+    b.innerHTML = '<i class="bi bi-archive"></i><b class="sf-arc-n" hidden></b>';
+    const find = host.querySelector('[data-act="find-open"]');
+    if(find) host.insertBefore(b, find); else host.appendChild(b);
+    paintMark();
+  };
+
+  /* ── 20e · the panel ── */
+  const AGO = function(ts){
+    const d = new Date(ts);
+    const diff = Date.now() - ts;
+    if(diff < 60000) return 'just now';
+    if(diff < 3600000) return Math.round(diff / 60000) + ' min ago';
+    const today = new Date();
+    const hm = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+    if(d.toDateString() === today.toDateString()) return 'today ' + hm;
+    const y = new Date(Date.now() - 86400000);
+    if(d.toDateString() === y.toDateString()) return 'yesterday ' + hm;
+    return d.getDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + ' ' + d.getFullYear() + ' ' + hm;
+  };
+  const esc = function(s){
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  };
+  /* ── 20e(1) · THE ARCHIVE IS THE PAGE IT IS OPENED FROM ──────
+     A novel and a screenplay are separate projects and separate workspaces,
+     and the archive is no different: the manuscript's archive is the novel's
+     and the script page's is the screenplay's. There were three tabs here —
+     Everything · Novel · Screenplay — which made one panel hold both. They
+     are gone, and the panel reads the page it was opened from instead; the
+     catch already writes down where each piece came from (`where` is
+     "Manuscript · Chapter" or "Script · Scene"). A piece with no page of its
+     own — the book's reader, a split pane — belongs to the manuscript, which
+     is where everything but the script's is lost. */
+  let arcMode = 'novel';
+  const modeOf = function(it){
+    const w = String((it && it.where) || '');
+    return w.indexOf('Script') === 0 ? 'script' : 'novel';
+  };
+  /* which of the two archives the page on screen keeps */
+  const modeOfPage = function(){
+    try{ if(document.querySelector('.sf-script-page.active')) return 'script'; }catch(e){}
+    try{ if(S.mode === 'screenplay') return 'script'; }catch(e){}
+    return 'novel';
+  };
+  const MODE_LABEL = { novel:'the novel', script:'the screenplay' };
+  const matchMode = function(it){ return modeOf(it) === arcMode; };
+  const panel = function(){
+    let p = document.getElementById('sfArchive');
+    if(p) return p;
+    p = document.createElement('aside');
+    p.id = 'sfArchive';
+    p.className = 'sf-arc';
+    p.hidden = true;
+    p.innerHTML =
+        '<div class="sf-arc-head">'
+      +   '<i class="bi bi-archive"></i><span class="sf-arc-title">Archive</span>'
+      +   '<em class="sf-arc-count"></em>'
+      +   '<button type="button" class="icon-btn-sm" data-sf-arc-all title="Copy everything in the archive"><i class="bi bi-clipboard"></i></button>'
+      +   '<button type="button" class="icon-btn-sm" data-sf-arc-empty title="Empty the archive"><i class="bi bi-trash3"></i></button>'
+      +   '<button type="button" class="icon-btn-sm" data-sf-arc-close title="Close"><i class="bi bi-x-lg"></i></button>'
+      + '</div>'
+      + '<div class="sf-arc-body"></div>';
+    document.body.appendChild(p);
+    return p;
+  };
+  const panelOpen = function(){
+    const p = document.getElementById('sfArchive');
+    return !!p && !p.hidden;
+  };
+  /* what the body was last drawn from. A row is a row of buttons, and a
+     panel that rebuilds itself between a press and its release takes the
+     button out from under the pointer — the click then lands on the panel
+     and the press reads as doing nothing, which is exactly what “the ✕ did
+     not delete anything” is. Nothing is redrawn while what it draws from is
+     the same. */
+  let drawnSig = null;
+  const paint = function(){
+    /* ── THE PAGE DECIDES FIRST, AND EVERYTHING READS FROM IT ──
+       The mark's number, the number in the head and the rows below are one
+       answer now: the page the panel was opened from decides which archive
+       it is, on every paint, so a writer who moves between the manuscript
+       and the script page with the panel open finds the pieces that belong
+       to the page they are on — and the badge can never say four while the
+       panel says none. */
+    arcMode = modeOfPage();
+    const list = store();
+    const rows = list.filter(matchMode);
+    /* the mark is painted whether or not the panel has ever been opened —
+       the count on it is the only sign the archive is holding anything */
+    paintMark(rows.length);
+    const p = document.getElementById('sfArchive');
+    if(!p) return;
+    const sig = arcMode + '\u0002' + list.map(function(it){
+      return it.id + '\u0000' + String(it.text || '').length + '\u0000' + (it.where || '');
+    }).join('\u0001');
+    if(sig === drawnSig) return;
+    drawnSig = sig;
+    const body = p.querySelector('.sf-arc-body');
+    const cnt  = p.querySelector('.sf-arc-count');
+    if(cnt){
+      cnt.textContent = rows.length ? rows.length + (rows.length === 1 ? ' piece' : ' pieces') : '';
+    }
+    if(!body) return;
+    if(!list.length){
+      /* One line, and no sub-line under it: the popup says what it is and
+         stops. The paragraph that used to sit below it explained the panel
+         to a writer who had already opened it. */
+      body.innerHTML = '<div class="sf-arc-empty"><i class="bi bi-archive"></i>'
+        + '<p>Nothing archived yet.</p></div>';
+      return;
+    }
+    if(!rows.length){
+      body.innerHTML = '<div class="sf-arc-empty"><i class="bi bi-funnel"></i>'
+        + '<p>Nothing archived from ' + esc(MODE_LABEL[arcMode] || 'this') + ' yet.</p></div>';
+      return;
+    }
+    body.innerHTML = rows.map(function(it){
+      const text = String(it.text || '');
+      const shown = text.length > 600 ? text.slice(0, 600) + '\u2026' : text;
+      const parts = (it.parts || 1) > 1 ? ' · ' + it.parts + ' parts' : '';
+      return '<article class="sf-arc-row">'
+        + '<p class="sf-arc-text">' + esc(shown) + '</p>'
+        + '<div class="sf-arc-meta">'
+        +   '<span class="sf-arc-when">' + esc(AGO(it.at || Date.now())) + esc(parts) + ' · ' + esc(it.where || '') + '</span>'
+        +   '<span class="sf-arc-acts">'
+        +     '<button type="button" class="sf-arc-btn" data-sf-arc-put="' + esc(it.id) + '"><i class="bi bi-box-arrow-in-down"></i> Insert</button>'
+        +     '<button type="button" class="sf-arc-btn" data-sf-arc-copy="' + esc(it.id) + '"><i class="bi bi-clipboard"></i> Copy</button>'
+        +     '<button type="button" class="sf-arc-btn sf-arc-drop" data-sf-arc-forget="' + esc(it.id) + '" title="Forget this one"><i class="bi bi-x-lg"></i></button>'
+        +   '</span>'
+        + '</div></article>';
+    }).join('');
+  };
+  const open = function(on){
+    const p = panel();
+    p.hidden = (on === undefined) ? !p.hidden : !on;
+    if(!p.hidden) paint();
+    paintMark();
+  };
+  const find = function(id){
+    const list = store();
+    for(let i = 0; i < list.length; i++) if(list[i].id === id) return { it: list[i], i: i };
+    return null;
+  };
+  /* one press forgets one piece — asked for either way round, because a
+     pointer press that lands on the button and the click that follows it
+     are two different events and only one of them is guaranteed */
+  const forget = function(btn){
+    if(!btn || !btn.getAttribute) return false;
+    const hit = find(btn.getAttribute('data-sf-arc-forget'));
+    if(!hit) return false;
+    store().splice(hit.i, 1);
+    persist(); paint();
+    if(typeof toast === 'function') toast('Forgotten — it is out of the archive');
+    return true;
+  };
+
+  /* ── putting text back ──
+     Wherever the writer is working: the script's Fountain source is spliced
+     in place, an editable takes it through the browser's own input command
+     (so the insertion is undoable in its turn), and with no surface to hand
+     the text goes to the clipboard rather than nowhere. */
+  const shown = function(el){
+    return !!(el && el.getClientRects && el.getClientRects().length);
+  };
+  const put = function(text){
+    text = String(text || '');
+    if(!text) return false;
+    const active = document.activeElement;
+    const ta  = document.querySelector('.fnt-src');
+    const ed0 = document.querySelector('#editor[contenteditable="true"]');
+    /* the script page writes in its own Fountain source and has no editable
+       of its own, so its textarea is spliced in place; the manuscript's
+       editor takes the browser's own insert command, which keeps the
+       insertion undoable in its turn */
+    if(shown(ta) && (active === ta || !shown(ed0))){
+      const at = (typeof ta.selectionStart === 'number') ? ta.selectionStart : ta.value.length;
+      const to = (typeof ta.selectionEnd   === 'number') ? ta.selectionEnd   : at;
+      ta.value = ta.value.slice(0, at) + text + ta.value.slice(to);
+      try{ ta.selectionStart = ta.selectionEnd = at + text.length; }catch(e){}
+      try{ ta.dispatchEvent(new Event('input', { bubbles: true })); }catch(e){}
+      try{ ta.focus(); }catch(e){}
+      return true;
+    }
+    const ed = (active && active.isContentEditable) ? active : ed0;
+    if(ed){
+      try{
+        ed.focus();
+        const ok = document.execCommand('insertText', false, text);
+        if(ok) return true;
+      }catch(e){}
+    }
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text); }
+      if(typeof toast === 'function') toast('No writing surface open — the piece is on the clipboard', 'warn');
+      return false;
+    }catch(e){ return false; }
+  };
+
+  /* on the window, in the capture phase: write.js answers every click in one
+     document-capture listener and this has to run before it — the lesson the
+     toolbar toggles in §17 are bound the same way for. */
+  window.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    if(t.closest('[data-act="archive-open"]')){
+      e.preventDefault(); e.stopPropagation();
+      arcMode = modeOfPage();
+      open();
+      return;
+    }
+    if(t.closest('[data-sf-arc-close]')){ e.preventDefault(); open(false); return; }
+    if(t.closest('[data-sf-arc-put]')){
+      e.preventDefault();
+      const hit = find(t.closest('[data-sf-arc-put]').getAttribute('data-sf-arc-put'));
+      if(!hit) return;
+      const ok = put(hit.it.text);
+      if(typeof toast === 'function') toast(ok ? 'Put back where the caret is' : 'Copied instead', ok ? 'ok' : 'warn');
+      return;
+    }
+    if(t.closest('[data-sf-arc-copy]')){
+      e.preventDefault();
+      const hit = find(t.closest('[data-sf-arc-copy]').getAttribute('data-sf-arc-copy'));
+      if(!hit) return;
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(hit.it.text);
+        else put(hit.it.text);
+      }catch(err){}
+      if(typeof toast === 'function') toast('Copied');
+      return;
+    }
+    if(t.closest('[data-sf-arc-forget]')){
+      e.preventDefault();
+      forget(t.closest('[data-sf-arc-forget]'));
+      return;
+    }
+    if(t.closest('[data-sf-arc-all]')){
+      e.preventDefault();
+      const all = store().map(function(it){ return it.text; }).join('\n\n---\n\n');
+      try{ if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(all); }catch(err){}
+      if(typeof toast === 'function') toast(all ? 'The whole archive is on the clipboard' : 'The archive is empty');
+      return;
+    }
+    if(t.closest('[data-sf-arc-empty]')){
+      e.preventDefault();
+      const n = countOf();
+      if(!n) return;
+      if(!confirm('Empty the archive — ' + n + (n === 1 ? ' piece' : ' pieces') + '? This cannot be undone.')) return;
+      store().length = 0;
+      persist(); paint();
+      if(typeof toast === 'function') toast('Archive emptied');
+      return;
+    }
+    /* a press anywhere else in the app leaves the panel where it is; a press
+       on the writing surface does too — the panel is not a menu */
+  }, true);
+
+  /* the ✕ is answered as the press starts, before anything can repaint
+     under the pointer (see the note on paint() above) */
+  window.addEventListener('pointerdown', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    const x = t.closest('[data-sf-arc-forget]');
+    if(!x) return;
+    e.preventDefault();
+    /* the click that follows is answered by the same function and finds
+       nothing left to forget, so this cannot delete twice */
+    forget(x);
+  }, true);
+
+  window.addEventListener('keydown', function(e){
+    if(e.isComposing) return;
+    if(e.key === 'Escape' && panelOpen()){
+      const t = e.target;
+      const isField = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT');
+      if(isField) return;
+      e.preventDefault(); e.stopPropagation();
+      open(false);
+    }
+  }, true);
+
+  /* ── the beat ── */
+  let raf = 0;
+  const beat = function(){
+    if(raf) return;
+    raf = requestAnimationFrame(function(){
+      raf = 0;
+      try{ mountMark(); }catch(e){}
+      try{ if(panelOpen()) paint(); }catch(e){}
+    });
+  };
+  if(typeof MutationObserver === 'function' && document.body){
+    new MutationObserver(beat).observe(document.body, { childList:true, subtree:true });
+  }
+  document.addEventListener('click', beat, true);
+  window.addEventListener('resize', beat);
+  [0, 120, 400, 1200, 2600].forEach(function(ms){ setTimeout(beat, ms); });
+
+  /* ── the sheet ── */
+  const CSS = [
+    /* the mark rests flat like the three §19 toggles and lights when there
+       is something in the archive (§12e's bar pass gives every control a
+       --surface-3 fill, so the weight is raised by doubling the attribute
+       ON THE SAME ELEMENT) */
+    'html body #chapterControls [data-act="archive-open"][data-act="archive-open"]{',
+    '  background:transparent !important; border-color:transparent !important;',
+    '  color:var(--ink-2) !important; position:relative !important; }',
+    'html body #chapterControls [data-act="archive-open"][data-act="archive-open"]:hover{',
+    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+    'html body #chapterControls [data-act="archive-open"].sf-on{',
+    '  background:var(--accent-soft) !important; color:var(--accent) !important; }',
+    'html body #chapterControls [data-act="archive-open"].sf-on i{ color:var(--accent) !important; }',
+    'html body #chapterControls [data-act="archive-open"] .sf-arc-n{',
+    '  position:absolute !important; top:0 !important; right:1px !important;',
+    '  min-width:13px !important; padding:0 3px !important; height:13px !important;',
+    '  display:flex !important; align-items:center !important; justify-content:center !important;',
+    '  font:600 8.5px/1 var(--ui) !important; font-style:normal !important;',
+    '  color:var(--accent-ink) !important; background:var(--accent) !important;',
+    '  border-radius:999px !important; pointer-events:none !important; }',
+    'html body #chapterControls [data-act="archive-open"] .sf-arc-n[hidden]{ display:none !important; }',
+
+    /* the panel: a card over the writing surface, the same family as the
+       notes and the utilities */
+    /* the two offsets are the card's own tokens (see 21c): a sheet rule with
+       !important out-ranks an inline style, so the seat is written as a
+       custom property the rule reads rather than as left/top directly */
+    'html body .sf-arc{',
+    '  position:fixed !important;',
+    '  top:var(--sf-arc-y, 96px) !important; left:var(--sf-arc-x, 22px) !important;',
+    '  z-index:445 !important; width:min(400px, calc(100vw - 32px)) !important;',
+    '  max-height:min(66vh, 620px) !important;',
+    '  display:flex !important; flex-direction:column !important;',
+    '  background:var(--surface-1) !important; color:var(--ink) !important;',
+    '  border:0 !important; border-radius:var(--r-lg, 8px) !important;',
+    '  box-shadow:0 18px 44px rgba(0,0,0,.66) !important; overflow:hidden !important; }',
+    'html body .sf-arc[hidden]{ display:none !important; }',
+    /* the head is the utility popup's head, and it is the handle you move
+       the card by (see 21d — the pointer teaches you that here) */
+    'html body .sf-arc-head{',
+    '  flex:0 0 auto !important; display:flex !important; align-items:center !important; gap:8px !important;',
+    '  padding:8px 10px !important; background:var(--surface-2) !important;',
+    '  border-bottom:1px solid var(--line-2) !important;',
+    '  cursor:move !important; user-select:none !important;',
+    '  font-size:10.5px !important; font-weight:600 !important; }',
+    'html body .sf-arc-head > i{ color:var(--ink-4) !important; font-size:12px !important; }',
+    'html body .sf-arc-title{ letter-spacing:.08em !important; text-transform:uppercase !important; color:var(--ink-4) !important; }',
+    /* the head's own marks are the utility popup's close: 24px, a bare glyph */
+    'html body .sf-arc-head .icon-btn-sm{',
+    '  width:24px !important; min-width:24px !important; height:24px !important; min-height:24px !important;',
+    '  padding:0 !important;',
+    '  display:flex !important; align-items:center !important; justify-content:center !important;',
+    '  background:transparent !important; border:0 !important; box-shadow:none !important;',
+    '  border-radius:var(--r-sm, 4px) !important; color:var(--ink-3) !important; }',
+    'html body .sf-arc-head .icon-btn-sm i{ font-size:12px !important; }',
+    'html body .sf-arc-head .icon-btn-sm:hover{ background:var(--surface-3) !important; color:var(--ink) !important; }',
+    'html body .sf-arc-count{ font-style:normal !important; font-weight:500 !important; font-size:10.5px !important; color:var(--ink-4) !important; margin-left:2px !important; }',
+    'html body .sf-arc-head [data-sf-arc-all]{ margin-left:auto !important; }',
+    'html body .sf-arc-body{ flex:1 1 auto !important; min-height:0 !important; overflow-y:auto !important; padding:8px !important; }',
+    'html body .sf-arc-row{',
+    '  border:1px solid var(--line-2) !important; border-radius:var(--r-md, 6px) !important;',
+    '  background:var(--surface-2) !important; padding:8px 9px !important; margin-bottom:7px !important; }',
+    'html body .sf-arc-text{',
+    '  margin:0 0 6px !important; font-size:12px !important; line-height:1.55 !important;',
+    '  color:var(--ink) !important; white-space:pre-wrap !important; word-break:break-word !important;',
+    '  max-height:132px !important; overflow:hidden !important; }',
+    'html body .sf-arc-meta{ display:flex !important; align-items:center !important; gap:8px !important; }',
+    'html body .sf-arc-when{ flex:1 1 auto !important; min-width:0 !important; font-size:10px !important; color:var(--ink-4) !important;',
+    '  white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; }',
+    'html body .sf-arc-acts{ flex:0 0 auto !important; display:flex !important; align-items:center !important; gap:4px !important; }',
+    'html body .sf-arc-btn{',
+    '  display:inline-flex !important; align-items:center !important; gap:4px !important;',
+    '  padding:3px 7px !important; background:var(--surface-3) !important; border:1px solid var(--line-2) !important;',
+    '  border-radius:var(--r-sm, 5px) !important; color:var(--ink-2) !important;',
+    '  font:inherit !important; font-size:10.5px !important; cursor:pointer !important; }',
+    'html body .sf-arc-btn:hover{ background:var(--surface-4) !important; color:var(--ink) !important; border-color:var(--line-3) !important; }',
+    'html body .sf-arc-drop{ padding:3px 5px !important; }',
+    'html body .sf-arc-empty{ padding:22px 14px !important; text-align:center !important; color:var(--ink-3) !important; font-size:12px !important; }',
+    'html body .sf-arc-empty > i{ font-size:20px !important; color:var(--ink-4) !important; }',
+    'html body .sf-arc-empty p{ margin:8px 0 0 !important; }',
+    'html body .sf-arc-hint{ color:var(--ink-4) !important; font-size:11px !important; line-height:1.6 !important; }'
+    /* The three tabs — Everything · Novel · Screenplay — were drawn here.
+       Nothing draws them: the panel belongs to the page it was opened from,
+       so there is nothing to choose and no tab row to choose it in. */
+  ].join('\n');  const sheet = document.createElement('style');
+  sheet.id = 'sfArchiveSheet';
+  sheet.textContent = CSS;
+  (document.head || document.documentElement).appendChild(sheet);
+})();
+
+
+/* ═══════════════════════════════════════════════════════════
+   21 · THE MARKS, THE BAR, THE CARDS AND THE POPUPS
+
+   · THE TWO BARS SHARE ONE LANGUAGE. Every mark in them carried its own
+     weight of grey and sat a good gap from the next; they are one quieter
+     grey now, in a tighter row, so the strip reads as one set of controls.
+
+   · THE NOTES MARK IS A MARK, NOT A BOX. It wore the bar's chip fill and,
+     after a press, a ring that stayed. It rests flat and grey like the
+     utilities mark beside it, and no control in either bar keeps a ring
+     from a pointer press — the ring is the keys' answer, nothing else.
+
+   · THE IMF CARD IS A SURFACE. It floated on the editor's own shade, so the
+     card and the page behind it read as one plane; it is a step lighter now,
+     edged and lifted. And the font picker beside it keeps its ink while
+     mixing is on: switching mixing on is not the picker switching off.
+
+   · THE ARCHIVE DROPS FROM ITS OWN MARK. It opened in the screen's
+     bottom-right corner, nowhere near the button that owns it. It opens
+     under that button — the place Find & replace opens in — and its head is
+     the handle you drag it by, the hand the utilities and notes popups wear.
+
+   · AND NO POPUP EXPLAINS ITSELF. The archive's second paragraph is gone,
+     and the utilities' own sub-lines with it: a panel a writer has opened
+     does not need to describe what it is.
+
+   · THE BOOK'S LEFT CARD IS THE IDEA PAGE'S CARD. Same surface, same
+     rhythm in the rows, same hairline over the pager.
+
+   · THE PLAN BAR DROPS ITS SECOND ALL-BOARDS CONTROL. The picker's own
+     “All boards” entry does that job, so the button beside it is gone — and
+     the hairline that hung off it with it. Add board shows its words again
+     (it was clipped to a bare ＋), rename and remove are real buttons one
+     grey chip each, and a card is one line, the shape the draft page's own
+     cards are.
+
+   · THE SCRIPT PAGE GETS ITS OWN FACE AND SIZE. The manuscript's bar has
+     carried a font picker and a size box since it existed; the script page's
+     bar had neither. Both are there now, and they answer to the script's two
+     surfaces — the Fountain source and the page it renders.
+
+   Nothing here moves a control out of the row it is in: every rule changes
+   a colour, a gap or a card's own shape.
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  const esc = function(s){
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  };
+  const BAR_MARK = 'html body :is(#writeToolbar,#chapterControls,.fnt-bar) '
+    + ':is(.tb-btn,.icon-btn-sm,.imf-drop-btn,.tb-drop-title,.tb-drop2-title)';
+
+  /* ── 21a · the sheet ─────────────────────────────────────────── */
+  const CSS = [
+    /* ── 1 · ONE QUIETER GREY, ONE TIGHTER ROW ── */
+    BAR_MARK + '{ color:var(--ink-3) !important; }',
+    BAR_MARK + ':hover{ color:var(--ink) !important; }',
+    'html body #writeToolbar .tb-group{ gap:1px !important; padding:0 6px !important; }',
+    'html body #chapterControls .cc-tools, html body #chapterControls .cc-right{ gap:1px !important; }',
+    'html body #chapterControls .cc-sep{ margin:0 6px !important; }',
+    'html body .fnt-bar{ gap:4px !important; }',
+
+    /* ── 2 · THE NOTES MARK WEARS THE SAME CHIP AS ITS NEIGHBOURS ──
+       It was flattened here (and so was the book mark beside it), which left
+       two bare glyphs in a row of chipped ones — the writer pointed at it.
+       Every mark in the strip carries the one grey chip now: notes, book,
+       utilities, split and overlay, resting on --surface-3 and stepping up to
+       --surface-4 under the hand, exactly the ones that were never flattened. */
+    'html body #chapterControls .cc-tools .icon-btn-sm{',
+    '  background:var(--surface-3) !important; border:1px solid transparent !important;',
+    '  color:var(--ink-3) !important; box-shadow:none !important; outline:none !important; }',
+    'html body #chapterControls .cc-tools .icon-btn-sm i{ color:inherit !important; }',
+    'html body #chapterControls .cc-tools .icon-btn-sm:hover{',
+    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+    'html body #chapterControls .cc-tools .icon-btn-sm.active,',
+    'html body #chapterControls .cc-tools .icon-btn-sm.sf-on{',
+    '  background:var(--accent-soft) !important; color:var(--accent) !important; }',
+    /* the ring is the keys' answer. 21c takes the focus off a button the
+       pointer pressed, and this makes sure no browser leaves a ring on one
+       anyway: only :focus-visible is answered. */
+    BAR_MARK + ':focus:not(:focus-visible){ outline:none !important; box-shadow:none !important; }',
+    BAR_MARK + ':focus-visible{ outline:2px solid var(--accent) !important; outline-offset:2px !important; }',
+
+    /* ── 3 · THE ROW THE KEYS ARE ON IS THE ACCENT ──
+       §17 paints the pointer's row; the row the arrows leave on carries the
+       same mark (.sf-elem-active), and it is the accent now rather than a
+       grey box — the same language the advanced panel's chips already use. */
+    'html body .sf-elem-item.sf-elem-item:hover,',
+    'html body .sf-elem-item.sf-elem-item.sf-elem-active{',
+    '  background:var(--accent-soft) !important; }',
+    'html body .sf-elem-item.sf-elem-item:hover span,',
+    'html body .sf-elem-item.sf-elem-item.sf-elem-active span{',
+    '  color:var(--accent) !important; }',
+    'html body .sf-elem-item.sf-elem-item:hover i,',
+    'html body .sf-elem-item.sf-elem-item.sf-elem-active i{',
+    '  color:var(--accent) !important; opacity:1 !important; }',
+    /* and a row that is the current style and under the keys keeps the one
+       accent box and its accent icon, exactly as §17 left it for the hand */
+    'html body .sf-elem-item.sf-elem-item.on.sf-elem-active{',
+    '  background:var(--accent-soft) !important; }',
+
+    /* ── 4 · THE FONT PICKER IS NOT OFF WHILE MIXING IS ON ──
+       The IMF card itself is §22's now: it is drawn as the app's own dropdown
+       card there, edge and radius and all, so nothing about its box is said
+       twice. */
+    'html body #writeToolbar .tb-drop[data-drop="font"] .tb-drop-title,',
+    'html body #writeToolbar .tb-drop[data-drop="font"] .tb-drop-title .tb-drop-value,',
+    'html body #writeToolbar .tb-drop[data-drop="font"] .tb-drop-title i{',
+    '  color:var(--ink-2) !important; opacity:1 !important; }',
+    'html body #writeToolbar .tb-drop[data-drop="font"] .tb-drop-title i{',
+    '  color:var(--ink-3) !important; }',
+
+    /* ── 5 · THE BOOK'S LEFT CARD IS THE IDEA PAGE'S CARD ── */
+    'html body #page-notebook .draft-rows{ padding:2px 6px 6px !important; }',
+    'html body #page-notebook .nb-tree-row{',
+    '  border-radius:var(--r-sm, 5px) !important; padding:8px 8px !important; }',
+    'html body #page-notebook .nb-tree-row:hover{ background:var(--surface-3) !important; }',
+    'html body #page-notebook .nb-pager{',
+    '  justify-content:space-between !important; gap:6px !important;',
+    '  padding:6px 8px 8px !important;',
+    '  border-top:1px solid var(--line-2) !important; }',
+    'html body #page-notebook .nb-pager .mv-pager-btn{',
+    '  width:26px !important; height:26px !important; font-size:11px !important; }',
+    'html body #page-notebook .nb-pager .vpl-range{ flex:1 1 auto !important; }',
+
+    /* ── 6 · THE PLAN BAR LOSES ITS SECOND ALL BOARDS ──
+       The picker's own list carries All boards now (§15), so the button
+       beside it — and the hairline that hung off its left edge — go. The
+       element stays in the document: app.js and §15 both press it. */
+    'html body #page-plan [data-act="plan-all"]{ display:none !important; }',
+    'html body #page-plan .plan-actions [data-act="plan-all"]{ margin-left:0 !important; }',
+    'html body #page-plan .plan-actions [data-act="plan-all"]::before{ display:none !important; }',
+    /* Add board shows its words again: it was pinned to the 26px the two
+       icon buttons beside it carry, and the label was clipped to a ＋. */
+    'html body #page-plan .plan-board-new{',
+    '  width:auto !important; min-width:0 !important; padding:0 10px !important;',
+    '  white-space:nowrap !important; overflow:visible !important; }',
+    /* rename and remove are buttons, one grey chip each, on the picker's own
+       line — and they line up with the select beside them */
+    'html body #page-plan .plan-board-ren, html body #page-plan .plan-board-del{',
+    '  width:26px !important; min-width:26px !important; height:26px !important; padding:0 !important;',
+    '  display:inline-flex !important; align-items:center !important; justify-content:center !important;',
+    '  background:var(--surface-3) !important; border:0 !important; border-radius:var(--r-sm, 5px) !important;',
+    '  color:var(--ink-3) !important; }',
+    'html body #page-plan .plan-board-ren:hover, html body #page-plan .plan-board-del:hover{',
+    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+    'html body #page-plan .plan-board-del:hover{',
+    '  background:color-mix(in srgb, #d9534f 16%, var(--surface-3)) !important;',
+    '  color:#d9534f !important; }',
+    /* one card, one line — the shape the draft page's own cards are */
+    'html body #page-plan .plan-wrap #beatList.beat-board{',
+    '  grid-template-columns:minmax(0, 1fr) !important; gap:6px !important; }',
+    'html body #page-plan .beat-card{',
+    '  min-height:0 !important; flex-direction:row !important; align-items:center !important;',
+    '  gap:8px !important; padding:7px 10px 7px 12px !important; }',
+    'html body #page-plan .beat-card-head{ flex:0 0 auto !important; }',
+    'html body #page-plan .beat-card .beat-input{',
+    '  flex:1 1 auto !important; min-width:0 !important;',
+    '  height:24px !important; min-height:0 !important; overflow:hidden !important; }',
+    /* All boards still tightens its grid when it is chosen from the picker */
+    'html body #page-plan.plan-all .plan-wrap #beatList.beat-board{',
+    '  grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)) !important; }',
+    'html body #page-plan.plan-all .beat-card{ flex-direction:column !important; min-height:92px !important; }',
+
+    /* ── 7 · NO POPUP EXPLAINS ITSELF ──
+       The utilities' own sub-lines and notes go; the archive's are gone from
+       its markup (see §20). */
+    'html body .util-panel .util-sub, html body .util-panel .util-note{ display:none !important; }',
+
+    /* ── 8 · THE SCRIPT PAGE'S OWN FACE AND SIZE ──
+       Not in the script's own bar: that bar is the hidden host the script's
+       panels hang from (pages.css · THE SCRIPT PAGE WEARS NO BAR), so a
+       control put there would never be seen. It rides in the chapter strip
+       the script page already wears for its scenes — and only there, so the
+       manuscript's strip, which has the rich-text toolbar above it, is
+       exactly as it was. */
+    'html body #chapterControls .fnt-fonts{ display:none !important; }',
+    'html body .sf-script-page.active #chapterControls .fnt-fonts{',
+    '  display:inline-flex !important; align-items:center !important; gap:4px !important;',
+    '  flex:0 0 auto !important; }',
+    'html body .sf-script-page.active #chapterControls .fnt-fonts .sel{',
+    '  max-width:150px !important; height:28px !important; }',
+    'html body .sf-script-page.active #chapterControls .fnt-size-inp{',
+    '  width:48px !important; height:28px !important; text-align:center !important; }',
+    'html body .fnt-src{',
+    '  font-family:var(--fnt-font, var(--doc-font, inherit)) !important;',
+    '  font-size:var(--fnt-size, var(--doc-size, 17px)) !important; }',
+    'html body .fnt-prev-pane .write-doc.fnt-doc{',
+    '  font-family:var(--fnt-font, var(--doc-font, inherit)) !important; }'
+  ].join('\n');
+  const sheet = document.createElement('style');
+  sheet.id = 'sfRoundSevenSheet';
+  sheet.textContent = CSS;
+  (document.head || document.documentElement).appendChild(sheet);
+
+  /* ── 21b · nothing in either bar keeps the focus a press gave it ──
+     A pointer press focuses the button it lands on, and the ring is drawn
+     for the keyboard. Taking the focus back as the press starts leaves the
+     bar exactly as it was before the click — the “deselection” the rows in
+     the pages list get for free. Inputs are left alone, and so are the
+     pickers: a select needs the focus it is given. */
+  window.addEventListener('mousedown', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    if(!t.closest('#writeToolbar, #chapterControls, .fnt-bar')) return;
+    const b = t.closest('.tb-btn, .icon-btn-sm, .imf-drop-btn, .tb-drop-title, .tb-drop2-title');
+    if(!b) return;
+    e.preventDefault();
+  }, true);
+
+  /* ── 21c · the archive opens under its own mark, and its head moves it ── */
+  const arcPanel = function(){ return document.getElementById('sfArchive'); };
+  const arcBtn = function(){
+    return document.querySelector('#chapterControls [data-act="archive-open"]');
+  };
+  /* a dragged position, once there is one; null while it still follows the
+     mark it belongs to */
+  const arcCfg = function(create){
+    try{
+      if(!S.config) return null;
+      const c = S.config.archivePanel;
+      if(c && typeof c === 'object' && typeof c.x === 'number' && typeof c.y === 'number') return c;
+      if(create){
+        S.config.archivePanel = { x:null, y:null };
+        return S.config.archivePanel;
+      }
+      return null;
+    }catch(e){ return null; }
+  };
+  const arcPlace = function(){
+    const p = arcPanel();
+    if(!p || p.hidden) return;
+    const put = arcCfg(false);
+    if(put){
+      p.style.setProperty('--sf-arc-x', Math.round(put.x) + 'px');
+      p.style.setProperty('--sf-arc-y', Math.round(put.y) + 'px');
+      return;
+    }
+    const b = arcBtn();
+    if(!b || !b.getBoundingClientRect) return;
+    const r = b.getBoundingClientRect();
+    if(!r.width && !r.height) return;
+    const w = p.offsetWidth || 400;
+    const left = Math.max(8, Math.min(Math.round(r.right - w), window.innerWidth - w - 8));
+    p.style.setProperty('--sf-arc-x', Math.max(8, left) + 'px');
+    p.style.setProperty('--sf-arc-y', Math.round(r.bottom + 6) + 'px');
+  };
+
+  let arcDrag = null;
+  window.addEventListener('pointerdown', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    const head = t.closest('#sfArchive .sf-arc-head');
+    if(!head || t.closest('.icon-btn-sm')) return;
+    const p = arcPanel();
+    if(!p || !p.getBoundingClientRect) return;
+    const r = p.getBoundingClientRect();
+    arcDrag = { dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false };
+    e.preventDefault();
+  }, true);
+  window.addEventListener('pointermove', function(e){
+    if(!arcDrag) return;
+    const p = arcPanel();
+    if(!p) return;
+    arcDrag.moved = true;
+    const w = p.offsetWidth || 400, h = p.offsetHeight || 300;
+    const x = Math.max(4, Math.min(e.clientX - arcDrag.dx, window.innerWidth  - w - 4));
+    const y = Math.max(4, Math.min(e.clientY - arcDrag.dy, window.innerHeight - h - 4));
+    p.style.setProperty('--sf-arc-x', Math.round(x) + 'px');
+    p.style.setProperty('--sf-arc-y', Math.round(y) + 'px');
+  }, true);
+  window.addEventListener('pointerup', function(){
+    if(!arcDrag) return;
+    const moved = arcDrag.moved;
+    arcDrag = null;
+    if(!moved) return;
+    const p = arcPanel();
+    if(!p) return;
+    const c = arcCfg(true);
+    if(!c) return;
+    c.x = Math.round(parseFloat(p.style.getPropertyValue('--sf-arc-x')) || p.offsetLeft);
+    c.y = Math.round(parseFloat(p.style.getPropertyValue('--sf-arc-y')) || p.offsetTop);
+    try{ if(typeof save === 'function') save(); }catch(e){}
+  }, true);
+
+  /* ── 21d · the notes popup drops from its own mark too ──
+     notes.js places its card from S.config.notesPanel before it shows it,
+     so the seat is written first and the card follows it down. The seat is
+     only ever written here — a card the writer has dragged still moves the
+     way it did, because the drag writes the same two numbers. */
+  const parkNotes = function(){
+    const b = document.querySelector('#chapterControls [data-act="notes-open"]');
+    if(!b || !b.getBoundingClientRect) return;
+    const r = b.getBoundingClientRect();
+    if(!r.width && !r.height) return;
+    try{
+      if(!S.config.notesPanel || typeof S.config.notesPanel !== 'object') S.config.notesPanel = {};
+      const c = S.config.notesPanel;
+      const panel = document.getElementById('notesPanel');
+      const w = (panel && panel.offsetWidth) || 340;
+      c.x = Math.max(8, Math.round(r.right - w));
+      c.y = Math.round(r.bottom + 6);
+    }catch(e){}
+  };
+
+  /* ── 21e · the notes card's own second line ──
+     “No notes yet.” says it. The line under it is the one a writer reading
+     the card does not need, and it is drawn by notes.js — so it is taken
+     off the card's markup on every pass instead of being hidden, because
+     the two live in one element. */
+  const trimNotes = function(){
+    const host = document.querySelector('#notesPanel .notes-empty');
+    if(!host || host.dataset.sfTrim === '1') return;
+    host.dataset.sfTrim = '1';
+    host.innerHTML = '<i class="bi bi-sticky"></i><br>No notes yet.';
+  };
+
+  /* ── 21f · the script page's own face and size ──
+     S.config.scriptFont / scriptSize, so the pick follows the project the
+     way every other setting does; an empty pick and a 0 size leave the two
+     tokens off, and the script falls back to the manuscript's own face and
+     size, which is what it used to draw in. */
+  const scriptCfg = function(){
+    try{
+      if(!S.config) return null;
+      if(typeof S.config.scriptFont !== 'string') S.config.scriptFont = '';
+      if(typeof S.config.scriptSize !== 'number') S.config.scriptSize = 0;
+      return S.config;
+    }catch(e){ return null; }
+  };
+  const scriptPaint = function(){
+    const host = document.querySelector('#chapterControls [data-sf-script-fonts]');
+    if(!host) return;
+    const c = scriptCfg();
+    if(!c) return;
+    const root = document.documentElement;
+    const size = Math.max(0, Math.min(60, Math.round(+c.scriptSize || 0)));
+    if(size) root.style.setProperty('--fnt-size', size + 'px');
+    else root.style.removeProperty('--fnt-size');
+    const stack = c.scriptFont
+      ? ((typeof window.sfFontStack === 'function') ? window.sfFontStack(c.scriptFont)
+                                                    : "'" + c.scriptFont + "', serif")
+      : '';
+    if(stack) root.style.setProperty('--fnt-font', stack);
+    else root.style.removeProperty('--fnt-font');
+    const sel = host.querySelector('[data-fnt-font]');
+    if(sel && sel.value !== (c.scriptFont || '')){
+      sel.value = c.scriptFont || '';
+      if(typeof sel._ddRefresh === 'function'){ try{ sel._ddRefresh(); }catch(e){} }
+    }
+    const num = host.querySelector('[data-fnt-size]');
+    if(num){
+      const shown = size || Math.round(+c.fontSize || 17);
+      if(num.value !== String(shown)) num.value = String(shown);
+    }
+  };
+  /* ── the faces a screenplay is set in ──
+     The manuscript's Font list is the novel's — serifs, slab, display, hands.
+     A script is not set in any of that: it is set in a typewriter face. What
+     is offered on the script page is the typewriter group the pack already
+     ships, first, and the few neutral faces a modern script page is set in
+     after it — the same way the manuscript's own list is the novel's. Every
+     name is drawn from window.FONTS, so a pick still resolves to a real face
+     and to the file that belongs to it. */
+  /* ── ONE ROW OF FACES, AND THEY ARE ALL SCREENPLAY FACES ──
+     A script is set in a typewriter face: the three the pack ships are the
+     whole list. It also carried the neutral faces a modern script page is
+     sometimes set in, and the bar's own Font list (which is trimmed to this
+     same list, §12c and §22) therefore showed Inter, Fira Sans and Libre
+     Franklin under a SANS heading on the script page — the writer pointed at
+     it. The three screenplay faces are the list, and nothing else. */
+  const SCRIPT_FACES = [
+    'Courier Prime', 'Courier New', 'Courier Final Draft'
+  ];
+  const scriptFaces = function(){
+    const all = window.FONTS || [];
+    return SCRIPT_FACES.map(function(n){
+      return all.filter(function(f){ return f && f.name === n; })[0] || null;
+    }).filter(Boolean);
+  };
+  window.sfScriptFaces = scriptFaces;
+
+  /* mounted on the chapter strip, and only while the script page is the one
+     on screen: the strip is repainted by write.js, so this is re-run on
+     every pass and the control is rebuilt whenever it has gone with it */
+  const mountScriptFonts = function(){
+    const strip = document.getElementById('chapterControls');
+    if(!strip || !strip.closest || !strip.closest('.sf-script-page.active')) return;
+    /* ── ONE PLACE TO PICK A FACE ──
+       §22 shows the manuscript's own writing toolbar on the script page, and
+       that bar has carried the font picker and the size box since it existed
+       — so the strip's copy stands down while the bar is there. Two pickers
+       for one face is one too many, and the bar is where the manuscript
+       keeps its own. The control below is kept for the case the bar is not
+       on screen at all (a build that still hides it), so the page is never
+       left with no way to set its face. */
+    const bar = document.querySelector('.sf-script-page.active .write-toolbar');
+    if(bar && bar.getClientRects && bar.getClientRects().length) return;
+    if(strip.querySelector('[data-sf-script-fonts]')){ scriptPaint(); return; }
+    const host = strip.querySelector('.cc-tools') || strip.querySelector('.cc-right') || strip;
+    const wrap = document.createElement('span');
+    wrap.className = 'fnt-fonts';
+    wrap.setAttribute('data-sf-script-fonts', '1');
+    wrap.innerHTML =
+        '<select class="sel fnt-font-sel" data-fnt-font title="Writing font">'
+      +   '<option value="">Editor font</option>'
+      +   scriptFaces().map(function(f){
+            return '<option value="' + esc(f.name) + '">' + esc(f.name) + '</option>';
+          }).join('')
+      + '</select>'
+      + '<input type="number" class="tb-input fnt-size-inp" data-fnt-size min="10" max="60" title="Font size">'
+      + '<button type="button" class="icon-btn-sm" data-fnt-size-plus title="Increase size"><i class="bi bi-plus"></i></button>'
+      + '<button type="button" class="icon-btn-sm" data-fnt-size-minus title="Decrease size"><i class="bi bi-dash"></i></button>';
+    host.appendChild(wrap);
+    const c = scriptCfg();
+    if(c){
+      const sel = wrap.querySelector('[data-fnt-font]');
+      if(sel) sel.value = c.scriptFont || '';
+      const num = wrap.querySelector('[data-fnt-size]');
+      if(num) num.value = String(Math.max(0, Math.round(+c.scriptSize || 0)) || Math.round(+c.fontSize || 17));
+    }
+    if(typeof window.enhanceSelects === 'function'){ try{ window.enhanceSelects(wrap); }catch(e){} }
+    scriptPaint();
+  };
+  const scriptSetFont = function(name){
+    const c = scriptCfg(); if(!c) return;
+    c.scriptFont = String(name || '');
+    scriptPaint();
+    try{ if(typeof save === 'function') save(); }catch(e){}
+  };
+  const scriptSetSize = function(px){
+    const c = scriptCfg(); if(!c) return;
+    c.scriptSize = Math.max(0, Math.min(60, Math.round(+px || 0)));
+    scriptPaint();
+    try{ if(typeof save === 'function') save(); }catch(e){}
+  };
+
+  /* ── the presses ──
+     On the window, in the capture phase: write.js answers every click in one
+     document-capture listener, and these have to run before it. */
+  window.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    if(t.closest('[data-fnt-size-plus]')){
+      e.preventDefault();
+      const c = scriptCfg();
+      if(c) scriptSetSize((Math.round(+c.scriptSize || 0) || Math.round(+c.fontSize || 17)) + 1);
+      return;
+    }
+    if(t.closest('[data-fnt-size-minus]')){
+      e.preventDefault();
+      const c = scriptCfg();
+      if(c) scriptSetSize(Math.max(10, (Math.round(+c.scriptSize || 0) || Math.round(+c.fontSize || 17)) - 1));
+      return;
+    }
+  }, true);
+  window.addEventListener('change', function(e){
+    const t = e.target;
+    if(!t || !t.dataset) return;
+    if('fntFont' in t.dataset){ scriptSetFont(t.value); return; }
+    if('fntSize' in t.dataset){ scriptSetSize(t.value); return; }
+  }, true);
+  window.addEventListener('input', function(e){
+    const t = e.target;
+    if(!t || !t.dataset || !('fntSize' in t.dataset)) return;
+    const px = parseInt(t.value, 10);
+    if(isNaN(px)) return;
+    const c = scriptCfg();
+    if(!c) return;
+    c.scriptSize = Math.max(0, Math.min(60, px));
+    try{ document.documentElement.style.setProperty('--fnt-size', c.scriptSize + 'px'); }catch(err){}
+  }, true);
+
+  /* ── 21g · the notes mark seats the card before its own handler runs ──
+     notes.js answers the press on the document, in the capture phase, and
+     it calls its own notesToggle — a private function, not the window's —
+     so the seat has to be written by an earlier listener rather than by
+     wrapping it. Capture runs window → document, so this window listener is
+     the one that gets there first (the lesson §17's toggles are bound
+     for). */
+  window.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    if(!t.closest('[data-act="notes-open"]')) return;
+    try{ parkNotes(); }catch(err){}
+  }, true);
+
+  /* ── the beat ── */
+  let raf = 0;
+  const beat = function(){
+    if(raf) return;
+    raf = requestAnimationFrame(function(){
+      raf = 0;
+      try{ arcPlace(); }catch(e){}
+      try{ trimNotes(); }catch(e){}
+      try{ mountScriptFonts(); }catch(e){}
+    });
+  };
+  if(typeof MutationObserver === 'function' && document.body){
+    new MutationObserver(beat).observe(document.body, { childList:true, subtree:true });
+  }
+  document.addEventListener('click', beat, true);
+  window.addEventListener('resize', beat);
+  [0, 120, 400, 1200, 2600].forEach(function(ms){ setTimeout(beat, ms); });
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════
+   22 · THE SCRIPT PAGE'S OWN TWO BARS, ONE LIT ROW, AND THE CARDS
+
+   · THE SCRIPT PAGE WEARS THE MANUSCRIPT'S TWO BARS. The writing toolbar
+     was switched off on the script page by the page that draws the source
+     (`.write-toolbar{display:none}` inline), which left the strip alone up
+     there — one bar where every other writing page has two. It is back, in
+     the same place and the same shape it has on the manuscript, and the
+     strip's own font picker stands down while it is there: the face and the
+     size live in the toolbar, which is where the manuscript keeps them.
+
+   · AND ITS FONT LIST IS A SCREENPLAY'S. The manuscript's list is the
+     novel's — serifs, slabs, display, hands. A script is set in a
+     typewriter face, so the list on that page is the typewriter group and
+     the neutral faces beside it, and the full list comes back the moment
+     the novel does.
+
+   · ONE LIT ROW, EVER, IN THE ELEMENT MENU. The row the paragraph already
+     IS and the row under the hand are two facts, and both were drawn as a
+     box; when the keys walked the mark while the pointer rested on another
+     row, two rows read as selected at once. Exactly one box now: the
+     pointer and the keys share one mark, a box is painted for that mark and
+     for nothing else, and hover on its own paints nothing.
+
+   · THE MENU OPENS OVER THE SOURCE, AND THE PICK LANDS IN IT. On a script
+     the writer types in the Fountain source (the left card) and the menu
+     was parked from the rendered page (the right card). It is seated at the
+     caret in the source now, and choosing an element writes the element's
+     Fountain form onto the line the caret is on.
+
+   · THE BAR'S ICONS ARE ONE SET. Every mark in both bars is the same grey,
+     a 1–2px gap apart, and the split and overlay marks carry the same chip
+     as the three beside them — they were the two that had been flattened.
+
+   · THE BOOK'S LEFT CARD IS THE DRAFT PAGE'S CARD, without its filter: the
+     same surface, the same rows, the same pager over a hairline.
+
+   · AND THE IMF FLYOUT IS A DROPDOWN, NOT A FORM. Its card is the app's
+     dropdown card — same surface, edge, radius and shadow — and the three
+     faces inside it are the same chip the toolbar's own pickers wear.
+   ═══════════════════════════════════════════════════════════════ */
+(function(){
+  const onScreen = function(el){
+    return !!(el && el.getClientRects && el.getClientRects().length);
+  };
+
+  /* ── 22a · the sheet ────────────────────────────────────────── */
+  const CSS = [
+    /* ── ONE LIT ROW IN THE ELEMENT MENU ──
+       An id out-ranks every class rule the app writes for these rows, so
+       whichever sheet landed last, this is the one that paints them. */
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item{',
+    '  background:transparent !important; box-shadow:none !important; color:var(--ink-2) !important; }',
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item i{',
+    '  color:var(--ink-3) !important; opacity:1 !important; }',
+    /* the style the paragraph is: the icon, never a box */
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item.on{',
+    '  background:transparent !important; color:var(--ink) !important; }',
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item.on i{ color:var(--accent) !important; }',
+    /* a pointer resting is not a selection — the mark is what is drawn */
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item:hover:not(.sf-elem-active){',
+    '  background:transparent !important; color:var(--ink-2) !important; }',
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item:hover:not(.sf-elem-active) span{',
+    '  color:var(--ink-2) !important; }',
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item:hover:not(.sf-elem-active) i{',
+    '  color:var(--ink-3) !important; }',
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item.on:hover:not(.sf-elem-active) i{',
+    '  color:var(--accent) !important; }',
+    /* the one box: the row under the hand or under the keys */
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item.sf-elem-active{',
+    '  background:var(--accent-soft) !important; color:var(--accent) !important;',
+    '  box-shadow:inset 0 0 0 1px var(--accent-line) !important; }',
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item.sf-elem-active span,',
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item.sf-elem-active i{',
+    '  color:var(--accent) !important; opacity:1 !important; }',
+
+    /* ── THE SCRIPT PAGE WEARS THE MANUSCRIPT'S TWO BARS ── */
+    'html body .sf-script-page .write-toolbar{ display:flex !important; }',
+    'html body .sf-script-page .write-toolbar .tb-push-right{ margin-left:auto !important; }',
+
+    /* ── ONE GREY, ONE GAP, IN BOTH BARS ──
+       The strip's own 10px between its groups, and the marks' own boxes, are
+       what read as “the gaps are too big”. Every mark keeps the chip it has
+       on the manuscript (--surface-3, --ink-3 ink), and the split and the
+       overlay get the same one: they were the two that had been flattened. */
+    'html body #chapterControls.chapter-controls{ gap:6px !important; }',
+    'html body #chapterControls .chapter-control{ gap:4px !important; }',
+    'html body #chapterControls .cc-tools, html body #chapterControls .cc-right{ gap:2px !important; }',
+    'html body #chapterControls .cc-sep{ margin:0 2px !important; }',
+    'html body #writeToolbar.write-toolbar{ gap:1px !important; }',
+    'html body #writeToolbar .tb-group{ gap:1px !important; padding:0 5px !important; }',
+    'html body #chapterControls .cc-right [data-act="split-open"],',
+    'html body #chapterControls .cc-right [data-act="overlay-open"]{',
+    '  background:var(--surface-3) !important; border-color:transparent !important;',
+    '  color:var(--ink-3) !important; box-shadow:none !important; }',
+    'html body #chapterControls .cc-right [data-act="split-open"] i,',
+    'html body #chapterControls .cc-right [data-act="overlay-open"] i{ color:inherit !important; }',
+    'html body #chapterControls .cc-right [data-act="split-open"]:hover,',
+    'html body #chapterControls .cc-right [data-act="overlay-open"]:hover{',
+    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+    'html body #chapterControls .cc-right [data-act="split-open"].active,',
+    'html body #chapterControls .cc-right [data-act="overlay-open"].active,',
+    'html body #chapterControls .cc-right [data-act="split-open"].on,',
+    'html body #chapterControls .cc-right [data-act="overlay-open"].on{',
+    '  background:var(--accent-soft) !important; color:var(--accent) !important; }',
+
+    /* ── THE BOOK'S LEFT CARD IS THE DRAFT PAGE'S CARD ── */
+    'html body #page-notebook .draft-list{',
+    '  background:var(--surface-2) !important; border:0 !important;',
+    '  border-radius:var(--r-md, 6px) !important; box-shadow:none !important; }',
+    'html body #page-notebook .draft-list-head{ padding:8px 10px !important; gap:6px !important; }',
+    'html body #page-notebook .draft-list-label{',
+    '  flex:1 1 auto !important; min-width:0 !important;',
+    '  font-size:10px !important; font-weight:600 !important; letter-spacing:.07em !important;',
+    '  text-transform:uppercase !important; color:var(--ink-4) !important; }',
+    'html body #page-notebook .draft-list-acts{ display:flex !important; align-items:center !important; gap:2px !important; }',
+    'html body #page-notebook .draft-list-acts .icon-btn-sm{ width:28px !important; height:28px !important; border-radius:var(--r-sm, 5px) !important; }',
+    'html body #page-notebook .draft-rows{ padding:2px 6px 8px !important; }',
+    'html body #page-notebook .nb-tree-row{',
+    '  display:flex !important; align-items:center !important; gap:8px !important;',
+    '  padding:7px 8px !important; border-radius:var(--r-sm, 5px) !important;',
+    '  color:var(--ink-2) !important; cursor:pointer !important; }',
+    'html body #page-notebook .nb-tree-row:hover{ background:var(--surface-3) !important; }',
+    'html body #page-notebook .nb-tree-row.on{ background:var(--surface-4) !important; color:var(--ink) !important; }',
+    'html body #page-notebook .nb-tree-name{ flex:1 1 auto !important; min-width:0 !important; font-size:12.5px !important; }',
+    'html body #page-notebook .draft-empty{',
+    '  padding:22px 10px !important; text-align:center !important;',
+    '  color:var(--ink-4) !important; font-size:11.5px !important; line-height:1.6 !important; }',
+    'html body #page-notebook .nb-pager{',
+    '  justify-content:space-between !important; gap:8px !important; padding:8px 10px !important;',
+    '  border-top:1px solid var(--line-2) !important; }',
+    'html body #page-notebook .nb-pager .mv-pager-btn{ width:28px !important; height:28px !important; }',
+    /* and no filter box on the book's card: the draft page's list is the one
+       place the app carries one */
+    'html body #page-notebook .draft-list-head :is(input,.search-input),',
+    'html body #page-notebook .draft-list :is(input[type="search"],input[placeholder*="Filter"]){ display:none !important; }',
+
+    /* ── THE IMF FLYOUT IS THE APP'S DROPDOWN CARD ──
+       Same surface, same edge, same radius and the same shadow as the font
+       list the toolbar opens — and the three faces in it wear the same chip
+       the toolbar's own pickers wear, with the same row rhythm in the list
+       each one opens. */
+    'html body .imf-drop .imf-drop-list{',
+    '  background:var(--surface-1) !important;',
+    '  border:1px solid var(--line-2) !important; border-radius:var(--r-md, 6px) !important;',
+    '  box-shadow:0 12px 32px rgba(0,0,0,.32) !important; padding:6px !important; }',
+    'html body .imf-drop .imf-drop-head{',
+    '  padding:7px 10px 5px !important; font-size:9.5px !important; font-weight:600 !important;',
+    '  letter-spacing:.08em !important; text-transform:uppercase !important; color:var(--ink-4) !important; }',
+    'html body .imf-drop .imf-font-row{ gap:6px !important; }',
+    'html body .imf-drop .imf-field{ gap:4px !important; font-size:9.5px !important; letter-spacing:.08em !important; }',
+    'html body .imf-drop .imf-field > .stats-cat-card{',
+    '  background:var(--surface-2) !important; border:1px solid var(--line-2) !important;',
+    '  border-radius:var(--r-sm, 4px) !important; }',
+    'html body .imf-drop .imf-field .stats-cat-title{',
+    '  display:flex !important; align-items:center !important; justify-content:space-between !important;',
+    '  gap:8px !important; padding:6px 10px !important; background:transparent !important;',
+    '  border:0 !important; border-radius:var(--r-sm, 4px) !important;',
+    '  font-size:12.5px !important; font-weight:500 !important; color:var(--ink-2) !important; }',
+    'html body .imf-drop .imf-field .stats-cat-title:hover{',
+    '  background:var(--surface-3) !important; color:var(--ink) !important; }',
+    'html body .imf-drop .imf-field .dd-value{ flex:1 1 auto !important; font-weight:400 !important; color:var(--ink) !important; }',
+    'html body .imf-drop .imf-field .stats-cat-caret{ color:var(--ink-4) !important; font-size:10px !important; }',
+    'html body .imf-drop .imf-field .stats-cat-list{',
+    '  background:var(--surface-1) !important; border:1px solid var(--line-2) !important;',
+    '  border-radius:var(--r-md, 6px) !important;',
+    '  box-shadow:0 12px 32px rgba(0,0,0,.32) !important; padding:5px !important; }',
+    'html body .imf-drop .imf-field .stats-cat-item{',
+    '  padding:7px 10px !important; border-radius:var(--r-sm, 4px) !important;',
+    '  font-size:12.5px !important; color:var(--ink-2) !important; }',
+    'html body .imf-drop .imf-field .stats-cat-item:hover{',
+    '  background:var(--surface-2) !important; color:var(--ink) !important; }',
+    'html body .imf-drop .imf-field .stats-cat-item.on,',
+    'html body .imf-drop .imf-field .stats-cat-item.active{',
+    '  background:var(--accent-soft) !important; color:var(--accent) !important; font-weight:600 !important; }'
+  ].join('\n');
+  const sheet = document.createElement('style');
+  sheet.id = 'sfRoundEightSheet';
+  sheet.textContent = CSS;
+  (document.head || document.documentElement).appendChild(sheet);
+
+  /* ── 22b · the source the script page is written in ── */
+  const srcTa = function(){
+    const page = document.querySelector('.sf-script-page.active');
+    if(!page) return null;
+    const ta = page.querySelector('.fnt-src');
+    return onScreen(ta) ? ta : null;
+  };
+
+  /* ── 22c · the menu is seated at the caret in the source ──
+     A textarea has no range boxes to read, so the caret's seat is measured
+     the way every editor measures one: the text up to the caret is set in a
+     hidden copy of the field with the field's own metrics, and the marker
+     after it is where the caret is. */
+  const caretPoint = function(ta){
+    if(!ta || ta.tagName !== 'TEXTAREA') return null;
+    const cs = (typeof getComputedStyle === 'function') ? getComputedStyle(ta) : null;
+    const div = document.createElement('div');
+    const span = document.createElement('span');
+    if(cs){
+      ['fontFamily','fontSize','fontWeight','fontStyle','lineHeight','letterSpacing',
+       'paddingTop','paddingRight','paddingBottom','paddingLeft','boxSizing'].forEach(function(p){
+        try{ div.style[p] = cs[p]; }catch(e){}
+      });
+    }
+    div.style.position = 'absolute';
+    div.style.left = '-9999px';
+    div.style.top = '0';
+    div.style.visibility = 'hidden';
+    div.style.whiteSpace = 'pre-wrap';
+    div.style.overflowWrap = 'break-word';
+    div.style.pointerEvents = 'none';
+    div.style.width = (ta.clientWidth || 400) + 'px';
+    const cut = (typeof ta.selectionStart === 'number') ? ta.selectionStart : ta.value.length;
+    div.textContent = ta.value.slice(0, cut);
+    span.textContent = '\u200b';
+    div.appendChild(span);
+    (document.body || document.documentElement).appendChild(div);
+    let out = null;
+    try{
+      const r = ta.getBoundingClientRect();
+      const dr = div.getBoundingClientRect();
+      const sr = span.getBoundingClientRect();
+      const h = sr.height || parseFloat((cs && cs.lineHeight) || 0) || 18;
+      out = {
+        left: r.left + (sr.left - dr.left) - (ta.scrollLeft || 0),
+        top:  r.top  + (sr.top  - dr.top)  - (ta.scrollTop  || 0),
+        height: h
+      };
+      out.bottom = out.top + h;
+    }catch(e){ out = null; }
+    try{ div.parentNode.removeChild(div); }catch(e){}
+    return out;
+  };
+  const seatMenu = function(){
+    const m = document.getElementById('sfElemMenu');
+    if(!m || m.hidden) return;
+    const ta = srcTa();
+    if(!ta) return;                       /* not a script: the menu is where it was put */
+    const pane = ta.closest('.fnt-src-pane') || ta.parentNode || ta;
+    const pr = (pane && pane.getBoundingClientRect) ? pane.getBoundingClientRect() : null;
+    const pt = caretPoint(ta);
+    const mw = m.offsetWidth  || 212;
+    const mh = m.offsetHeight || 200;
+    const vw = window.innerWidth  || 1200;
+    const vh = window.innerHeight || 800;
+    let left = pt ? pt.left : (pr ? pr.left + 20 : 24);
+    let top  = pt ? (pt.bottom + 8) : (pr ? pr.top + 56 : 80);
+    if(pr && pr.width > mw + 24){
+      left = Math.min(Math.max(left, pr.left + 8), pr.right - mw - 8);
+      if(top + mh > pr.bottom - 8) top = Math.max(pr.top + 8, pr.bottom - mh - 8);
+    }
+    left = Math.max(8, Math.min(left, vw - mw - 8));
+    top  = Math.max(8, Math.min(top,  vh - mh - 8));
+    try{
+      m.style.setProperty('left', Math.round(left) + 'px', 'important');
+      m.style.setProperty('top',  Math.round(top)  + 'px', 'important');
+    }catch(e){}
+  };
+
+  /* ── 22d · the pick lands in the source ──
+     The element set is write.js's own, and each one has a Fountain form: a
+     slug is written in caps, a character's name is a line in caps, a
+     parenthetical is wrapped in its own brackets, a transition ends in a
+     colon. What is empty takes the element's sample line, so picking
+     “Scene heading” on a blank line writes one to type over. */
+  const FNT_INS = {
+    'scene-heading':  { text:'INT. LOCATION - DAY', upper:true },
+    'action':         { text:'' },
+    'character-name': { text:'CHARACTER', upper:true },
+    'parenthetical':  { text:'(beat)', paren:true },
+    'dialogue':       { text:'' },
+    'transition':     { text:'CUT TO:', upper:true, colon:true }
+  };
+  const lineAt = function(ta){
+    const v = String(ta.value == null ? '' : ta.value);
+    const at = (typeof ta.selectionStart === 'number') ? ta.selectionStart : v.length;
+    const a = v.lastIndexOf('\n', Math.max(0, at - 1)) + 1;
+    let b = v.indexOf('\n', at);
+    if(b < 0) b = v.length;
+    return { a:a, b:b, text:v.slice(a, b) };
+  };
+  const fntApply = function(val){
+    const ta = srcTa();
+    if(!ta) return false;
+    const spec = FNT_INS[val];
+    if(!spec) return false;
+    /* the two elements that have no mark of their own in Fountain — action
+       and dialogue — leave the line exactly as it is: the pick is about the
+       line's place in the scene, not about its characters. */
+    if(!spec.upper && !spec.paren && !spec.colon){
+      try{ ta.focus(); }catch(e){}
+      return true;
+    }
+    const ln = lineAt(ta);
+    let text = ln.text.trim();
+    if(spec.paren){
+      text = text.replace(/^\(+/, '').replace(/\)+$/, '').trim();
+      text = '(' + (text || 'beat') + ')';
+    } else if(spec.upper){
+      text = (text || spec.text).toUpperCase();
+    }
+    if(spec.colon && text && text.charAt(text.length - 1) !== ':'){
+      text = text.replace(/:+\s*$/, '') + ':';
+    }
+    ta.value = ta.value.slice(0, ln.a) + text + ta.value.slice(ln.b);
+    try{ ta.selectionStart = ta.selectionEnd = ln.a + text.length; }catch(e){}
+    try{ ta.dispatchEvent(new Event('input', { bubbles:true })); }catch(e){}
+    try{ ta.focus(); }catch(e){}
+    return true;
+  };
+  const menuRow = function(){
+    const m = document.getElementById('sfElemMenu');
+    if(!m) return null;
+    return m.querySelector('.sf-elem-item.sf-elem-active')
+        || m.querySelector('.sf-elem-item.on')
+        || m.querySelector('.sf-elem-item');
+  };
+  const closeMenu = function(){
+    if(typeof window.sfMenuClose === 'function'){ try{ window.sfMenuClose(); return; }catch(e){} }
+    const m = document.getElementById('sfElemMenu');
+    if(m) m.hidden = true;
+  };
+
+  /* ── the presses ──
+     On the window, in the capture phase: write.js answers every click and
+     every one of these keys in one document-capture listener, and the
+     script page's answer has to be settled before it. */
+  window.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    const row = t.closest('[data-sf-elem]');
+    if(!row) return;
+    if(!srcTa()) return;                  /* a script only */
+    e.preventDefault(); e.stopImmediatePropagation();
+    fntApply(row.getAttribute('data-sf-elem'));
+    closeMenu();
+  }, true);
+
+  window.addEventListener('keydown', function(e){
+    if(e.isComposing) return;
+    const m = document.getElementById('sfElemMenu');
+    if(!m || m.hidden) return;
+    if(!srcTa()) return;
+    if(e.key !== 'Enter' && e.key !== 'Tab') return;
+    const row = menuRow();
+    if(!row) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    fntApply(row.getAttribute('data-sf-elem'));
+    closeMenu();
+  }, true);
+
+  /* ── 22e · the script page's font list ──
+     The list the toolbar opens is the app's whole table. On a script it is
+     rebuilt without the faces a screenplay is not set in, and the copy that
+     was there is put back the moment the page is not a script any more.
+     The heading above a group that has nothing left under it goes too. */
+  let fontCache = null;
+  const scriptFontList = function(){
+    const list = document.querySelector('#writeToolbar .tb-drop[data-drop="font"] .tb-drop-list')
+              || document.querySelector('.write-toolbar .tb-drop[data-drop="font"] .tb-drop-list');
+    if(!list) return;
+    const script = !!document.querySelector('.sf-script-page.active');
+    if(!script){
+      if(list.dataset.sfScriptTrim === '1' && fontCache !== null){
+        list.innerHTML = fontCache;
+        delete list.dataset.sfScriptTrim;
+        fontCache = null;
+      }
+      return;
+    }
+    if(list.dataset.sfScriptTrim === '1') return;
+    if(fontCache === null) fontCache = list.innerHTML;
+    const faces = (typeof window.sfScriptFaces === 'function') ? window.sfScriptFaces() : [];
+    const keep = {};
+    faces.forEach(function(f){ keep[f.name] = 1; });
+    Array.prototype.forEach.call(list.querySelectorAll('.tb-drop-item'), function(row){
+      if(!keep[row.getAttribute('data-value')]) row.remove();
+    });
+    Array.prototype.forEach.call(list.querySelectorAll('.tb-drop-group'), function(g){
+      let n = g.nextElementSibling, any = false;
+      while(n && !(n.classList && n.classList.contains('tb-drop-group'))){
+        if(n.classList && n.classList.contains('tb-drop-item')){ any = true; break; }
+        n = n.nextElementSibling;
+      }
+      if(!any) g.remove();
+    });
+    list.dataset.sfScriptTrim = '1';
+  };
+
+  /* ── the beat ── */
+  let raf = 0;
+  const beat = function(){
+    if(raf) return;
+    raf = requestAnimationFrame(function(){
+      raf = 0;
+      try{ seatMenu(); }catch(e){}
+      try{ scriptFontList(); }catch(e){}
+    });
+  };
+  if(typeof MutationObserver === 'function' && document.body){
+    /* the menu is shown by taking `hidden` off it, which is an attribute and
+       not a child — so this one watches the marks too, or the seat would
+       wait for the next click */
+    new MutationObserver(beat).observe(document.body, {
+      childList:true, subtree:true, attributes:true,
+      attributeFilter:['hidden', 'class', 'style']
+    });
+  }
+  document.addEventListener('click', beat, true);
+  window.addEventListener('resize', beat);
+  [0, 120, 400, 1200, 2600].forEach(function(ms){ setTimeout(beat, ms); });
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════
+   23 · THE SCRIPT PAGE'S BARS, THE STRIP'S MARKS, AND THE COVER
+
+   · THE SPLIT SCREEN IS NOT ON THE SCRIPT PAGE. A screenplay is written in
+     one face, in one column, at the machine — the split is the novel's tool
+     and its mark is off this page and nowhere else.
+
+   · EVERY MARK IN THE CHAPTER STRIP WEARS THE SAME GREY CHIP. The notes, the
+     book and the grid carried one and the split, the overlay and the archive
+     carried none — four sheets had a say in it and three of them rested flat
+     on purpose, so half the row read as bare glyphs. One rule states it for
+     all of them, at a weight that out-ranks the rest, and a lit mark keeps
+     its accent.
+
+   · THE SCRIPT PAGE'S TWO BARS ARE THE MANUSCRIPT'S ONE CARD. pages.css
+     draws the manuscript as one card — the formatting toolbar its upper half
+     with the rounded top, the chapter strip its lower half with the rounded
+     bottom — and the script page drew those same two rows as two boxes,
+     because that card is written with the id doubled and out-ranked every
+     rule that tried to join them. The geometry is stated here with the id
+     doubled as well: one card, two halves, one --surface-2, one 16px inset.
+
+   · MIXING FONTS GREYS THE BAR'S OWN FONT PICKER. Asked for plainly: while
+     the rotation is on, the toolbar's Font control is the one control the
+     writer is not using — the faces are chosen in the panel beside it — so
+     it rests dimmed and takes no press, and it is handed back the moment
+     mixing is switched off. Every other control in both bars, and the row's
+     own geometry, is left exactly as it is.
+
+   · ONE LIT ROW IN THE ELEMENT MENU. The mark is the box: the row under the
+     hand or the keys. A row can also hold the DOM's focus, and §19 answers
+     :focus-visible with the accent outline — so a pressed or walked row drew
+     a second ring beside the mark and the menu read as two selections. The
+     ring is off inside this menu, and a focused row that is not the mark is
+     flat.
+
+   · THE BOOK MARK AND THE READER'S ⋯ ARE GONE AGAIN. The round before this
+     one hung a small menu off the strip's Book mark (Script formatting ·
+     Final script) and another off the reader's head (rename this section, add
+     a section below, duplicate, move it, remove it). Both are out by request:
+     the Book mark does on the script page what it has always done everywhere
+     else — it opens the book — and the reader's head carries the marks it
+     carried before, and no ⋯.
+   ═══════════════════════════════════════════════════════════════ */
+(function(){
+  /* ── 23a · the sheet ────────────────────────────────────────── */
+  const CSS = [
+    /* ── 1 · NO SPLIT SCREEN ON THE SCRIPT PAGE ── */
+    'html body .sf-script-page #chapterControls [data-act="split-open"]{',
+    '  display:none !important; }',
+
+    /* ── 1b · EVERY MARK IN THE STRIP WEARS THE ONE GREY CHIP ──
+       The marks in the chapter strip were filled from four different sheets
+       and three of them rested flat on purpose — the split, the overlay and
+       the archive had no fill at all — so beside the notes and the book they
+       read as bare glyphs, on the manuscript and on the script page both.
+       Doubling the class LEFT THE SAME MARK STILL BARE: the bare ones are
+       rested flat by rules written at two ids of weight (§19's light keys,
+       §20's own mark, §22's split and overlay) and the sheets that append
+       themselves last — sfAccentLast, sfFrameLast, sfRoundCss — carry two
+       and three ids of their own. So the chip is stated here at THREE ids,
+       which nothing in the app can come near: the three marks in .cc-tools,
+       the split, the overlay, the find and the archive are one weight, and
+       the one labelled mark among them — IMF — carries the same chip.
+       Every lit state is restated at this weight too, or the chip would
+       paint over the accent when a mark is really on. */
+    'html body #chapterControls#chapterControls#chapterControls .icon-btn-sm.icon-btn-sm,',
+    'html body #chapterControls#chapterControls#chapterControls [data-act="archive-open"][data-act="archive-open"]{',
+    '  background:var(--surface-3) !important; border:1px solid transparent !important;',
+    '  color:var(--ink-3) !important; box-shadow:none !important; }',
+    'html body #chapterControls#chapterControls#chapterControls .icon-btn-sm.icon-btn-sm i,',
+    'html body #chapterControls#chapterControls#chapterControls [data-act="archive-open"] i{ color:inherit !important; }',
+    'html body #chapterControls#chapterControls#chapterControls .icon-btn-sm.icon-btn-sm:hover,',
+    'html body #chapterControls#chapterControls#chapterControls [data-act="archive-open"]:hover{',
+    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+    'html body #chapterControls#chapterControls#chapterControls .icon-btn-sm.icon-btn-sm:is(.active,.sf-on,.on),',
+    'html body #chapterControls#chapterControls#chapterControls [data-act="archive-open"]:is(.active,.sf-on,.on){',
+    '  background:var(--accent-soft) !important; color:var(--accent) !important; }',
+    'html body #chapterControls#chapterControls#chapterControls .icon-btn-sm.icon-btn-sm:is(.active,.sf-on,.on) i,',
+    'html body #chapterControls#chapterControls#chapterControls [data-act="archive-open"]:is(.active,.sf-on,.on) i{',
+    '  color:var(--accent) !important; }',
+    'html body #chapterControls#chapterControls#chapterControls .imf-drop-btn.imf-drop-btn{',
+    '  background:var(--surface-3) !important; border-color:transparent !important;',
+    '  color:var(--ink-2) !important; box-shadow:none !important; }',
+    'html body #chapterControls#chapterControls#chapterControls .imf-drop-btn.imf-drop-btn > i{ color:inherit !important; }',
+    'html body #chapterControls#chapterControls#chapterControls .imf-drop-btn.imf-drop-btn > i:first-child{ color:var(--ink-3) !important; }',
+    'html body #chapterControls#chapterControls#chapterControls .imf-drop-btn.imf-drop-btn:hover{',
+    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+    'html body #chapterControls#chapterControls#chapterControls .imf-drop-btn.imf-drop-btn:hover > i:first-child{ color:var(--ink) !important; }',
+    'html body #chapterControls#chapterControls#chapterControls .imf-drop.open .imf-drop-btn.imf-drop-btn,',
+    'html body #chapterControls#chapterControls#chapterControls .imf-drop-btn.imf-drop-btn.active{',
+    '  background:var(--accent-soft) !important; color:var(--accent) !important; border-color:transparent !important; }',
+    'html body #chapterControls#chapterControls#chapterControls .imf-drop.open .imf-drop-btn.imf-drop-btn > i:first-child,',
+    'html body #chapterControls#chapterControls#chapterControls .imf-drop-btn.imf-drop-btn.active > i:first-child{ color:var(--accent) !important; }',
+    'html body #chapterControls#chapterControls#chapterControls .imf-drop-btn .imf-drop-caret{ color:var(--ink-4) !important; }',
+
+    /* ── 2 · THE SCRIPT PAGE'S TWO BARS ARE THE MANUSCRIPT'S ONE CARD ──
+       pages.css draws the manuscript as one card: the formatting toolbar is
+       its upper half (rounded top, order 1) and the chapter strip its lower
+       half (rounded bottom, order 2), both inset the same 16px on the same
+       --surface-2, so the two rows read as a single bar. The script page
+       drew the same two rows as two boxes — the strip carried its own inset,
+       its own radius and the page's own background — and pages.css's card
+       rules are written with the id doubled, which out-ranked every rule
+       that tried to join them. Doubling the id was not enough either: the
+       sheet that carries the strip's own geometry for the script page writes
+       `.sf-script-page.active .chapter-controls` and the sheets that append
+       themselves last still outrank two ids. So the geometry is stated here
+       with the id THREE times — nothing in the app comes near that — and the
+       page is a single card again: one --surface-2, one 16px inset, the
+       toolbar's rounded top and the strip's rounded bottom touching. */
+    'html body #page-manuscript#page-manuscript#page-manuscript.sf-script-page.active .write-toolbar{',
+    '  order:1 !important; margin:10px 16px 0 !important;',
+    '  background:var(--surface-2) !important; border:0 !important;',
+    '  border-radius:var(--r-md, 6px) var(--r-md, 6px) 0 0 !important; box-shadow:none !important; }',
+    'html body #page-manuscript#page-manuscript#page-manuscript.sf-script-page.active .chapter-controls{',
+    '  order:2 !important; margin:0 16px !important;',
+    '  background:var(--surface-2) !important; border:0 !important;',
+    '  border-radius:0 0 var(--r-md, 6px) var(--r-md, 6px) !important; box-shadow:none !important; }',
+    /* and the collapsed bar the script page keeps as its panels' host takes
+       no room in the column at all, so nothing sits between the two */
+    'html body .sf-script-page.sf-script-page .sf-bar.fnt-bar{',
+    '  height:0 !important; min-height:0 !important; margin:0 !important; padding:0 !important;',
+    '  border:0 !important; border-radius:0 !important; background:none !important;',
+    '  overflow:visible !important; }',
+
+    /* ── 3 · MIXING FONTS GREYS THE BAR'S OWN FONT PICKER ──
+       Asked for: while the rotation is on, the toolbar's Font control is the
+       one control the writer is not using — the faces are chosen in the
+       panel beside it — so it rests dimmed and takes no press, and it comes
+       straight back the moment mixing is switched off. Scoped to
+       `body.mixed-fonts`, which is exactly the mark settings.js puts on the
+       body for this setting, so the state can never be on while the setting
+       is not. It answers with ink and opacity only: the box, its width and
+       its place in the row are untouched, so nothing in the bar moves. */
+    'html body.mixed-fonts #writeToolbar.write-toolbar .tb-drop[data-drop="font"] .tb-drop-title{',
+    '  background:var(--surface-2) !important; border-color:transparent !important;',
+    '  box-shadow:none !important; cursor:not-allowed !important; }',
+    'html body.mixed-fonts #writeToolbar.write-toolbar .tb-drop[data-drop="font"] .tb-drop-title i,',
+    'html body.mixed-fonts #writeToolbar.write-toolbar .tb-drop[data-drop="font"] .tb-drop-title .tb-drop-value{',
+    '  color:var(--ink-4) !important; opacity:.55 !important; }',
+    /* and the strip's own copy of that picker, which stands in only when the
+       writing bar is not on screen at all */
+    'html body.mixed-fonts .sf-script-page.active #chapterControls .fnt-fonts{',
+    '  opacity:.5 !important; cursor:not-allowed !important; }',
+
+    /* ── 4 · ONE LIT ROW IN THE ELEMENT MENU ──
+       The mark is the box, and it is the only one: a row the DOM has focused
+       that is NOT the mark is flat and ringless, and the mark keeps §22's
+       own box (this is why the reset is scoped with :not — a rule without it
+       would strip the accent edge off the very row that is lit). */
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item:focus:not(.sf-elem-active),',
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item:focus-visible:not(.sf-elem-active){',
+    '  outline:none !important; box-shadow:none !important;',
+    '  background:transparent !important; color:var(--ink-2) !important; }',
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item.sf-elem-active:focus,',
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item.sf-elem-active:focus-visible{',
+    '  outline:none !important; }',
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item:focus:not(.sf-elem-active) i,',
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item:focus-visible:not(.sf-elem-active) i{',
+    '  color:var(--ink-3) !important; }',
+    'html body #sfElemMenu.sf-elem-menu .sf-elem-item.on:focus:not(.sf-elem-active) i{',
+    '  color:var(--accent) !important; }',
+
+    /* ── 6 · THE COVER BLOCK IN THE PUBLISH PANEL ──
+       The publish panel's own .nb-pub-act is a full-width delivery row; the
+       cover's two presses are chips on the block, so they are scoped to it. */
+    'html body .nb-pub-cover{',
+    '  display:flex !important; gap:10px !important; align-items:stretch !important;',
+    '  padding:10px !important; margin-bottom:10px !important;',
+    '  background:var(--surface-2) !important; border:0 !important;',
+    '  border-radius:var(--r-md, 6px) !important; }',
+    'html body .nb-pub-cover-art{',
+    '  flex:0 0 62px !important; height:92px !important; overflow:hidden !important;',
+    '  display:flex !important; align-items:center !important; justify-content:center !important;',
+    '  background:var(--surface-1) !important; border-radius:var(--r-sm, 5px) !important;',
+    '  color:var(--ink-4) !important; font-size:20px !important; }',
+    'html body .nb-pub-cover-art img{',
+    '  width:100% !important; height:100% !important; object-fit:cover !important; display:block !important; }',
+    'html body .nb-pub-cover-act{',
+    '  flex:1 1 auto !important; min-width:0 !important; display:flex !important;',
+    '  flex-direction:column !important; gap:2px !important; }',
+    'html body .nb-pub-cover-act b{ font-size:12.5px !important; font-weight:600 !important; color:var(--ink) !important; }',
+    'html body .nb-pub-cover-act em{',
+    '  font-style:normal !important; font-size:11px !important; color:var(--ink-4) !important; line-height:1.5 !important; }',
+    'html body .nb-pub-cover-btns{ display:flex !important; gap:6px !important; margin-top:auto !important; flex-wrap:wrap !important; }',
+    'html body .nb-pub-cover-btns .nb-pub-act{',
+    '  width:auto !important; padding:6px 10px !important; gap:7px !important;',
+    '  background:var(--surface-3) !important; border-radius:var(--r-sm, 5px) !important;',
+    '  color:var(--ink-2) !important; font-size:11.5px !important; cursor:pointer !important; }',
+    'html body .nb-pub-cover-btns .nb-pub-act:hover{ background:var(--surface-4) !important; color:var(--ink) !important; }',
+    'html body .nb-pub-cover-btns .nb-pub-act i{ font-size:12px !important; }',
+    'html body .nb-pub-cover-btns .nb-pub-act span{ flex-direction:row !important; }'
+  ].join('\n');
+  const sheet = document.createElement('style');
+  sheet.id = 'sfRoundNineSheet';
+  sheet.textContent = CSS;
+  (document.head || document.documentElement).appendChild(sheet);
+
+  /* The script page's Book mark opened a small menu here — Script formatting
+     and Final script — and the book page's ⋯ held a section's own options.
+     Both are gone by request: the Book mark does on the script page what it
+     does everywhere else (it opens the book), and the reader's head carries
+     the marks it always carried and no ⋯. */
+
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════
+   24 · THE CHIP, PLATED HERE, AND THE GREY ON THE FONT PICKER
+
+   Two things asked for twice, and both of them are statements about a
+   CONTROL'S FILL — the one thing five sheets in this file, pages.css, and
+   this layer's own late-appending sheets all have an opinion about. §19's
+   sfLightKeysSheet rests the split, the overlay and the IMF mark FLAT on
+   purpose; §20's archive mark too; §21 and §22 chip them again; §23 chips
+   them again at three ids; and sfAccentLast, sfFrameLast and sfRoundCss
+   re-append themselves to the end of <head> on a timer, after every one of
+   them. A rule can always be out-written by a later rule of the same
+   weight, and a tie is decided by whoever was appended last — which is the
+   argument that produced two rounds of “I still see no box”.
+
+   So neither is a stylesheet rule any more. Both are written onto the
+   ELEMENTS, as inline declarations with priority "important" — the top of
+   the cascade. No sheet, in any file, at any weight, appended at any
+   moment, can out-rank them. The values are the app's own (the chip the
+   writing bar's marks already wear, and the accent when a mark is lit), so
+   nothing about the design moves; only who is guaranteed to win.
+
+     · EVERY MARK IN THE CHAPTER STRIP — notes, book, utilities, split,
+       overlay, the archive mark, find and the IMF button: --surface-3 at
+       rest, --surface-4 under the hand with the ink brought up, and
+       --accent-soft with the accent ink when the mark is really lit
+       (.active · .sf-on · .on · .open, and the IMF button while its own
+       panel is open).
+
+     · AND THE FOUR MARKS IN THE BOOK PAGE'S TWO HEADS — back to
+       manuscript, edit, the publish globe and the download. These are the
+       four the writer pointed at: pages.css rests them TRANSPARENT and only
+       gives them a box while the pointer is on them, so beside the marks
+       that wear the chip they read as bare glyphs. They wear it now — the
+       same three states, and the globe that is marked ready keeps the app's
+       own blue ink (--pub-ready) instead of the chip's.
+
+     · AND THE WRITING BAR'S FONT PICKER WHILE MIXING IS ON — dimmed, and
+       handed straight back the moment mixing goes off. It is read from
+       S.config.expMixedFonts here rather than from the body's own mark, so
+       the grey lands even if that mark was never written by a path this
+       file does not know about. Its presses are left alone: the control is
+       greyed because it is not the one being used, not taken away.
+
+   Every write is compared with what the element already carries, so the
+   pass settles at once and no sweep can loop. Only the marks in those three
+   heads — the strip's, and the Book page's two — and that one picker are
+   touched.
+   ═══════════════════════════════════════════════════════════════ */
+(function(){
+  /* ── the Book page's four, stated for the stylesheet as well ──
+     The inline plating below is what is guaranteed to win; this is what is
+     already true before the first pass runs — and what those four marks
+     keep even if the rest of this file is ever cut short by something above
+     it. Two ids, because the rule it answers (pages.css · the Vercel-style
+     header block, which rests them transparent) carries one. */
+  (function(){
+    const CSS = [
+      'html body #page-notebook#page-notebook .draft-list-head .icon-btn-sm,',
+      'html body #page-notebook#page-notebook .draft-pane-head .icon-btn-sm{',
+      '  background:var(--surface-3) !important; border:0 !important; color:var(--ink-3) !important; }',
+      'html body #page-notebook#page-notebook .draft-list-head .icon-btn-sm:hover,',
+      'html body #page-notebook#page-notebook .draft-pane-head .icon-btn-sm:hover{',
+      '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+      'html body #page-notebook#page-notebook .draft-pane-head .icon-btn-sm.active{',
+      '  background:var(--accent-soft, rgba(255,255,255,.09)) !important; color:var(--accent) !important; }',
+      'html body #page-notebook#page-notebook .draft-pane-head .icon-btn-sm.nb-pub.ready{',
+      '  background:var(--accent-soft, rgba(255,255,255,.09)) !important; color:var(--pub-ready, #4d8dff) !important; }'
+    ].join('\n');
+    const host = document.head || document.documentElement;
+    if(!host) return;
+    const st = document.createElement('style');
+    st.id = 'sfNbChipSheet';
+    st.textContent = CSS;
+    host.appendChild(st);
+  })();
+
+  const MARK = '.icon-btn-sm, .imf-drop-btn';
+  const REST_BG = 'var(--surface-3)';
+  const HOT_BG  = 'var(--surface-4)';
+  const LIT_BG  = 'var(--accent-soft, rgba(255,255,255,.09))';
+  const REST_INK = 'var(--ink-3)';
+  const HOT_INK  = 'var(--ink)';
+  const LIT_INK  = 'var(--accent)';
+
+  /* ── THE MARKS THIS PASS OWNS ─────────────────────────────────
+     The chapter strip's marks, and the FOUR in the Book page's two heads:
+     back to manuscript, edit, the publish globe and the download. Those
+     four rest TRANSPARENT by construction — pages.css's “VERCEL-STYLE
+     HEADER ICONS” block paints `.draft-list-acts .icon-btn-sm` with
+     background:transparent !important and only steps it to --surface-3 when
+     the HAND reaches it — so they are the four icons that show no grey box
+     at all next to every mark that has one. That block is also why nothing
+     in this file ever changed them: §21's chip is scoped to
+     `#chapterControls .cc-tools`, and its BAR_MARK names only the two
+     writing bars and the script's host bar. Every other page's head marks
+     are left exactly as they are. */
+  const ZONES = ['#chapterControls', '#page-notebook .draft-list-head',
+                 '#page-notebook .draft-pane-head'];
+  const zones = function(){
+    const out = [];
+    ZONES.forEach(function(sel){
+      let n = null;
+      try{
+        n = (sel.indexOf(' ') < 0 && sel.charAt(0) === '#')
+          ? document.getElementById(sel.slice(1)) : document.querySelector(sel);
+      }catch(e){ n = null; }
+      if(n) out.push(n);
+    });
+    return out;
+  };
+  const inZones = function(el){
+    return zones().some(function(z){ return !!(z && z.contains && el && z.contains(el)); });
+  };
+  const lit = function(b){
+    if(!b || !b.classList) return false;
+    if(b.classList.contains('active') || b.classList.contains('sf-on')) return true;
+    if(b.classList.contains('on') || b.classList.contains('open')) return true;
+    if(b.classList.contains('ready')) return true;          /* the publish-ready globe */
+    return !!(b.closest && b.closest('.imf-drop.open'));
+  };
+  const plate = function(b, hot){
+    if(!b || !b.classList || !b.style) return;
+    if(!b.classList.contains('icon-btn-sm') && !b.classList.contains('imf-drop-btn')) return;
+    const on = lit(b);
+    const bg = on ? LIT_BG : (hot ? HOT_BG : REST_BG);
+    if(b.__sfChip !== bg){
+      b.__sfChip = bg;
+      try{
+        b.style.setProperty('background-color', bg, 'important');
+        b.style.setProperty('border-color', 'transparent', 'important');
+        b.style.setProperty('box-shadow', 'none', 'important');
+      }catch(e){}
+    }
+    /* the globe that is marked ready keeps the app's own blue — its colour
+       IS the state there, and the chip is what it was missing */
+    const ink = on
+      ? (b.classList.contains('ready') ? 'var(--pub-ready, var(--accent))' : LIT_INK)
+      : (hot ? HOT_INK : REST_INK);
+    if(b.__sfChipInk !== ink){
+      b.__sfChipInk = ink;
+      try{ b.style.setProperty('color', ink, 'important'); }catch(e){}
+    }
+    const i = b.querySelector ? b.querySelector('i') : null;
+    if(i && i.style){
+      try{ i.style.setProperty('color', 'inherit', 'important'); }catch(e){}
+    }
+  };
+
+  /* ── the Font picker while the rotation is on ── */
+  const pick = function(){
+    let t = null;
+    try{ t = document.querySelector('#writeToolbar .tb-drop[data-drop="font"] .tb-drop-title'); }catch(e){}
+    if(!t || !t.style) return;
+    let on = false;
+    try{ on = !!(S.config && S.config.expMixedFonts); }catch(e){ on = false; }
+    const kids = function(remove){
+      const v = t.querySelector('.tb-drop-value');
+      const i = t.querySelector('i');
+      [v, i].forEach(function(el){
+        if(!el || !el.style) return;
+        try{ remove ? el.style.removeProperty('color') : el.style.setProperty('color', 'inherit', 'important'); }catch(e){}
+      });
+    };
+    if(on){
+      if(t.__sfGrey === 1) return;
+      t.__sfGrey = 1;
+      try{
+        t.style.setProperty('color', 'var(--ink-4)', 'important');
+        t.style.setProperty('opacity', '.55', 'important');
+        t.style.setProperty('cursor', 'not-allowed', 'important');
+      }catch(e){}
+      kids(false);
+      return;
+    }
+    if(t.__sfGrey === 0) return;
+    t.__sfGrey = 0;
+    try{
+      t.style.removeProperty('color');
+      t.style.removeProperty('opacity');
+      t.style.removeProperty('cursor');
+    }catch(e){}
+    kids(true);
+  };
+
+  let hotEl = null;
+  const pass = function(){
+    zones().forEach(function(z){
+      if(!z || !z.querySelectorAll) return;
+      Array.prototype.forEach.call(z.querySelectorAll(MARK), function(b){ plate(b, b === hotEl); });
+    });
+    pick();
+  };
+
+  document.addEventListener('pointerover', function(e){
+    const t = e.target;
+    const b = (t && t.closest) ? t.closest(MARK) : null;
+    if(!b || !inZones(b)) return;
+    hotEl = b;
+    plate(b, true);
+  }, true);
+  document.addEventListener('pointerout', function(e){
+    const t = e.target;
+    const b = (t && t.closest) ? t.closest(MARK) : null;
+    if(!b) return;
+    if(hotEl === b) hotEl = null;
+    if(inZones(b)) plate(b, false);
+  }, true);
+
+  let raf = 0;
+  const beat = function(){
+    if(raf) return;
+    raf = requestAnimationFrame(function(){ raf = 0; try{ pass(); }catch(e){} });
+  };
+  if(typeof MutationObserver === 'function' && document.body){
+    new MutationObserver(beat).observe(document.body, { childList:true, subtree:true });
+  }
+  document.addEventListener('click', beat, true);
+  window.addEventListener('resize', beat);
+  [0, 120, 400, 1200, 2600].forEach(function(ms){ setTimeout(beat, ms); });
+  setInterval(function(){ try{ pass(); }catch(e){} }, 1200);
+  window.sfPlateStrip = pass;
+})();
+
+
 
 
 

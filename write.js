@@ -216,11 +216,16 @@ function renderChapterControls(){
           <div class="imf-font-row">
             ${[0,1,2].map(function(i){
               const current = (Array.isArray(S.config.mixedFonts) ? S.config.mixedFonts[i] : '') || '';
-              const options = [['','Editor font']].concat((window.FONTS || [])
-                .filter(function(f){ return f.g !== 'Hand'; })
-                .map(function(f){ return [f.name, f.name]; }));
+              const groups = imfFontGroups(current);
               return '<label class="imf-field"><span>Font ' + (i + 1) + '</span><select class="sel" data-imf-font="' + i + '">'
-                + options.map(function(pair){ return '<option value="' + esc(pair[0]) + '"' + (pair[0] === current ? ' selected' : '') + '>' + esc(pair[1]) + '</option>'; }).join('')
+                + '<option value=""' + (current ? '' : ' selected') + '>Editor font</option>'
+                + groups.map(function(g){
+                    return '<optgroup label="' + esc(g.label) + '">'
+                      + g.list.map(function(name){
+                          return '<option value="' + esc(name) + '"' + (name === current ? ' selected' : '') + '>' + esc(name) + '</option>';
+                        }).join('')
+                      + '</optgroup>';
+                  }).join('')
                 + '</select></label>';
             }).join('')}
           </div>
@@ -252,17 +257,23 @@ function paintImfPreview(){
   const root = document.getElementById('imfDropList');
   if(!root) return;
   if(!Array.isArray(S.config.mixedFonts)) S.config.mixedFonts = ['', '', ''];
-  const all = (window.FONTS || []).filter(function(f){ return f.g !== 'Hand'; });
-  const fallbackGroup = ['Serif','Sans','Mono'];
-  const faces = [0,1,2].map(function(i){
-    const chosen = S.config.mixedFonts[i];
-    if(chosen && all.some(function(f){ return f.name === chosen; })) return chosen;
-    return (all.find(function(f){ return f.g === fallbackGroup[i]; }) || all[i] || {}).name || '';
-  });
+  const all = imfAllowedFaces();
+  /* the same three faces the rotation uses — one resolver for both, so the
+     preview and the typing can never disagree (see mixedFontSlots) */
+  const faces = mixedFontSlots();
   const stack = function(name){
     const f = all.find(function(x){ return x.name === name; });
     return f ? f.f : (name ? "'" + name + "', serif" : '');
   };
+  /* ── THE THREE FACES ARE FETCHED HERE ──
+     The font pack fetches a face only for the writing font and the app's own
+     face, so the three a writer picks for the rotation were never asked for:
+     every one of them painted as its generic fallback, which is why three
+     different faces typed the same. load() returns at once once a family has
+     been asked for, so this is free on every repaint of the strip. */
+  if(typeof window.sfLoadFont === 'function'){
+    faces.forEach(function(n){ if(n){ try{ window.sfLoadFont(n); }catch(err){} } });
+  }
   const text = 'The rain has not stopped for a week.';
   const preview = root.querySelector('#imfPreview');
   if(preview){
@@ -296,6 +307,32 @@ document.addEventListener('click', function(e){
   if(!e.target.closest('#imfDrop')) document.querySelectorAll('.imf-drop.open').forEach(function(x){ x.classList.remove('open'); });
 }, true);
 
+/* ── A PICK LEAVES THE PANEL OPEN ────────────────────────────────
+   Three faces are set in one visit, and the panel used to be closed by the
+   first one: the presses around a pick (the app's own dropdown card, the
+   document's own outside-click pass) all run while the pick is being made,
+   so the writer had to reopen IMF between every face. The mark is put back
+   after the pick has been answered, and the panel is the same one — nothing
+   inside it is rebuilt. */
+function keepImfOpen(){
+  const drop = document.getElementById('imfDrop');
+  if(drop) drop.classList.add('open');
+}
+window.keepImfOpen = keepImfOpen;
+
+/* ── THE BAR'S OWN FONT CONTROL FOLLOWS THE SETTING, NOT THE PICK ──
+   Picking a face here never touches the writing face (see below), so the
+   control that names the writing face is written back from S.config on
+   every pick. Whatever a first pick in the panel does to the bar, it is
+   not the bar's Font control reading Default under the writer's hand. */
+function refreshFontLabel(){
+  const v = document.querySelector('#writeToolbar .tb-drop[data-drop="font"] .tb-drop-value');
+  if(!v) return;
+  const text = (S.config && S.config.font) || 'Default';
+  if(v.textContent !== text) v.textContent = text;
+}
+window.refreshFontLabel = refreshFontLabel;
+
 document.addEventListener('change', function(e){
   const t = e.target;
   if(!t || !t.dataset) return;
@@ -303,9 +340,18 @@ document.addEventListener('change', function(e){
     if(!Array.isArray(S.config.mixedFonts)) S.config.mixedFonts = ['', '', ''];
     S.config.mixedFonts[Number(t.dataset.imfFont)] = t.value;
     S.config.expMixedFonts = true;
-    S.config.font = '';
-    if(typeof applyConfig === 'function'){ applyConfig('font'); applyConfig('expMixedFonts'); }
+    /* the pick is a face, so it is fetched here as well as painted; and the
+       writing font is left alone — clearing S.config.font on the first pick
+       reset the bar's own Font control to Default under the writer's hand,
+       which read as the toolbar coming apart. That control is written back
+       from the setting on every pick, so the bar can never end up naming a
+       face the manuscript is not in. */
+    if(t.value && typeof window.sfLoadFont === 'function'){ try{ window.sfLoadFont(t.value); }catch(err){} }
+    if(typeof applyConfig === 'function') applyConfig('expMixedFonts');
+    if(typeof window.sfFontSync === 'function'){ try{ window.sfFontSync(); }catch(err){} }
+    refreshFontLabel();
     paintImfPreview();
+    keepImfOpen();
     save();
     return;
   }
@@ -313,9 +359,9 @@ document.addEventListener('change', function(e){
     const scope = ['letter','word','sentence'].indexOf(t.value) >= 0 ? t.value : 'letter';
     S.config.mixedFontScope = scope;
     S.config.expMixedFonts = true;
-    S.config.font = '';
-    if(typeof applyConfig === 'function'){ applyConfig('font'); applyConfig('expMixedFonts'); }
+    if(typeof applyConfig === 'function') applyConfig('expMixedFonts');
     paintImfPreview();
+    keepImfOpen();
     save();
   }
 }, true);
@@ -615,6 +661,56 @@ setInterval(function(){
 //   TOOLBAR
 // ═══════════════════════════════════════════════════════════
 
+/* ── the faces “Intermixing fonts” offers ──
+   Mixing faces happens *inside* a sentence, so every family here has to hold
+   up at body size and read as clearly different from the next one. The
+   table's own groups are kept — Serif · Sans · Mono · Slab — so the list is
+   four short ones with a heading each rather than one long one; the display
+   and inscriptional serifs (Playfair Display, Bodoni Moda, Cinzel, Cormorant
+   Garamond), the hands and the Indic families are left out: a display face
+   at 17px is a smudge, a Devanagari face in a Latin sentence is the wrong
+   script, and a hand is not something a book is set in.
+
+   A face the setting already carries is kept whatever this says, under its
+   own heading, so a pick is never silently lost. */
+const IMF_FACES = [
+  ['Serif', ['Merriweather','Lora','EB Garamond','Crimson Text','Source Serif 4',
+             'Libre Baskerville','Spectral','Bitter','Alegreya','Newsreader',
+             'Literata','PT Serif']],
+  ['Sans',  ['Inter','Fira Sans','Work Sans','DM Sans','Manrope','Open Sans',
+             'Roboto','Nunito','Space Grotesk']],
+  ['Mono',  ['Courier Prime','JetBrains Mono','IBM Plex Mono','Space Mono','Roboto Mono']],
+  ['Slab',  ['Roboto Slab','Zilla Slab','Arvo']]
+];
+function imfFaceOf(name){
+  return (window.FONTS || []).filter(function(f){ return f && f.name === name; })[0] || null;
+}
+function imfFontGroups(current){
+  const out = IMF_FACES.map(function(g){
+    return { label: g[0], list: g[1].filter(imfFaceOf) };
+  }).filter(function(g){ return g.list.length; });
+  const named = out.reduce(function(a, g){ return a.concat(g.list); }, []);
+  const kept = [];
+  [0,1,2].forEach(function(i){
+    const n = (Array.isArray(S.config.mixedFonts) ? S.config.mixedFonts[i] : '') || '';
+    if(n && named.indexOf(n) < 0 && kept.indexOf(n) < 0 && imfFaceOf(n)) kept.push(n);
+  });
+  if(current && named.indexOf(current) < 0 && kept.indexOf(current) < 0 && imfFaceOf(current)) kept.push(current);
+  if(kept.length) out.push({ label: 'Kept', list: kept });
+  return out;
+}
+/* every family the three lists can show — the preview validates a saved pick
+   against the same set, so a face that is offered is a face that draws */
+function imfAllowedFaces(){
+  const names = [];
+  imfFontGroups('').forEach(function(g){ g.list.forEach(function(n){ names.push(n); }); });
+  [0,1,2].forEach(function(i){
+    const n = (Array.isArray(S.config.mixedFonts) ? S.config.mixedFonts[i] : '') || '';
+    if(n && names.indexOf(n) < 0) names.push(n);
+  });
+  return (window.FONTS || []).filter(function(f){ return f && names.indexOf(f.name) >= 0; });
+}
+
 function renderToolbar(){
   const tb = $('writeToolbar');
   if(!tb) return;
@@ -774,8 +870,33 @@ function onInput(){
 let mixedFontTurn = 0;
 let mixedFontAnchor = null;   // text node + offset where the current unit started
 
+/* ── THE THREE FACES THE ROTATION REALLY USES ────────────────────
+   The panel draws three rows, and a row nothing has been picked in still
+   shows a face: the preview paints the group's own face for that slot — a
+   Serif, a Sans, a Mono. The rotation read only the rows that had actually
+   been picked, so a writer who chose ONE face — which is how this is used:
+   set Font 1 and start typing — had a one-item rotation, and every letter
+   of every word came out in the same face. That is the whole of “IMF does
+   not work”. The rotation and the preview resolve the same three faces
+   through the same function now, so one pick is enough for the mixing to
+   be visible, and the preview can never promise a face the typing will not
+   use. A name the app does not ship is ignored, as it always was. */
+function mixedFontSlots(){
+  const chosen = Array.isArray(S.config.mixedFonts) ? S.config.mixedFonts : [];
+  const all = (typeof imfAllowedFaces === 'function') ? imfAllowedFaces() : (window.FONTS || []);
+  const group = ['Serif', 'Sans', 'Mono'];
+  return [0, 1, 2].map(function(i){
+    const pick = chosen[i];
+    if(pick && all.some(function(f){ return f && f.name === pick; })) return pick;
+    return ((all.filter(function(f){ return f && f.g === group[i]; })[0]) || all[i] || {}).name || '';
+  });
+}
+window.sfMixFaces = mixedFontSlots;
+
 function mixedFontList(){
-  return (S.config.mixedFonts || []).filter(f => f && String(f).trim());
+  const out = [];
+  mixedFontSlots().forEach(function(n){ if(n && out.indexOf(n) < 0) out.push(n); });
+  return out;
 }
 
 // the font's real CSS stack (FONTS carries it), so the word renders exactly

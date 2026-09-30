@@ -792,6 +792,13 @@
     const typo = bar.querySelector('[data-typop]');
     if(typo && left.firstElementChild !== typo) left.insertBefore(typo, left.firstChild);
 
+    /* Adding a board is the page's own writing tool, so it sits with the
+       other one, on the left, immediately before Add beat — not inside the
+       board's command cluster on the right. Rebuilt with the picker, and the
+       previous one is taken out first so a repaint cannot leave two. */
+    const oldAdd = bar.querySelector('[data-sf-plan-add]');
+    if(oldAdd) oldAdd.remove();
+
     /* rebuilt every render: the app's dropdown card draws this select, so a
        fresh node is the only way to be sure the label is right */
     const old = bar.querySelector('[data-plan-picker]');
@@ -800,22 +807,35 @@
       const picker = document.createElement('span');
       picker.className = 'plan-picker';
       picker.setAttribute('data-plan-picker', '1');
+      /* the row carries no count of its own: “1 board” said again, in a
+         number, what the picker already says in words */
       picker.innerHTML =
-          '<button class="ol-btn ol-btn-icon plan-board-new" data-plan-new title="Add board — start a new one"><i class="bi bi-plus-lg"></i></button>'
-        + '<button class="ol-btn ol-btn-icon plan-board-ren" data-plan-ren title="Rename this board"><i class="bi bi-pencil"></i></button>'
-        + '<button class="ol-btn ol-btn-icon plan-board-del" data-plan-del title="Remove this board"'
-        +   (all.length < 2 ? ' disabled' : '') + '><i class="bi bi-trash3"></i></button>'
-        + '<select class="sel plan-board-sel" data-plan-board title="Which board to show">'
+          '<select class="sel plan-board-sel" data-plan-board title="Which board to show">'
         + all.map(function(b){
             return '<option value="' + esc(b.id) + '"' + (b.id === cur ? ' selected' : '') + '>'
               + esc(b.name) + '</option>';
           }).join('')
         + '</select>'
-        + '<span class="plan-board-count" data-plan-count>' + all.length + ' board' + (all.length === 1 ? '' : 's') + '</span>';
+        + '<button class="ol-btn ol-btn-icon plan-board-ren" data-plan-ren title="Rename this board"><i class="bi bi-pencil"></i></button>'
+        + '<button class="ol-btn ol-btn-icon plan-board-del" data-plan-del title="Remove this board"'
+        +   (all.length < 2 ? ' disabled' : '') + '><i class="bi bi-trash3"></i></button>';
       /* the cluster ends the row, before All boards and Clear */
       if(right.firstChild) right.insertBefore(picker, right.firstChild);
       else right.appendChild(picker);
       if(typeof window.enhanceSelects === 'function') window.enhanceSelects(picker);
+    }
+
+    /* the board adder, on the left, just before Add beat */
+    {
+      const addBoard = document.createElement('button');
+      addBoard.type = 'button';
+      addBoard.className = 'ol-btn plan-board-new';
+      addBoard.setAttribute('data-plan-new', '1');
+      addBoard.setAttribute('data-sf-plan-add', '1');
+      addBoard.title = 'Add board — start a new one';
+      addBoard.innerHTML = '<i class="bi bi-plus-lg"></i> Add board';
+      if(addBeat && addBeat.parentNode === left) left.insertBefore(addBoard, addBeat);
+      else left.appendChild(addBoard);
     }
 
     /* the right side keeps All boards · Clear, with a clearer word each */

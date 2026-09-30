@@ -4816,6 +4816,16 @@ function zipStore(files){
   return new Blob(localChunks.concat(centralChunks, [end]), { type: EPUB_MIME });
 }
 
+/* a data: URL's payload as the zip's own bytes. The cover is the one thing
+   in an EPUB that is not text, and a cover that is not in the file is not a
+   cover: a reader app shows the first page instead. */
+function epubBytes(b64){
+  const bin = (typeof atob === 'function') ? atob(String(b64).replace(/\s+/g, '')) : '';
+  const out = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 0xFF;
+  return out;
+}
+
 function epubEsc(str){
   return String(str == null ? '' : str)
     .replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;')
@@ -4850,7 +4860,9 @@ const EPUB_CSS = 'body{font-family:Georgia,serif;line-height:1.6;margin:5% 6%;}\
   + '.titlepage{text-align:center;margin-top:30%;}\n'
   + '.titlepage h1{font-size:2em;text-indent:0;}\n'
   + '.titlepage .by{font-style:italic;color:#555;}\n'
-  + '.titlepage .blurb{font-size:.92em;color:#666;margin-top:2em;text-align:left;}\n';
+  + '.titlepage .blurb{font-size:.92em;color:#666;margin-top:2em;text-align:left;}\n'
+  + '.cover{margin:0;text-align:center;}\n'
+  + '.cover img{max-width:100%;height:auto;}\n';
 
 function buildEpub(proj){
   const meta  = (proj.meta && typeof proj.meta === 'object') ? proj.meta : {};
@@ -4869,8 +4881,23 @@ function buildEpub(proj){
     + '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">'
     + '<rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>' });
   files.push({ name:'OEBPS/style.css', data: EPUB_CSS });
+  /* ── THE COVER ──
+     The cover the writer picked in the publish panel is held in the project
+     as a data: URL; it goes into the file as an image, declared as the
+     EPUB's own cover, and it opens the title page. */
+  let coverFile = null;
+  try{
+    const hit = /^data:(image\/(?:png|jpeg|jpg|webp|gif));base64,([A-Za-z0-9+/=\s]+)$/.exec(String(meta.cover || ''));
+    if(hit){
+      const ext = (hit[1] === 'image/jpeg' || hit[1] === 'image/jpg') ? 'jpg' : hit[1].replace('image/', '');
+      coverFile = 'cover.' + ext;
+      files.push({ name:'OEBPS/' + coverFile, data: epubBytes(hit[2]) });
+    }
+  }catch(e){ coverFile = null; }
+
   files.push({ name:'OEBPS/title.xhtml', data: xhtmlDoc(title,
-    '<div class="titlepage"><h1>' + epubEsc(title) + '</h1>'
+    (coverFile ? '<figure class="cover"><img src="' + coverFile + '" alt=""/></figure>' : '')
+    + '<div class="titlepage"><h1>' + epubEsc(title) + '</h1>'
     + (meta.subtitle ? '<p class="by">' + epubEsc(meta.subtitle) + '</p>' : '')
     + (author ? '<p class="by">by ' + epubEsc(author) + '</p>' : '')
     + (meta.series ? '<p class="by">' + epubEsc(meta.series) + '</p>' : '')
@@ -4938,6 +4965,7 @@ function buildEpub(proj){
     + '</metadata>\n<manifest>'
     + '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>'
     + '<item id="css" href="style.css" media-type="text/css"/>'
+    + (coverFile ? '<item id="cover" href="' + coverFile + '" media-type="' + (coverFile.indexOf('.png') > 0 ? 'image/png' : (coverFile.indexOf('.webp') > 0 ? 'image/webp' : (coverFile.indexOf('.gif') > 0 ? 'image/gif' : 'image/jpeg'))) + '" properties="cover-image"/>' : '')
     + '<item id="title" href="title.xhtml" media-type="application/xhtml+xml"/>'
     + (front.length ? front.map((f, i) => '<item id="fm' + i + '" href="' + f.href + '" media-type="application/xhtml+xml"/>').join('') : '')
     + chFiles.map(c => '<item id="ch' + c.i + '" href="' + c.href + '" media-type="application/xhtml+xml"/>').join('')
@@ -5183,7 +5211,29 @@ function nbPublishRender(){
     }).join('') || '<p class="nb-pub-empty">Nothing to check yet.</p>') + '</div>'
       + '<p class="nb-pub-note">These are suggestions from the text itself — they flag things to look at, never change your writing.</p>';
   } else {
-    body = '<div class="nb-pub-deliver">'
+    /* ── THE COVER ──
+       The panel's Metadata tab has always had a Cover image URL, and nothing
+       in the delivered file ever used it — so the book came out of the EPUB
+       with no face on it, which is what the writer pointed at. The Delivery
+       tab carries the cover itself now: pick an image and it is the EPUB's
+       cover and the read link's too. */
+    const cover = String(meta.cover || '');
+    body = '<div class="nb-pub-cover">'
+      +   '<div class="nb-pub-cover-art">'
+      +     (cover ? '<img src="' + esc(cover) + '" alt="">' : '<i class="bi bi-image"></i>')
+      +   '</div>'
+      +   '<div class="nb-pub-cover-act">'
+      +     '<b>Book cover</b>'
+      +     '<em>JPG or PNG — the EPUB and the read link both open on it.</em>'
+      +     '<span class="nb-pub-cover-btns">'
+      +       '<label class="nb-pub-act nb-pub-cover-pick"><i class="bi bi-upload"></i><span><strong>'
+      +         (cover ? 'Replace image' : 'Choose an image') + '</strong></span>'
+      +         '<input type="file" accept="image/*" data-pub-cover-file hidden></label>'
+      +       (cover ? '<button type="button" class="nb-pub-act" data-pub-cover-clear><i class="bi bi-x-lg"></i><span><strong>Remove</strong></span></button>' : '')
+      +     '</span>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="nb-pub-deliver">'
       + '<button class="nb-pub-act" data-pub-epub><i class="bi bi-download"></i><span><strong>EPUB</strong><em>Download the book as a .epub file</em></span></button>'
       + '<button class="nb-pub-act" data-pub-link><i class="bi bi-link-45deg"></i><span><strong>Read link</strong><em>Host it and get a shareable URL</em></span></button>'
       + '</div>'
@@ -5207,6 +5257,37 @@ function nbPublishRender(){
         }).join('')
     + '</div>'
     + '<div class="nb-pub-body">' + body + '</div>';
+}
+
+/* ── the cover: read the image, then shrink it ──
+   The project's own store is localStorage, so a camera photo straight in is
+   not something to hold: the picked image is drawn to a canvas at 1400px on
+   its long edge and kept as a JPEG. Anything the browser cannot decode is
+   kept as it was read, which is what an SVG needs. */
+function nbSetCover(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(){
+    const url = String(reader.result || '');
+    const img = new Image();
+    const keep = function(){ nbMeta().cover = url; save(); nbPublishRender(); toast('Cover set'); };
+    img.onload = function(){
+      try{
+        const nat = Math.max(1, img.naturalWidth || 1400);
+        const scale = Math.min(1, 1400 / nat);
+        const w = Math.max(1, Math.round(nat * scale));
+        const h = Math.max(1, Math.round(Math.max(1, img.naturalHeight || nat) * scale));
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        nbMeta().cover = cv.toDataURL('image/jpeg', 0.85);
+        save(); nbPublishRender(); toast('Cover set');
+      }catch(err){ keep(); }
+    };
+    img.onerror = keep;
+    img.src = url;
+  };
+  reader.readAsDataURL(file);
 }
 
 /* ── the hosted read link ── */
@@ -5261,6 +5342,11 @@ document.addEventListener('input', function(e){
 });
 document.addEventListener('change', function(e){
   const t = e.target;
+  if(t.dataset && 'pubCoverFile' in t.dataset && t.files && t.files[0]){
+    e.preventDefault();
+    nbSetCover(t.files[0]);
+    return;
+  }
   if(t.dataset && t.dataset.pubStructCheck){
     nbStruct()[t.dataset.pubStructCheck] = !!t.checked; save();
     if(_nbPubTab === 'checks') nbPublishRender();
@@ -5272,6 +5358,13 @@ document.addEventListener('click', function(e){
   if(tab){ e.preventDefault(); _nbPubTab = tab.dataset.pubTab; nbPublishRender(); return; }
   if(e.target.closest('[data-pub-close]')){ e.preventDefault(); nbPublishClose(); return; }
   if(e.target.closest('[data-pub-epub]')){ e.preventDefault(); nbDeliverEpub(); return; }
+  if(e.target.closest('[data-pub-cover-clear]')){
+    e.preventDefault();
+    nbMeta().cover = '';
+    save(); nbPublishRender();
+    toast('Cover removed');
+    return;
+  }
   if(e.target.closest('[data-pub-link]')){ e.preventDefault(); nbPublishLink(); return; }
   const cp = e.target.closest('[data-pub-copy]');
   if(cp){

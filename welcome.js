@@ -544,7 +544,23 @@
     return true;
   };
 
+  /* ── THE SCRIPT PAGE'S OWN TWO KEYS ──
+     A script is Fountain, and in Fountain “@” and “/” are characters, not
+     shortcuts: “@” forces a character cue out of a line that would not read
+     as one, and “/” begins a note. Neither is a door on that page — the
+     script has its own Insert list in its ⋯ panel and its own find card — so
+     on a script both keys are left to the field: nothing is prevented (the
+     character types) and nothing under this listener sees the key at all,
+     which is what keeps the element menu and Advanced Formatting shut. */
+  const onScriptPage = function(){
+    return !!document.querySelector('.sf-script-page.active .fnt-src');
+  };
+
   window.addEventListener('keydown', function(e){
+    if((isAt(e) || isSlash(e)) && onScriptPage()){
+      e.stopImmediatePropagation();
+      return;
+    }
     if(isSlash(e)){
       /* On non-writing pages, leave the normal key input alone and prevent
          pages.js from opening Advanced Formatting for it. */

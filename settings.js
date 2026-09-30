@@ -1355,6 +1355,12 @@ function applyAllConfig(){
   rs.setProperty('--surface-opacity', 1);
   rs.setProperty('--border-opacity', 1);
   rs.setProperty('--backdrop-blur', '0px');
+  /* the Windows / macOS look is out of the app: a profile that still carries
+     the old key has its mark, its sheet and every token it wrote cleared
+     here, before the palette below is painted, so the app comes back as
+     itself rather than keeping a look nothing draws any more */
+  S.config.stylePreset = '';
+  sfStyleClear();
   ['theme','font','uiFont','fontSize','lineHeight','letterSpacing','wordSpacing','paraSpacing','editorWidth','uiScale','eyeComfort',
    'uiBrightness','uiStyle','iconPack','expMixedFonts','expOverlay'].forEach(applyConfig);
   if(typeof applyVisualizerAlign === 'function') applyVisualizerAlign();
@@ -1387,6 +1393,33 @@ function setTheme(id){
 }
 window.setTheme = setTheme;
 
+/* ═══ SYSTEM STYLE — REMOVED ═══════════════════════════════════════
+   Windows and macOS were two looks a writer could switch on: a second token
+   set written over the app's own, plus a sheet that read the mark on
+   <body>. Both are gone — the rows are out of the Color card, nothing paints
+   a look on any boot path, and the sheet and the mark are cleared by
+   sfStyleClear() below, so a profile that still carries the old
+   stylePreset key is handed the app's own tokens the first time it loads. */
+/* the tokens either look wrote — the list that used to hand them all back */
+const SF_STYLE_KEYS = ['--bg','--surface-1','--surface-2','--surface-3','--surface-4',
+  '--surface-5','--overlay','--overlay-strong','--ink','--ink-2','--ink-3','--ink-4',
+  '--line','--line-2','--line-3','--accent','--accent-2','--accent-soft',
+  '--accent-line','--accent-ink','--grad','--doc-bg','--doc-ink','--caret','--sel',
+  '--sel-ink','--e-1','--e-2','--e-3','--e-4','--ui','--r-sm','--r-md','--r-lg','--r-xl'];
+function sfStyleClear(){
+  try{
+    const st = document.getElementById('sfStylePresetSheet');
+    if(st && st.parentNode) st.parentNode.removeChild(st);
+    const html = document.documentElement, body = document.body;
+    if(body) body.removeAttribute('data-sf-style');
+    SF_STYLE_KEYS.forEach(function(k){
+      html.style.removeProperty(k);
+      if(body) body.style.removeProperty(k);
+    });
+  }catch(e){}
+}
+
+
 // ═══ APPEARANCE ═══
 SETTINGS.renderers.appearance = function(root){
 
@@ -1417,6 +1450,10 @@ SETTINGS.renderers.appearance = function(root){
     themeGrid.appendChild(tile);
   });
   paintThemeGrid();
+
+  /* There was a row here for two system styles — Windows and macOS — that
+     wrote a second token set over the app's own. Nothing does that any more:
+     the palettes below are the app's whole appearance. */
   cTheme.appendChild(row('Palette', 'Blue or Yellow — each with its own accent colour', themeGrid));
   root.appendChild(cTheme);
 
@@ -1441,7 +1478,7 @@ SETTINGS.renderers.appearance = function(root){
     applyConfig('uiFont');
     save();
   };
-  cFont.appendChild(row('App font', 'Typeface used across the whole interface', appFontSel));
+  cFont.appendChild(row('Interface font', 'Typeface used across the whole interface', appFontSel));
 
   /* the writing face's size and spacing live beside the face itself —
      Typography keeps the behaviour switches, not a second font setting */

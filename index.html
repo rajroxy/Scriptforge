@@ -662,7 +662,7 @@ try{
      shares a file with it would not run. -->
 <script src="state.js?v=57"></script>
 <script src="fs.js?v=2"></script>
-<script src="pages.js?v=188"></script>
+<script src="pages.js?v=189"></script>
 <script>
 /* write.js reads and re-exports a global called INSERTS (its block snippets
    and sceneBreak) but never declares it, so `window.INSERTS = INSERTS` throws
@@ -673,10 +673,10 @@ try{
    later still wins. */
 window.INSERTS = window.INSERTS || { sceneBreak:'<p class="scene-break" style="margin:18px 0;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-4)">Scene break</p>' };
 </script>
-<script src="write.js?v=54"></script>
+<script src="write.js?v=57"></script>
 <script src="split.js?v=7"></script>
 <script src="ai.js?v=15"></script>
-<script src="settings.js?v=147"></script>
+<script src="settings.js?v=152"></script>
 <script src="app.js?v=85"></script>
 <script>
 /* Translate actions live on the Translate sheet itself. This late, narrow
@@ -780,9 +780,9 @@ window.INSERTS = window.INSERTS || { sceneBreak:'<p class="scene-break" style="m
 <script src="draft-chat.js?v=23"></script>
 <script src="polish.js?v=44"></script>
 <script src="fountain-script.js?v=6"></script>
-<script src="plan-boards.js?v=6"></script>
-<script src="welcome.js?v=11"></script>
-<script src="final-fix.js?v=270"></script>
+<script src="plan-boards.js?v=7"></script>
+<script src="welcome.js?v=12"></script>
+<script src="final-fix.js?v=281"></script>
 <script>
 /* The Color strength control is gone. Any browser that used it still carries
    a colorIntensity value in saved settings, and an older cached copy of this
@@ -931,24 +931,25 @@ window.INSERTS = window.INSERTS || { sceneBreak:'<p class="scene-break" style="m
         paint();
         applyConfig('fontWeightEnabled');
       }
-      /* APP FONT - a short list. state.js ships 61 families for the writing
-         face, and the interface picker was offering all of them: 61 rows of
-         near-identical sans-serifs to scroll through to change the chrome,
-         several of them display faces (Playfair, Cinzel, Bodoni) that are
-         unreadable at 11px, and four Indic families that belong to the
-         language feature rather than to the app's own type. The writing
-         face keeps its full list - this is the interface only.
+      /* INTERFACE FONT - a short list, and interface faces only. state.js
+         ships 61 families for the writing face, and this picker was offering
+         all of them: 61 rows of near-identical sans-serifs to scroll through
+         to change the chrome, several of them display faces (Playfair,
+         Cinzel, Bodoni) that are unreadable at 11px, and four Indic families
+         that belong to the language feature rather than to the app's own
+         type. The row is the INTERFACE face, so a serif meant for prose and
+         a mono meant for source are not offered here either - the writing
+         face has its own list.
 
          The first entry is already "Default (Inter)", so Inter is not
          repeated in the list under itself - two rows, one face, and the
-         second one looked like a bug. The rest are eight that are actually
-         good at UI sizes, all bundled in vendor/webfonts with their 400
-         latin cut, so every pick really renders. A font that is stored but
-         no longer offered falls back to the default rather than being left
-         pointing at nothing. */
-      if(label && label.textContent === 'App font'){
-        const KEEP = ['Roboto','Open Sans','DM Sans','Manrope','Work Sans',
-                      'Merriweather','Lora','JetBrains Mono'];
+         second one looked like a bug. The rest are the five that are
+         actually good at UI sizes, all bundled in vendor/webfonts with
+         their 400 latin cut, so every pick really renders. A font that is
+         stored but no longer offered falls back to the default rather than
+         being left pointing at nothing. */
+      if(label && (label.textContent === 'Interface font' || label.textContent === 'App font')){
+        const KEEP = ['Roboto','Open Sans','DM Sans','Manrope','Work Sans'];
         const sel = r.querySelector('select.sel');
         if(sel){
           const current = sel.value;
