@@ -11,6 +11,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#08090c">
 <title> </title><!--test-->
+<script>
+/* Optional isolated preview for the modern dark foundation. The normal app
+   is unchanged; open index.html?foundation=1 to test this layer alone. */
+if(new URLSearchParams(location.search).get('foundation') === '1'){
+  document.documentElement.setAttribute('data-foundation-test', '1');
+}
+</script>
 <!-- the icon set ships with the app: vendored, never fetched, so it works
      offline and in the desktop build. -->
 <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.css?v=1">
@@ -23,12 +30,478 @@
      on demand instead and is a no-op the moment vendor/webfonts ships again
      (regenerate it with: node scripts/build-fonts.cjs). -->
 <link rel="stylesheet" href="vendor/webfonts/fonts.css?v=3">
-<link rel="stylesheet" href="theme.css?v=4">
+<link rel="stylesheet" href="theme.css?v=6">
 <!-- one chrome stylesheet (layout + autocomplete + the video-bar style
      that used to be inline here) and one page stylesheet (pages + pages-fix
      + settings-tweaks + overrides + polish + final-fix, in that order). -->
-<link rel="stylesheet" href="app.css?v=2">
-<link rel="stylesheet" href="pages.css?v=15">
+<link rel="stylesheet" href="app.css?v=3">
+<link rel="stylesheet" href="pages.css?v=41">
+<style>
+/* Keep the Statistics rail clear of the tube's rounded left and right edges. */
+html body #statsDayLine .dayline-day:first-of-type .dayline-seg{ left:10px !important; }
+html body #statsDayLine .dayline-day:last-of-type .dayline-seg{ right:10px !important; }
+/* Remove the divider line beneath each dashboard mode heading. */
+html body .home-pane-head{ border-bottom:0 !important; }
+</style>
+<style id="modern-foundation-test">
+/* Foundation test only: layered graphite surfaces with one restrained accent.
+   It is opt-in through ?foundation=1 and does not restyle the main app. */
+html[data-foundation-test="1"]{
+  --bg:#0b0d10!important; --surface-1:#12151a!important; --surface-2:#181c22!important;
+  --surface-3:#20252d!important; --surface-4:#29303a!important; --surface-5:#343c47!important;
+  --ink:#f4f1e8!important; --ink-2:#c0c5cc!important; --ink-3:#929aa6!important; --ink-4:#68727e!important;
+  --line:#20262e!important; --line-2:#2b333d!important; --line-3:#3a4551!important;
+  --accent:#b8f36b!important; --accent-2:#8bd650!important; --accent-ink:#0b0d10!important;
+  --accent-soft:rgba(184,243,107,.10)!important; --accent-line:rgba(184,243,107,.32)!important;
+  --doc-bg:#101318!important; --doc-ink:#eeeae0!important;
+  --e-1:0 1px 2px rgba(0,0,0,.32)!important;
+  --e-2:0 8px 22px rgba(0,0,0,.28)!important;
+  --e-3:0 16px 36px rgba(0,0,0,.34)!important;
+  --e-4:0 24px 60px rgba(0,0,0,.42)!important;
+}
+html[data-foundation-test="1"] body{background:var(--bg)!important;}
+html[data-foundation-test="1"] .topbar{
+  background:rgba(11,13,16,.92)!important; border-bottom-color:var(--line-2)!important;
+  box-shadow:0 1px 0 rgba(255,255,255,.025)!important;
+}
+html[data-foundation-test="1"] .stage{background:var(--bg)!important;}
+html[data-foundation-test="1"] :is(.home-pane,.home-stats,.proj-row,.modal,.pages-overlay,.card-tile,.stat-card,.panel-shell){
+  border-color:var(--line-2)!important; box-shadow:var(--e-2)!important;
+}
+html[data-foundation-test="1"] :is(.home-pane,.home-stats,.card-tile,.stat-card,.panel-shell){border-radius:14px!important;}
+html[data-foundation-test="1"] .proj-row{border-radius:10px!important;}
+html[data-foundation-test="1"] :is(.topbar-btn,.mode-pill):hover{background:var(--surface-3)!important;color:var(--ink)!important;}
+html[data-foundation-test="1"] :is(.logo-btn,.topbar-btn,.mode-pill,.proj-row){transition:background .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease!important;}
+html[data-foundation-test="1"] .proj-row:hover{transform:translateY(-1px);box-shadow:var(--e-3)!important;}
+</style>
+<style id="global-controls-fix">
+/* Keep every range input on one thin, centered track. This also overrides
+   older page-specific slider rules that made the track look like a button. */
+html body input[type="range"]{
+  appearance:none!important; -webkit-appearance:none!important;
+  width:150px!important; height:4px!important; min-height:4px!important;
+  margin:0!important; padding:0!important; border:0!important; border-radius:999px!important;
+  background:var(--surface-4)!important; outline:none!important; cursor:pointer!important;
+}
+html body input[type="range"]::-webkit-slider-runnable-track{
+  width:100%; height:4px; border-radius:999px; background:var(--surface-4);
+}
+html body input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none!important; appearance:none!important;
+  width:16px!important; height:16px!important; margin-top:-6px!important;
+  border:2px solid var(--surface-1)!important; border-radius:50%!important;
+  /* the thumb is the app's white, not an ink grey: --accent is the one
+     colour every live control uses (the ON toggle, the primary chip) */
+  background:var(--accent)!important; box-shadow:0 1px 4px rgba(0,0,0,.35)!important;
+}
+html body input[type="range"]::-moz-range-track{
+  width:100%; height:4px; border-radius:999px; background:var(--surface-4);
+}
+html body input[type="range"]::-moz-range-thumb{
+  width:12px!important; height:12px!important; border:2px solid var(--surface-1)!important;
+  border-radius:50%!important; background:var(--accent)!important; box-shadow:0 1px 4px rgba(0,0,0,.35)!important;
+}
+html body input[type="range"]:focus-visible{box-shadow:none!important;}
+/* FONT WEIGHT, app-wide. --ui-font-weight is set on :root and body reads
+   it, so text with no weight of its own already follows the slider. What
+   did not follow was the 880-odd rules that name a weight outright - every
+   card title at 600, every label at 500 - so the slider only ever moved the
+   text that happened to inherit, which is mostly the Settings panel. The
+   old !important list below tried to cover a dozen of those containers and
+   forced the slider's raw number onto them, which flattened the type scale
+   inside them. The rules themselves are rescaled instead, proportionally,
+   by the GLOBAL TYPE + MOTION SCALE script further down this file: a 600
+   stays heavier than a 400, and the whole ladder moves with the slider. */
+/* Overlay pin stays on the far left of the floating header. Pinned is a
+   filled accent button plus an accent edge on the header, not a faint tint. */
+html body .ovl-head{ touch-action:none; user-select:none; cursor:default; }
+html body .ovl-head .ovl-grab{ cursor:grab; }
+body.ovl-dragging .ovl-grab{ cursor:grabbing; }
+html body .ovl-head .ovl-pin{ flex:0 0 auto; color:var(--ink-3); transition:color 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease; }
+html body .ovl-head .ovl-pin.on{ color:var(--accent-ink)!important; background:var(--accent)!important; border-color:transparent!important; box-shadow:none!important; }
+html body .ovl-pinned .ovl-head{ cursor:default; box-shadow:none; }
+html body .ovl-pinned .ovl-grab{ cursor:default; }
+
+/* Both FAB menus use the same outer box and compact item rhythm. */
+html body :is(.fab-menu,.fab-ai){width:176px!important; min-width:176px!important; max-width:176px!important; padding:4px!important;}
+html body :is(.fab-menu-body,.fab-ai-body){padding:0!important; gap:2px!important;}
+html body :is(.fab-menu button,.fab-ai .ai-chip){min-height:28px!important; padding:3px 8px!important; font-size:11px!important; justify-content:flex-start;}
+html body .fab-ai-sec{border:0!important; background:transparent!important;}
+/* Translation actions stay at the top of the compact sheet. */
+html body .ft-actions{position:sticky!important; top:0!important; z-index:4!important; display:grid!important; grid-template-columns:1fr 1fr!important; gap:3px!important; margin:0 0 6px!important; padding:5px 0!important; background:var(--surface-1)!important; border-bottom:1px solid var(--line-2)!important;}
+html body .ft-actions .ai-chip{justify-content:center!important; min-width:0!important; padding:4px 5px!important; font-size:10.5px!important;}
+/* Replace is a quiet chip like the rest of the row: the accent reaches its
+   label only under the pointer, never as a fill and never at rest. */
+html body .ft-actions .ft-primary:hover{color:var(--accent)!important;}
+html body .ft-actions .ft-primary:active{color:var(--accent)!important;}
+html body .sf-translate .ft-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:4px!important;flex:0 0 auto!important;margin:0 0 7px!important;padding:5px 0!important;border-bottom:1px solid var(--line-2)!important;background:var(--surface-1)!important;}
+html body .sf-translate .ft-action{min-width:0!important;min-height:28px!important;padding:4px 7px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:4px!important;border:1px solid var(--line-2)!important;border-radius:var(--r-sm,4px)!important;background:var(--surface-2)!important;color:var(--ink-2)!important;font:inherit!important;font-size:10.5px!important;cursor:pointer!important;}
+html body .sf-translate .ft-action:hover{background:var(--surface-3)!important;color:var(--ink)!important;}
+html body .sf-translate .ft-action:disabled{opacity:.68!important;cursor:not-allowed!important;}
+html body .sf-translate .ft-action.ft-primary:hover{color:var(--accent)!important;}
+html body .sf-translate .ft-action.ft-primary:active{color:var(--accent)!important;}
+/* Find & Replace and the Script toolbar keep the manuscript bar's top corners. */
+html body #page-manuscript #findBar:not(.find-panel){
+  margin:0 16px!important;
+  border-radius:var(--r-md,6px) var(--r-md,6px) 0 0!important;
+}
+html body #page-manuscript.sf-script-page .sf-bar.fnt-bar{
+  border-radius:var(--r-md,6px) var(--r-md,6px) 0 0!important;
+}
+/* IMF — the three-font control lives in the manuscript bar. */
+html body .imf-drop{ position:relative!important; z-index:60; }
+html body .imf-drop-btn{ display:inline-flex!important; align-items:center!important; gap:5px!important; height:28px!important; padding:0 8px!important; background:var(--surface-2)!important; border:1px solid var(--line-2)!important; border-radius:var(--r-md,6px)!important; color:var(--ink-2)!important; font:inherit!important; font-size:11px!important; font-weight:600!important; cursor:pointer!important; white-space:nowrap!important; }
+html body .imf-drop-btn.active,
+html body .imf-drop.open .imf-drop-btn{ background:var(--surface-3)!important; color:var(--ink)!important; border-color:transparent!important; box-shadow:none!important; }
+html body .imf-drop-btn:hover{ background:var(--surface-3)!important; color:var(--ink)!important; }
+html body .imf-drop-btn > i:first-child{ color:var(--ink-3)!important; font-size:13px!important; }
+html body .imf-drop-caret{ font-size:10px!important; color:var(--ink-4)!important; transition:transform 140ms var(--ease); }
+html body .imf-drop.open .imf-drop-caret{ transform:rotate(180deg); }
+html body .imf-drop-list{ display:none!important; position:absolute!important; top:calc(100% + 6px)!important; right:0!important; width:min(620px,calc(100vw - 24px))!important; padding:8px!important; background:var(--surface-2)!important; border:1px solid var(--line-2)!important; border-radius:var(--r-md,6px)!important; box-shadow:var(--e-4,var(--e-3))!important; z-index:140!important; }
+html body .imf-drop.open .imf-drop-list{ display:flex!important; flex-direction:column!important; gap:7px!important; }
+html body .imf-drop-head{ display:flex!important; align-items:center!important; justify-content:space-between!important; gap:8px!important; color:var(--ink)!important; font-size:11.5px!important; font-weight:600!important; }
+html body .imf-power{ display:none!important; }
+html body .imf-power.on{ background:var(--accent-soft)!important; color:var(--accent)!important; }
+html body .imf-font-row{ display:flex!important; align-items:flex-end!important; gap:6px!important; }
+html body .imf-field{ display:flex!important; flex:1 1 0!important; flex-direction:column!important; gap:3px!important; min-width:0!important; color:var(--ink-3)!important; font-size:10px!important; font-weight:600!important; text-transform:uppercase!important; letter-spacing:.05em!important; }
+html body .imf-field > .stats-cat-card{ min-width:0!important; width:100%!important; max-width:none!important; }
+html body .imf-scope{ max-width:240px!important; }
+html body .imf-preview,html body .imf-legend{display:none!important;}
+
+/* Find & Replace owns the full writing row, not a centered mini-card. */
+html body .write-wrap > #findBar:not(.find-panel){ width:100%!important; max-width:none!important; align-self:stretch!important; }
+html body #findBar:not(.find-panel) .find-row{ width:100%!important; }
+
+/* Folder view is shared by the Novel and Screenplay dashboard panes. */
+body.folder-view #page-home .home-pane.folder-mode-card .home-proj-list{
+  display:grid!important; grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important;
+  grid-auto-rows:minmax(92px,auto)!important; gap:8px!important; align-content:start!important; align-items:stretch!important;
+}
+body.folder-view #page-home .home-pane.folder-mode-card .home-proj-list .proj-item-wrap{height:auto!important; margin:0!important; position:relative!important;}
+body.folder-view #page-home .home-pane.folder-mode-card .home-proj-list .proj-row{
+  height:auto!important; min-height:92px!important; align-items:flex-start!important; padding:12px!important;
+  border:1px solid var(--line-2)!important; border-radius:10px!important;
+}
+body.folder-view #page-home .home-pane.folder-mode-card .home-proj-list .proj-item{
+  flex-direction:column!important; align-items:flex-start!important; gap:8px!important; padding:0!important;
+}
+body.folder-view #page-home .home-pane.folder-mode-card .home-proj-list .proj-icon{width:28px!important; height:28px!important;}
+body.folder-view #page-home .home-pane.folder-mode-card .home-proj-list .proj-actions{position:absolute!important; top:8px!important; right:8px!important;}
+/* Brightness is gone. The control is removed from Appearance and the stored
+   value is pinned to neutral, so the interface renders at the device's own
+   appearance with nothing laid over it. A whole-page filter (the first
+   attempt) forced the app into its own compositing layer and turned every
+   glyph and circle hard and aliased; an overlay lifted the blacks and made
+   the top of the range milky. Neither is wanted - the device decides. */
+html body.eye-comfort-cold #sfEyeOverlay{ background:#4d9eff; }
+
+/* Inter's thin weights. vendor/webfonts ships 400-800 only, so the Font
+   weight slider had nothing lighter to offer and 100-300 all rendered at
+   exactly 400. These three come from the same SIL-licensed Inter as the
+   rest of the set. Declared here rather than in vendor/webfonts/fonts.css
+   because that file is generated by scripts/build-fonts.cjs and says not to
+   be edited by hand. */
+@font-face{font-family:"Inter";font-style:normal;font-weight:100;font-display:swap;src:url("vendor/webfonts/inter-latin-100.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:"Inter";font-style:normal;font-weight:100;font-display:swap;src:url("vendor/webfonts/inter-latin-ext-100.woff2") format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:"Inter";font-style:normal;font-weight:200;font-display:swap;src:url("vendor/webfonts/inter-latin-200.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:"Inter";font-style:normal;font-weight:200;font-display:swap;src:url("vendor/webfonts/inter-latin-ext-200.woff2") format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:"Inter";font-style:normal;font-weight:300;font-display:swap;src:url("vendor/webfonts/inter-latin-300.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:"Inter";font-style:normal;font-weight:300;font-display:swap;src:url("vendor/webfonts/inter-latin-ext-300.woff2") format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+
+/* ANIMATION SPEED - the Speed control wrote --anim-speed, but no rule ever
+   read it: every transition in the app is written against the fixed
+   --t-fast / --t-med / --t-slow tokens, so the dropdown changed a variable
+   nothing consumed. Scale those tokens by it instead. The multiplier reads
+   as a duration (0.7 Fast, 1 Normal, 1.5 Slow, 2.5 Very slow), so it
+   multiplies. At the default of 1 every value is unchanged. */
+:root{
+  --t-fast:calc(100ms * var(--anim-speed,1));
+  --t-med:calc(150ms * var(--anim-speed,1));
+  --t-slow:calc(220ms * var(--anim-speed,1));
+}
+
+/* The Home page's mode panes gave the icon of whichever pane is active the
+   theme accent, so on Sakura and Rosewood the book rendered pink while the
+   film beside it stayed grey. Both panes wear the same neutral ink. */
+html body .home-pane-head i{ color:var(--ink-3) !important; }
+html body.eye-comfort-warm #sfEyeOverlay{ background:#ff9a3c; }
+
+/* NO PAGE OR MODAL FADE IS ADDED HERE.
+   An earlier pass gave .page.active an opacity fade-in and the modal a rise.
+   It was wrong and it is gone: the app does not rebuild a page only when you
+   navigate - several layers repaint the active page in place (the polish
+   sweep, the layout pass, the theme pass), and every one of those re-applies
+   .active, which restarts a CSS animation. The result was the whole screen
+   fading over and over, which reads as a flicker. Nothing here may be keyed
+   to a class the app re-applies on every repaint. Page changes are a hard
+   cut, as they were. */
+
+/* The white themes are gone. Paper, Frost, Linen, Alabaster, Sand and Slate
+   were the six light palettes; with them gone every theme is dark, so
+   data-theme-mode is "dark" for all of them, sfThemeMode() answers "dark",
+   and the [data-theme-mode="light"] overrides this used to carry are dead
+   rules. The modal scrim stays at 70% black, which is right over a dark
+   page. A profile still holding one of the six does not break: state.js's
+   resolveThemeId() sends an id it cannot find to Night. */
+/* THE OUTLINE pass is gone. The hairlines and shadows that used to make a
+   card a card lived in their own file and were injected after every
+   stylesheet had loaded, because this block sits above the stylesheet links
+   and pages.css carries its own `box-shadow:none !important` on half these
+   surfaces at the same specificity. It was removed on purpose: panels are
+   separated by their own fill now, so the light palettes were re-cut to make
+   page, card and inset three real steps. A one-pixel ring on every surface
+   was a crutch over a ramp that did not step, and it made every panel read
+   as a wireframe rather than a card. See the Layout & Colour block at the
+   end of final-fix.js. */
+
+/* STATS - the day rail sits tight under the writing-activity card.
+   The band between the card and the tube was the .stats-dayline-head row:
+   a lone calendar icon given its own line, so its inherited line-height
+   plus a 10px bottom margin made ~28px of near-empty space. Give the head
+   a line box that matches the icon and no margins of its own, and keep the
+   chart honest about the height it was given. */
+html body .stats-dayline-wrap{ margin-top:0!important; padding:0 2px 0!important; }
+html body .stats-dayline-head{
+  display:flex!important; align-items:center!important; gap:6px!important;
+  margin:0 0 3px!important; line-height:1!important; font-size:10.5px!important;
+  /* the head is also a .set-card-title, which pins it to min-height:24px and
+     held the rail too far down. 0 left the tube flush against the card, so
+     take a middle value: enough to keep the icon and a little air. */
+  min-height:16px !important;
+}
+html body .stats-dayline-head i{ font-size:11px!important; line-height:1!important; margin:0!important; }
+html body .stats-body{ padding-bottom:0!important; margin-bottom:0!important; }
+html body .stats-chart-wrap{ flex:1 1 auto!important; margin:0!important; padding:0!important; }
+html body .stats-chart-wrap > .set-card.stats-chart-card{ align-self:stretch!important; height:100%!important; }
+
+/* STATS - the cards were sized for breathing room the page never had. The
+   goal and streak tiles carried a 24px title floor, 8px row margins, a 28px
+   numeral and 14px of card padding, which turned three lines of information
+   into ~170px of mostly air. Tighten each of those and the tiles sit at
+   their content height. */
+html body .stats-body .stat-card-lg{ padding:8px !important; gap:4px !important; }
+html body .stats-body .stat-ico{ font-size:13px !important; margin-bottom:0 !important; }
+html body .stats-body .stat-big{ font-size:19px !important; }
+html body .stats-body .stats-grid-mid .set-card{
+  padding:8px !important; gap:4px !important; min-height:0 !important;
+}
+/* the chart card is a stats tile too - same 8px the dashboard cards use */
+html body .stats-body .stats-chart-card{ padding:8px !important; }
+html body .stats-body .stats-grid-mid .set-card > .set-card-title{
+  min-height:0 !important; margin-bottom:2px !important;
+}
+html body .stats-body .stat-row-big{ margin:4px 0 !important; }
+html body .stats-body .stat-big-sm{ font-size:23px !important; }
+html body .stats-body .stat-bar{ margin-bottom:6px !important; }
+
+/* FONT WEIGHT - the slider writes --ui-font-weight; this is what reads it.
+   No !important, and the fallback is 400, so the app keeps the same weight it
+   had before the control existed. The harshness that made this look like a
+   bad idea came from the whole-page brightness filter, not from this. */
+html body{ font-weight:var(--ui-font-weight,400); }
+
+/* STATS PAGE PADDING - the page was still on its original 8/32/20/32 box.
+   Tighten it so the cards sit inside the frame instead of hugging it. */
+html body .stats-page{ padding:12px 20px 14px !important; }
+
+/* Corner radius - measured in the browser, the stats page was wearing four
+   different corners: the dropdown and the KPI tiles at 8px, the goal/streak
+   tiles at 6px, and the Last 30 days card at 0px (square - pages.css pins it
+   to border-radius:0 because it lives inside a clipping wrapper). Pin every
+   card type on this page, and the wrapper, to the app's 8px card radius. */
+html body .stat-card-lg,
+html body .stat-mini,
+html body .stats-cat-card,
+html body .stats-cat-card .stats-cat-title,
+html body .stats-cat-card.open .stats-cat-title,
+html body .stats-cat-list,
+html body .stats-body .set-card,
+html body .stats-chart-wrap{ border-radius:var(--r-lg,8px) !important; }
+html body .stats-chart-wrap > .set-card.stats-chart-card{
+  align-self:stretch!important;
+  height:100%!important;
+  border-radius:var(--r-lg,8px) !important;
+}
+</style>
+<script>
+/* GLOBAL TYPE + MOTION SCALE.
+   Two settings in Appearance were only half-wired, and both looked broken
+   for the same reason: the control changed a number, and the number was
+   only read by part of the app.
+
+   ANIMATION SPEED. The :root rule above scales --t-fast/med/slow, but the
+   app is not written against them - 49 rules carry a literal
+   transition/animation duration of their own, and the earlier pass only ever
+   looked at the top level of each sheet, so anything inside @media was
+   missed. The longhands do reflect the shorthand, so the sheets are walked
+   (media, supports and keyframes included) and the literals are scaled too.
+   Every declaration remembers the value it started at, so moving the control
+   rescales from the original instead of compounding, and !important is
+   carried over with it.
+
+   FONT WEIGHT. 880-odd rules name a weight outright. Body reads
+   --ui-font-weight, so inherited text followed the slider and explicit
+   text did not - which is why the control looked alive inside Settings
+   (mostly inheriting) and dead everywhere else. Those rules are rescaled by
+   the same walk, proportionally to the slider: 400 is the app's baseline, so a
+   600 at Bold becomes 800 and a 600 at Light becomes 300. The ladder
+   survives, it just moves - and at Regular the original is written back
+   exactly as the stylesheet had it, so the default is untouched.
+
+   DENSITY IS GONE. There is no Comfortable / Compact control any more, and
+   this pass no longer rescales padding, gaps, margins or min-heights at all:
+   the app ships one spacing, the one its stylesheets were drawn with. (The
+   app declares a 4px scale, --s-1..--s-8 in theme.css, and never uses it -
+   783 padding declarations and 600 gaps are px literals - so a "density"
+   could only ever have been a blanket px rescale of every surface at once,
+   which is a second design rather than a setting.)
+
+   Font size is deliberately not touched here: settings.js already runs its
+   own whole-app px rescale against S.config.fontSize, and two engines
+   rewriting the same declarations would fight. */
+(function(){
+  'use strict';
+  const WEIGHT_PROP = 'font-weight';
+
+  /* what each declaration started at, kept on the rule itself */
+  const original = function(st){ return st.__sfOrig || (st.__sfOrig = {}); };
+
+  const scaleTime = function(value, k){
+    return String(value).replace(/(\d*\.?\d+)(ms|s)\b/g, function(m, n, unit){
+      return (Math.round(parseFloat(n) * k * 1000) / 1000) + unit;
+    });
+  };
+
+  /* numeric weights only - normal, bolder, lighter, inherit and var() are
+     left exactly as they are. Rounded to a real Inter weight, 100-800. */
+  const scaleWeight = function(value, k){
+    const m = /^\s*(\d{3})\s*$/.exec(value);
+    if(!m) return null;
+    const n = Math.round((parseInt(m[1], 10) * k) / 100) * 100;
+    return String(Math.max(100, Math.min(800, n)));
+  };
+
+  /* The longhand reflects the shorthand - except when the shorthand holds a
+     var(), which is how the app writes half its transitions
+     (`transition: background 100ms var(--ease)`). There the CSSOM reports
+     the longhand as empty, so the shorthand itself is scaled instead. */
+  const paintTime = function(st, longProp, shortProp, k){
+    const cur = st.getPropertyValue(longProp);
+    const o = original(st);
+    if(cur && cur.indexOf('var(') < 0){
+      if(!o[longProp]) o[longProp] = { v: cur, prio: st.getPropertyPriority(longProp) };
+      const want = scaleTime(o[longProp].v, k);
+      if(want !== cur) st.setProperty(longProp, want, o[longProp].prio);
+      return;
+    }
+    const sc = st.getPropertyValue(shortProp);
+    if(!sc) return;
+    if(!o[shortProp]) o[shortProp] = { v: sc, prio: st.getPropertyPriority(shortProp) };
+    const want = scaleTime(o[shortProp].v, k);
+    if(want !== sc) st.setProperty(shortProp, want, o[shortProp].prio);
+  };
+
+  const paint = function(st, tk, wk){
+    if(!st || typeof st.length !== 'number') return;
+    paintTime(st, 'transition-duration', 'transition', tk);
+    paintTime(st, 'animation-duration', 'animation', tk);
+    const wc = st.getPropertyValue(WEIGHT_PROP);
+    if(!wc || wc.indexOf('var(') >= 0) return;
+    const o = original(st);
+    if(!o[WEIGHT_PROP]) o[WEIGHT_PROP] = { v: wc, prio: st.getPropertyPriority(WEIGHT_PROP) };
+    /* Regular is the app's own baseline, so the original is written back
+       verbatim - not a rounded copy of it. That is what puts a rule back
+       exactly as the stylesheet wrote it after the slider has been somewhere
+       else and come home. */
+    const want = (wk === 1) ? o[WEIGHT_PROP].v : scaleWeight(o[WEIGHT_PROP].v, wk);
+    if(want !== null && want !== wc) st.setProperty(WEIGHT_PROP, want, o[WEIGHT_PROP].prio);
+  };
+
+  /* a rule, and the rules inside it (@media, @supports, @keyframes) */
+  const walk = function(rule, tk, wk, depth){
+    if(!rule || depth > 8) return;
+    if(rule.cssRules && rule.cssRules.length){
+      for(let i = 0; i < rule.cssRules.length; i++){
+        try{ walk(rule.cssRules[i], tk, wk, depth + 1); }catch(e){}
+      }
+      if(rule.style && rule.style.length) paint(rule.style, tk, wk);
+      return;
+    }
+    if(rule.style) paint(rule.style, tk, wk);
+  };
+
+  let lastT = -1, lastW = -1;
+
+  const apply = function(force){
+    const c = (typeof S !== 'undefined' && S.config) ? S.config : null;
+    const rawSpeed = parseFloat(c && c.animSpeed);
+    const t = (isFinite(rawSpeed) && rawSpeed > 0) ? rawSpeed : 1;
+    const rawW = Number(c && c.fontWeight);
+    const w = (isFinite(rawW) && rawW >= 100 && rawW <= 900) ? rawW : 400;
+    const wk = w / 400;
+    /* --ui-font-weight too, for the same reason: it is what body reads, and
+       the only other writer was an early boot script that runs before the
+       saved config has been read, so it always wrote 400. Written here,
+       once per pass and only when it differs. */
+    try{
+      if(document.documentElement.style.getPropertyValue('--ui-font-weight') !== String(w)){
+        document.documentElement.style.setProperty('--ui-font-weight', String(w));
+      }
+    }catch(e){}
+    /* --anim-speed itself. Settings only ever wrote it from the dropdown's
+       own change handler, so the value never came back on the next launch:
+       every transition written against --t-fast/med/slow opened at Normal no
+       matter what was stored. It is written here, before the early-out, and
+       only when it is actually different. */
+    try{
+      if(document.documentElement.style.getPropertyValue('--anim-speed') !== String(t)){
+        document.documentElement.style.setProperty('--anim-speed', String(t));
+      }
+    }catch(e){}
+    if(!force && t === lastT && wk === lastW) return;
+    lastT = t; lastW = wk;
+    const sheets = document.styleSheets || [];
+    for(let i = 0; i < sheets.length; i++){
+      let rules = null;
+      try{ rules = sheets[i].cssRules; }catch(e){ continue; }   /* another origin */
+      if(!rules) continue;
+      for(let r = 0; r < rules.length; r++){
+        try{ walk(rules[r], t, wk, 0); }catch(e){}
+      }
+    }
+  };
+  window.sfApplyAnimSpeed = apply;      /* the old entry point still works */
+  window.sfApplyGlobalType = apply;
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ apply(true); });
+  } else apply(true);
+  window.addEventListener('load', function(){ apply(true); });
+
+  /* The Speed dropdown is a real <select> behind the custom card, and the
+     weight slider only ever fires `input` - so listen for both, at the
+     document, in the capture phase, and run after the app's own handler.
+     apply(false): a walk only happens when the speed or the weight actually
+     moved, so dragging any other slider in the app costs nothing. */
+  const soon = function(){ setTimeout(function(){ apply(false); }, 0); };
+  document.addEventListener('change', function(e){
+    const t = e.target;
+    if(t && (t.tagName === 'SELECT' || t.type === 'range')) soon();
+  }, true);
+  document.addEventListener('input', function(e){
+    const t = e.target;
+    if(t && t.type === 'range') soon();
+  }, true);
+  /* a stylesheet that lands after boot gets walked too */
+  if(typeof MutationObserver === 'function' && document.head){
+    new MutationObserver(function(){ apply(true); }).observe(document.head, { childList:true, subtree:true });
+  }
+  /* and a cheap heartbeat: no walk happens unless a value actually moved */
+  setInterval(function(){ apply(false); }, 2000);
+  apply(true);
+})();
+</script>
+
 </head>
 <body>
 <script>
@@ -82,13 +555,13 @@ try{
   </button>
   <div class="topbar-spacer"></div>
   <div class="topbar-actions" id="topbarActions" hidden>
-  <button class="topbar-btn" data-act="go-stats" title="Statistics">
+  <!-- the two top-bar actions are their icons: the words are gone from the
+       bar, and the title stays as the tooltip and the accessible name -->
+  <button class="topbar-btn" data-act="go-stats" title="Statistics" aria-label="Statistics">
     <i class="bi bi-graph-up-arrow"></i>
-    <span>Statistics</span>
   </button>
-  <button class="topbar-btn" data-act="open-settings" title="Settings">
+  <button class="topbar-btn" data-act="open-settings" title="Settings" aria-label="Settings">
     <i class="bi bi-gear"></i>
-    <span>Settings</span>
   </button>
 </div>
 </header>
@@ -106,6 +579,7 @@ try{
 <div class="ovl-wrap" id="ovlWrap" hidden>
   <div class="ovl" id="ovlPanel">
             <div class="ovl-head" id="ovlHead">
+      <button class="icon-btn-sm ovl-pin" data-ovl="pin" title="Pin overlay" aria-label="Pin overlay" aria-pressed="false"><i class="bi bi-pin-angle"></i></button>
       <span class="ovl-grab"></span>
       <span class="ovl-acts">
         <button class="icon-btn-sm" data-ovl="swap" title="Swap with the app screen"><i class="bi bi-arrow-left-right"></i></button>
@@ -186,25 +660,628 @@ try{
      write.js / split.js and polish.js / fountain-script.js stay apart on
      purpose: write.js raises at the end of its own load, and a script that
      shares a file with it would not run. -->
-<script src="state.js?v=29"></script>
-<script src="fs.js?v=1"></script>
-<script src="pages.js?v=109"></script>
-<script src="write.js?v=52"></script>
+<script src="state.js?v=57"></script>
+<script src="fs.js?v=2"></script>
+<script src="pages.js?v=188"></script>
+<script>
+/* write.js reads and re-exports a global called INSERTS (its block snippets
+   and sceneBreak) but never declares it, so `window.INSERTS = INSERTS` throws
+   a ReferenceError and takes the rest of that file down with it - onInput,
+   updateCounts and MODE_TOOLS after that line never reach the window. The
+   missing declaration predates this file's current form; defining it here,
+   before write.js loads, stops the throw. Anything write.js supplies itself
+   later still wins. */
+window.INSERTS = window.INSERTS || { sceneBreak:'<p class="scene-break" style="margin:18px 0;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-4)">Scene break</p>' };
+</script>
+<script src="write.js?v=54"></script>
 <script src="split.js?v=7"></script>
-<script src="ai.js?v=13"></script>
-<script src="settings.js?v=54"></script>
-<script src="app.js?v=44"></script>
-<script src="page-bars.js?v=10"></script>
-<script src="mindmap.js?v=10"></script>
-<script src="github.js?v=5"></script>
-<script src="utils.js?v=7"></script>
-<script src="notes.js?v=4"></script>
-<script src="draft-chat.js?v=19"></script>
-<script src="polish.js?v=31"></script>
+<script src="ai.js?v=15"></script>
+<script src="settings.js?v=147"></script>
+<script src="app.js?v=85"></script>
+<script>
+/* Translate actions live on the Translate sheet itself. This late, narrow
+   enhancement keeps the existing language picker and adds editor actions
+   without changing the right-click menu's routing. */
+(function(){
+  const originalOpen = window.openFabTranslate;
+  if(typeof originalOpen !== 'function') return;
+  window.openFabTranslate = function(){
+    const selection = window.getSelection();
+    const editor = document.getElementById('editor');
+    const saved = selection && selection.rangeCount && editor && editor.contains(selection.anchorNode)
+      ? selection.getRangeAt(0).cloneRange() : null;
+    originalOpen.apply(this, arguments);
+    const sheet = document.querySelector('#fabAIBody .fab-translate');
+    if(!sheet) return;
+    /* The language picker is the only conversion flow in this panel. */
+    sheet.querySelectorAll('.ft-hg').forEach(function(node){ node.remove(); });
+    sheet.querySelectorAll('button').forEach(function(node){
+      if(node.closest('.ft-grid')) return;
+      const label = node.textContent.toLowerCase();
+      if(label.indexOf('hinglish') >= 0 || node.textContent.indexOf('→') >= 0) node.remove();
+    });
+    if(sheet.querySelector('.ft-actions')) return;
+    const actions = document.createElement('div');
+    actions.className = 'ft-actions';
+    actions.setAttribute('aria-label', 'Translation actions');
+    actions.innerHTML = '<button class="ai-chip" type="button" data-ft-act="copy" disabled><i class="bi bi-clipboard"></i> Copy</button><button class="ai-chip" type="button" data-ft-act="insert" disabled><i class="bi bi-text-indent-left"></i> Insert</button><button class="ai-chip" type="button" data-ft-act="append" disabled><i class="bi bi-plus-lg"></i> Append</button><button class="ai-chip ft-primary" type="button" data-ft-act="replace" disabled><i class="bi bi-check-lg"></i> Replace</button>';
+    const grid = sheet.querySelector('#ftGrid');
+    const bar = sheet.querySelector('.ft-bar');
+    if(bar) bar.after(actions);
+    else if(grid) grid.before(actions);
+    else sheet.appendChild(actions);
+    const result = sheet.querySelector('#ftDst');
+    const buttons = actions.querySelectorAll('[data-ft-act]');
+    const sync = function(){
+      const text = result ? result.textContent.trim() : '';
+      buttons.forEach(function(button){ button.disabled = !text || text === 'Translation' || text === 'Translating…'; });
+    };
+    if(result && typeof MutationObserver === 'function') new MutationObserver(sync).observe(result, {childList:true, subtree:true, characterData:true});
+    actions.addEventListener('click', function(ev){
+      const button = ev.target.closest('[data-ft-act]');
+      if(!button || button.disabled) return;
+      const text = result ? result.textContent.trim() : '';
+      if(!text || text === 'Translation' || text === 'Translating…') return;
+      const target = document.getElementById('editor');
+      if(!target) return;
+      if(button.dataset.ftAct === 'copy'){
+        if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ toast('Copied'); });
+        return;
+      }
+      if(button.dataset.ftAct === 'append'){
+        target.innerHTML += text.split(/\n\n+/).map(function(p){ return '<p>' + esc(p).replace(/\n/g, '<br>') + '</p>'; }).join('');
+      }else if(button.dataset.ftAct === 'replace'){
+        target.focus();
+        const selectionNow = window.getSelection();
+        if(saved && target.contains(saved.startContainer)){
+          selectionNow.removeAllRanges(); selectionNow.addRange(saved);
+          selectionNow.deleteFromDocument();
+          selectionNow.getRangeAt(0).insertNode(document.createTextNode(text));
+        }else target.innerText = text;
+      }else{
+        target.focus();
+        const selectionNow = window.getSelection();
+        if(saved && target.contains(saved.startContainer)){ selectionNow.removeAllRanges(); selectionNow.addRange(saved); }
+        else { const range = document.createRange(); range.selectNodeContents(target); range.collapse(false); selectionNow.removeAllRanges(); selectionNow.addRange(range); }
+        const html = text.split(/\n\n+/).map(function(p){ return '<p>' + esc(p).replace(/\n/g, '<br>') + '</p>'; }).join('');
+        try{ document.execCommand('insertHTML', false, html); }catch(err){ document.execCommand('insertText', false, text); }
+      }
+      onInput();
+      toggleFabAI(false);
+      toast('Translation applied');
+    });
+    sync();
+  };
+})();
+</script>
+<script>
+/* IMF and the ordinary editor font are mutually exclusive. write.js owns the
+   picker, so this late wrapper keeps that ownership and only enforces the
+   switch-off when the chosen item is a normal font. */
+(function(){
+  const pick = window.pickDropItem;
+  if(typeof pick !== 'function') return;
+  window.pickDropItem = function(btn){
+    const normalFont = btn && btn.dataset && btn.dataset.dropItem === 'font';
+    if(normalFont) S.config.expMixedFonts = false;
+    const out = pick.apply(this, arguments);
+    if(normalFont){
+      if(typeof applyConfig === 'function'){ applyConfig('font'); applyConfig('expMixedFonts'); }
+      if(typeof paintImfPreview === 'function') paintImfPreview();
+    }
+    return out;
+  };
+})();
+</script>
+<script src="mindmap.js?v=12"></script>
+<script src="github.js?v=9"></script>
+<script src="utils.js?v=12"></script>
+<script src="notes.js?v=7"></script>
+<script src="draft-chat.js?v=23"></script>
+<script src="polish.js?v=44"></script>
 <script src="fountain-script.js?v=6"></script>
 <script src="plan-boards.js?v=6"></script>
-<script src="welcome.js?v=4"></script>
-<script src="final-fix.js?v=6"></script>
+<script src="welcome.js?v=11"></script>
+<script src="final-fix.js?v=266"></script>
+<script>
+/* The Color strength control is gone. Any browser that used it still carries
+   a colorIntensity value in saved settings, and an older cached copy of this
+   file may still have painted a saturation filter over the whole interface.
+   Drop the dead key and clear the tint so the themes render true. */
+(function(){
+  const clearTint = function(){
+    document.body.classList.remove('ui-color');
+    const root = document.documentElement;
+    root.style.removeProperty('--color-saturation');
+    root.style.setProperty('--color-saturation', '1');
+    if(document.body.style.filter) document.body.style.filter = '';
+  };
+  try{ if(typeof S !== 'undefined' && S.config && 'colorIntensity' in S.config){
+    delete S.config.colorIntensity;
+    if(typeof save === 'function') save();
+  } }catch(e){}
+  clearTint();
+
+  /* Same story for the font weight. The control was dead for its whole life,
+     so any stored value is leftover from a slider that changed nothing. Once
+     the variable became real it started painting every screen, and a stale
+     700 made the whole interface heavy and harsh. The app's own body rule
+     never declared a weight - it inherited the browser default - so put it
+     back to that and let the slider write the variable only when it is moved. */
+  const resetFontWeight = function(){
+    try{
+      /* brightness is gone: pin the stored value to neutral so nothing the
+         device or an old build left behind can tint the interface */
+      if(typeof S !== 'undefined' && S.config && Number(S.config.uiBrightness) !== 50){
+        S.config.uiBrightness = 50;
+        if(typeof save === 'function') save();
+      }
+      document.documentElement.style.setProperty('--ui-bright', '1');
+      document.body.classList.remove('ui-bright', 'sf-bright-up', 'sf-bright-down');
+      const bOv = document.getElementById('sfBrightOverlay');
+      if(bOv) bOv.remove();
+      if(typeof applyConfig === 'function') applyConfig('uiBrightness');
+    }catch(e){}
+    try{
+      /* the control was dead for its whole life, so a weight outside the
+         ordinary range is leftover rather than a choice. Anything inside
+         100-900 is kept so the slider now persists what the writer picks. */
+      const w = Number(S.config && S.config.fontWeight);
+      if(!Number.isFinite(w) || w < 100 || w > 900){
+        if(typeof S !== 'undefined' && S.config){ S.config.fontWeight = 400; if(typeof save === 'function') save(); }
+      }
+      const cur = Number(S.config && S.config.fontWeight) || 400;
+      document.documentElement.style.setProperty('--ui-font-weight', String(cur));
+    }catch(e){}
+  };
+  resetFontWeight();
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      clearTint();
+      resetFontWeight();
+      if(typeof applyComponentThemes === 'function') applyComponentThemes();
+    });
+  } else {
+    if(typeof applyComponentThemes === 'function') applyComponentThemes();
+  }
+})();
+</script>
+<script>
+/* Appearance and sound controls use neutral-centered visual scales and
+   always show their sound values as percentages. */
+(function(){
+  const config = S && S.config;
+  if(!config) return;  if(config.visualScaleVersion !== 2 || Number(config.uiBrightness) > 100){
+    const oldBrightness = Number(config.uiBrightness);
+    if(Number.isFinite(oldBrightness) && oldBrightness >= 40 && oldBrightness <= 160){
+      config.uiBrightness = Math.max(0, Math.min(100, Math.round(oldBrightness / 2)));
+    } else config.uiBrightness = 50;
+    if(Number(config.eyeComfortLevel) === 40 || config.eyeComfortLevel == null) config.eyeComfortLevel = 50;
+    config.visualScaleVersion = 2;
+  }
+  const originalApply = window.applyConfig;
+  if(typeof originalApply === 'function'){
+    window.applyConfig = function(key){
+      const out = originalApply.apply(this, arguments);
+      const c = S.config;
+      const root = document.documentElement;
+      if(key === 'eyeComfort'){
+        const level = Math.max(0, Math.min(100, Number(c.eyeComfortLevel) || 0));
+        const distance = Math.abs(level - 50) / 50;
+        root.style.setProperty('--eye-amount', String(distance * .26));
+        document.body.classList.toggle('eye-comfort-cold', !!c.eyeComfort && level < 50);
+        document.body.classList.toggle('eye-comfort-warm', !!c.eyeComfort && level > 50);
+      }
+      if(key === 'uiBrightness'){
+        /* neutral only: the control is gone, so the device decides */
+        c.uiBrightness = 50;
+        root.style.setProperty('--ui-bright', '1');
+        document.body.classList.remove('ui-bright', 'sf-bright-up', 'sf-bright-down');
+        const stale = document.getElementById('sfBrightOverlay');
+        if(stale) stale.remove();
+      }
+      return out;
+    };
+  }
+
+  const originalAppearance = SETTINGS.renderers.appearance;
+  if(typeof originalAppearance === 'function') SETTINGS.renderers.appearance = function(root){
+    originalAppearance(root);
+    /* Appearance shows the controls themselves, not samples or a second
+       on/off switch. Weight remains directly adjustable at every value. */
+    root.querySelectorAll('.font-size-sample, .mix-preview, .mix-legend').forEach(function(node){ node.remove(); });
+    root.querySelectorAll('.set-row').forEach(function(r){
+      const label = r.querySelector('.set-label');
+      if(label && label.textContent === 'Enable custom weight'){ r.remove(); return; }
+      if(label && label.textContent === 'Brightness'){ r.remove(); return; }
+      if(label && (label.textContent === 'Weight' || label.textContent === 'Font weight')){
+        const input = r.querySelector('input[type="range"]');
+        if(!input) return;
+        /* the row is called "Weight" in settings.js; name it for what it is */
+        if(label.textContent === 'Weight') label.textContent = 'Font weight';
+        /* the "Thin -> Regular -> Bold" line named weights the font has not
+           got; the row's own value label says the same thing better */
+        const rowDesc = r.querySelector('.set-desc');
+        if(rowDesc) rowDesc.remove();
+        /* Inter ships 400/500/600/700/800 and nothing thinner. A browser
+           never synthesises a lighter stroke - it clamps to the lightest face
+           it has - so 100-300 rendered at exactly the same width as 400 and
+           the thin half of the slider did nothing. Offer only real weights. */
+        input.min = '100'; input.max = '800'; input.step = '100';
+        const w = Number(S.config.fontWeight);
+        const clamped = Math.max(100, Math.min(800, Number.isFinite(w) && w >= 100 ? w : 400));
+        if(clamped !== w){ S.config.fontWeight = clamped; if(typeof save === 'function') save(); }
+        input.value = String(clamped);
+        S.config.fontWeightEnabled = true;
+        input.disabled = false;
+        /* the value on the right, the way Font size carries its own */
+        const host = input.parentElement;
+        let val = host ? host.querySelector('.rng-val') : null;
+        if(host && !val){ val = document.createElement('span'); val.className = 'rng-val'; host.appendChild(val); }
+        const NAMES = {100:'Thin',200:'Extra thin',300:'Light',400:'Regular',500:'Medium',600:'Semibold',700:'Bold',800:'Extra bold'};
+        const paint = function(){
+          if(val) val.textContent = (NAMES[Number(input.value)] || input.value);
+        };
+        input.oninput = function(){
+          S.config.fontWeight = Number(input.value);
+          paint();
+          applyConfig('fontWeightEnabled'); applyConfig('fontWeight');
+          save();
+        };
+        paint();
+        applyConfig('fontWeightEnabled');
+      }
+      /* APP FONT - a short list. state.js ships 61 families for the writing
+         face, and the interface picker was offering all of them: 61 rows of
+         near-identical sans-serifs to scroll through to change the chrome,
+         several of them display faces (Playfair, Cinzel, Bodoni) that are
+         unreadable at 11px, and four Indic families that belong to the
+         language feature rather than to the app's own type. The writing
+         face keeps its full list - this is the interface only.
+
+         The first entry is already "Default (Inter)", so Inter is not
+         repeated in the list under itself - two rows, one face, and the
+         second one looked like a bug. The rest are eight that are actually
+         good at UI sizes, all bundled in vendor/webfonts with their 400
+         latin cut, so every pick really renders. A font that is stored but
+         no longer offered falls back to the default rather than being left
+         pointing at nothing. */
+      if(label && label.textContent === 'App font'){
+        const KEEP = ['Roboto','Open Sans','DM Sans','Manrope','Work Sans',
+                      'Merriweather','Lora','JetBrains Mono'];
+        const sel = r.querySelector('select.sel');
+        if(sel){
+          const current = sel.value;
+          while(sel.firstChild) sel.removeChild(sel.firstChild);
+          const def = document.createElement('option');
+          def.value = ''; def.textContent = 'Default (Inter)';
+          sel.appendChild(def);
+          KEEP.forEach(function(name){
+            const o = document.createElement('option');
+            o.value = name; o.textContent = name;
+            if(name === current) o.selected = true;
+            sel.appendChild(o);
+          });
+          const kept = (current === '') || KEEP.indexOf(current) >= 0;
+          if(!current) def.selected = true;
+          if(!kept){
+            S.config.uiFont = '';
+            sel.value = '';
+            if(typeof applyConfig === 'function') applyConfig('uiFont');
+            if(typeof save === 'function') save();
+          }
+        }
+        const desc = r.querySelector('.set-desc');
+        if(desc) desc.textContent = 'Typeface used across the whole interface';
+      }
+    });
+    /* No boot-time weight here on purpose. Pushing the stored value onto the
+       page at load is what made the whole app come up in a stale weight. The
+       slider writes the variable when it is moved, and nothing else. */
+
+    /* settings.js rebuilds this row on DOMContentLoaded, AFTER the renderer
+       above has already run, so removing it here alone let it come straight
+       back. Watch for it instead, so it stays gone whenever it is added. */
+    /* Every write below is guarded so it only happens when something is
+       actually wrong. An unguarded version rewrote the slider's value, its
+       label and its handler on every mutation, which re-triggered the
+       observer that did the writing - an endless loop that froze the panel
+       and fought the thumb while dragging. */
+    const WEIGHT_NAMES = {100:'Thin', 200:'Extra thin', 300:'Light', 400:'Regular', 500:'Medium', 600:'Semibold', 700:'Bold', 800:'Extra bold'};
+    const fixSettingsRows = function(){
+      Array.prototype.forEach.call(
+        document.querySelectorAll('.set-row'),
+        function(r){
+          const l = r.querySelector('.set-label');
+          if(!l) return;
+          const t = l.textContent.trim();
+          if(t === 'Enable custom weight' || t === 'Brightness'){ r.remove(); return; }
+          if(t === 'Weight') l.textContent = 'Font weight';
+          if(l.textContent.trim() !== 'Font weight') return;
+
+          /* the "Thin -> Regular -> Bold" line described weights the font
+             does not have; the row speaks for itself now */
+          const desc = r.querySelector('.set-desc');
+          if(desc) desc.remove();
+
+          const inp = r.querySelector('input[type="range"]');
+          if(!inp) return;
+          if(inp.min !== '100') inp.min = '100';
+          if(inp.max !== '800') inp.max = '800';
+          if(inp.step !== '100') inp.step = '100';
+          if(inp.disabled) inp.disabled = false;
+
+          const host = inp.parentElement;
+          if(host && !host.querySelector('.rng-val')){
+            const v = document.createElement('span');
+            v.className = 'rng-val';
+            host.appendChild(v);
+          }
+          const val = host ? host.querySelector('.rng-val') : null;
+          const text = WEIGHT_NAMES[Number(inp.value)] || String(inp.value);
+          if(val && val.textContent !== text) val.textContent = text;
+
+          if(!inp.dataset.sfBound){
+            inp.dataset.sfBound = '1';
+            inp.oninput = function(){
+              S.config.fontWeight = Number(inp.value);
+              S.config.fontWeightEnabled = true;
+              const t2 = WEIGHT_NAMES[Number(inp.value)] || String(inp.value);
+              const v2 = inp.parentElement ? inp.parentElement.querySelector('.rng-val') : null;
+              if(v2) v2.textContent = t2;
+              applyConfig('fontWeightEnabled'); applyConfig('fontWeight');
+              save();
+            };
+          }
+          S.config.fontWeightEnabled = true;
+          applyConfig('fontWeightEnabled');
+        }
+      );
+    };
+    const dropWeightToggle = fixSettingsRows;
+    if(typeof MutationObserver === 'function'){
+      const mo = new MutationObserver(dropWeightToggle);
+      const start = function(){
+        dropWeightToggle();
+        if(document.body) mo.observe(document.body, {childList:true, subtree:true});
+      };
+      if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+      else start();
+    } else {
+      document.addEventListener('DOMContentLoaded', dropWeightToggle);
+    }
+    const rows = Array.from(root.querySelectorAll('.set-row'));
+    const findRow = function(label){ return rows.find(function(r){ return r.textContent.indexOf(label) >= 0; }); };
+    const configure = function(label, key, defaultValue, description, reset){
+      const r = findRow(label); if(!r) return;
+      const input = r.querySelector('input[type="range"]');
+      const value = r.querySelector('.rng-val');
+      if(!input) return;
+      input.min = '0'; input.max = '100'; input.step = '5';
+      input.value = S.config[key] == null ? defaultValue : S.config[key];
+      if(value) value.textContent = Number(input.value) + '%';
+      const sub = r.querySelector('.set-sub');
+      if(sub && description) sub.textContent = description;
+      input.oninput = function(){
+        S.config[key] = Math.max(0, Math.min(100, parseInt(input.value, 10) || 0));
+        if(value) value.textContent = S.config[key] + '%';
+        if(typeof applyConfig === 'function') applyConfig(key);
+        if(typeof save === 'function') save();
+      };
+      const resetButton = r.querySelector('button');
+      if(reset && resetButton){
+        resetButton.title = 'Reset to 50%';
+        resetButton.onclick = function(){
+          S.config[key] = 50; input.value = 50;
+          if(value) value.textContent = '50%';
+          if(typeof applyConfig === 'function') applyConfig(key);
+          if(typeof save === 'function') save();
+        };
+      }
+    };
+    configure('Filter strength', 'eyeComfortLevel', 50, '50% is normal · below 50% is cold · above 50% is warm', false);
+    configure('Brightness', 'uiBrightness', 50, '50% is normal · below 50% is dim · above 50% is bright', true);
+
+  };
+
+  const originalSound = SETTINGS.renderers.sound;
+  if(typeof originalSound === 'function') SETTINGS.renderers.sound = function(root){
+    originalSound(root);
+    root.querySelectorAll('input[type="range"]').forEach(function(input){
+      input.min = '0'; input.max = '100'; input.step = '1';
+      const host = input.parentElement;
+      if(!host) return;
+      let value = host.querySelector('.rng-val');
+      if(!value){ value = document.createElement('span'); value.className = 'rng-val'; host.appendChild(value); }
+      const paint = function(){ value.textContent = Math.max(0, Math.min(100, parseInt(input.value, 10) || 0)) + '%'; };
+      input.addEventListener('input', paint); paint();
+    });
+  };
+  if(typeof applyConfig === 'function'){
+    applyConfig('eyeComfort'); applyConfig('uiBrightness');
+  }
+})();
+</script>
+<script>
+/* Remix is a first-class action in the right-click FAB menu. */
+(function(){
+  const originalRender = window.renderFabAI;
+  if(typeof originalRender !== 'function') return;
+  window.renderFabAI = function(){
+    const out = originalRender.apply(this, arguments);
+    const body = document.getElementById('fabAIBody');
+    if(body && !body.querySelector('[data-ai="organize"]')){
+      const button = document.createElement('button');
+      button.className = 'ai-chip'; button.dataset.ai = 'organize';
+      button.innerHTML = '<i class="bi bi-list-nested"></i> Remix';
+      const improve = body.querySelector('[data-ai="improve"]');
+      if(improve) improve.after(button);
+      else body.appendChild(button);
+    }
+    if(body){
+      const summarize = body.querySelector('[data-ai="summarize"]');
+      if(summarize && !body.querySelector('.fab-divider')){
+        const divider = document.createElement('div');
+        divider.className = 'fab-divider';
+        divider.setAttribute('role', 'separator');
+        divider.setAttribute('aria-orientation', 'horizontal');
+        summarize.after(divider);
+      }
+    }
+    return out;
+  };
+})();
+</script>
+<script>
+/* Plugin actions now use the same utility tabs and tool buttons as the
+   built-in utilities. They are not added as a second raw button row. */
+(function(){
+  const originalRender = window.utilRender;
+  if(typeof originalRender !== 'function') return;
+  window.utilRender = function(){
+    const out = originalRender.apply(this, arguments);
+    const body = document.getElementById('utilBody');
+    const cfg = typeof window.utilCfg === 'function' ? window.utilCfg() : null;
+    const tool = cfg && cfg.tool;
+    if(!body || body.children.length || !['voice','tts','hinglish'].includes(tool)) return out;
+    const selected = function(){ try{ return String(window.getSelection() || '').trim().split(/\s+/)[0] || ''; }catch(e){ return ''; } };
+    if(tool === 'voice'){
+      body.innerHTML = '<div class="util-note">Use your microphone to dictate into the editor.</div><button class="util-btn primary" data-util-action><i class="bi bi-mic"></i> Start voice dictation</button>';
+      body.querySelector('[data-util-action]').onclick = function(){ if(window.PLUGINS && PLUGINS.toggleVoice) PLUGINS.toggleVoice(); };
+    }else if(tool === 'tts'){
+      body.innerHTML = '<div class="util-note">Read the current selection or editor aloud.</div><button class="util-btn primary" data-util-action><i class="bi bi-volume-up"></i> Read aloud</button>';
+      body.querySelector('[data-util-action]').onclick = function(){ if(window.PLUGINS && PLUGINS.speakEditor) PLUGINS.speakEditor(); };
+    }else if(tool === 'hinglish'){
+      body.innerHTML = '<div class="util-note">Type language and see translation as you go.</div><button class="util-btn primary" data-util-action><i class="bi bi-keyboard"></i> Open live transliteration</button>';
+      body.querySelector('[data-util-action]').onclick = function(){ if(window.PLUGINS && PLUGINS.openLiveBar) PLUGINS.openLiveBar(); };
+    }
+    return out;
+  };
+})();
+</script>
+<script>
+/* Remove the retired AI ghost-text switch from the Typography page. */
+(function(){
+  const originalType = SETTINGS.renderers.type;
+  if(typeof originalType !== 'function') return;
+  SETTINGS.renderers.type = function(root){
+    originalType(root);
+    root.querySelectorAll('.set-row').forEach(function(r){
+      const label = r.querySelector('.set-label');
+      if(label && label.textContent === 'AI ghost text') r.remove();
+    });
+  };
+})();
+</script>
+<script>
+/* Overlay is now a Manuscript/Script toolbar action, not a Custom setting. */
+(function(){
+  const originalCustom = SETTINGS.renderers.custom;
+  if(typeof originalCustom !== 'function') return;
+  SETTINGS.renderers.custom = function(root){
+    originalCustom(root);
+    root.querySelectorAll('.set-row').forEach(function(r){
+      const label = r.querySelector('.set-label');
+      if(label && (label.textContent === 'Overlay' || label.textContent === 'Remixing' || label.textContent === 'What you like' || label.textContent === 'Intermixing')) r.remove();
+    });
+  };
+})();
+</script>
+<script>
+/* General → Folder view, immediately after UI scale. It applies to the
+   dashboard's shared Novel and Screenplay project lists. */
+(function(){
+  const originalGeneral = SETTINGS.renderers.general;
+  if(typeof originalGeneral !== 'function') return;
+  const modeValue = function(mode){
+    const key = 'folderView' + mode.charAt(0).toUpperCase() + mode.slice(1);
+    const current = S.config[key];
+    if(current != null) return current;
+    return S.config.folderView === true ? 'cards' : (S.config.folderView || 'off');
+  };
+  const syncFolderModes = function(){
+    const enabled = modeValue('novel') !== 'off' || modeValue('screenplay') !== 'off';
+    document.body.classList.toggle('folder-view', enabled);
+  };
+  S.config.folderView = 'off';
+  S.config.folderViewNovel = 'off';
+  S.config.folderViewScreenplay = 'off';
+  document.body.classList.remove('folder-view');
+  SETTINGS.renderers.general = function(root){
+    originalGeneral(root);
+    return;
+    const scaleRow = Array.from(root.querySelectorAll('.set-row')).find(function(el){
+      return el.textContent.indexOf('UI scale') >= 0;
+    });
+    if(!scaleRow) return;
+    if(Array.from(root.querySelectorAll('.set-card-title')).some(function(el){ return el.textContent.trim() === 'Folder view'; })) return;
+    const folderCard = card('Folder view', 'folder');
+    ['novel','screenplay'].forEach(function(modeId){
+      const key = 'folderView' + modeId.charAt(0).toUpperCase() + modeId.slice(1);
+      const mode = document.createElement('select');
+      mode.className = 'sel';
+      [['off','List'],['cards','Card']].forEach(function(item){
+        const option = document.createElement('option');
+        option.value = item[0]; option.textContent = item[1];
+        if(modeValue(modeId) === item[0]) option.selected = true;
+        mode.appendChild(option);
+      });
+      mode.onchange = function(){
+        S.config[key] = mode.value;
+        syncFolderModes();
+        if(S.page === 'home' && typeof goPage === 'function') goPage('home');
+        save();
+      };
+      folderCard.appendChild(row(modeId === 'novel' ? 'Novel' : 'Screenplay', 'Dashboard project layout', mode));
+    });
+    root.appendChild(folderCard);
+  };
+})();
+</script>
+<script>
+/* JSON import is unlimited per category. The legacy importer still contains
+   its old five-project guard, so temporarily remove this category's entries
+   while it runs, then restore them after the new project is added. */
+(function(){
+  const importer = window.importJSONProject;
+  if(typeof importer !== 'function') return;
+  window.importJSONProject = function(parsed, filename){
+    const name = String(filename || '').replace(/\.json$/i, '');
+    const cls = typeof window.classifyProjectName === 'function'
+      ? window.classifyProjectName(name) : null;
+    const data = cls && cls.mode && S.modes && S.modes[cls.mode];
+    const list = data && Array.isArray(data.projects) ? data.projects : null;
+    if(!list || !cls.category) return importer.apply(this, arguments);
+
+    /* Old localStorage versions could leave the retired floating screen
+       marked open. JSON import must land in the main app, never revive it. */
+    if(typeof overlayShow === 'function') overlayShow(false);
+    const hidden = [];
+    for(let i = list.length - 1; i >= 0; i--){
+      if(list[i] && list[i].category === cls.category){
+        hidden.unshift(list.splice(i, 1)[0]);
+      }
+    }
+    try{
+      return importer.apply(this, arguments);
+    }finally{
+      if(typeof overlayShow === 'function') overlayShow(false);
+      if(typeof togglePagesOverlay === 'function') togglePagesOverlay(false);
+      /* The legacy importer schedules its panel to open after 60ms. Close
+         both old overlay paths again after that callback has run. */
+      setTimeout(function(){
+        if(typeof overlayShow === 'function') overlayShow(false);
+        if(typeof togglePagesOverlay === 'function') togglePagesOverlay(false);
+      }, 140);
+      const importedCount = list.filter(function(p){ return p && p.category === cls.category; }).length;
+      hidden.forEach(function(project, i){
+        list.splice(Math.min(i + importedCount, list.length), 0, project);
+      });
+      if(typeof save === 'function') save();
+    }
+  };
+})();
+</script>
 
 
 
