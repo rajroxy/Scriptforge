@@ -45,7 +45,7 @@
        list” — a dropdown's own bar stays grey under the pointer.
 
    8 · “fonts in pages T are many so remove unnecessary fonts from there”
-       Twelve families on the T panel, not fifty-seven.
+       Seven families on the T panel and in the writing bars, not fifty-seven.
 
    Nothing here rewrites anything. Every press is wired to the app's own
    objects — S.config.savedPrompts, D().drafts, the Bible's entry, the T
@@ -12181,15 +12181,13 @@
   /* ── 12c(2) · the writing bar's Font list is the pack a book is set in ──
      write.js builds that dropdown from every family the app ships — sixty
      of them in six groups, in a list 300px tall. The two writing bars show
-     the twelve a manuscript or a screenplay is actually set in. The T
+     the seven a manuscript or a screenplay is actually set in. The T
      panel, IMF and Settings keep the whole pack, and the face the writer is
      already in is kept in the list as well, so the list can never disagree
      with the name on the button. Nothing is deleted — the rest are hidden,
      so a face reached some other way still works. */
-  const KEEP_FONTS = ['Merriweather','Lora','Crimson Text','EB Garamond',
-                      'Source Serif 4','IBM Plex Serif','Literata',
-                      'Inter','Fira Sans','Roboto',
-                      'JetBrains Mono','Courier Prime'];
+  const KEEP_FONTS = ['Merriweather','Lora','EB Garamond','Source Serif 4',
+                      'Inter','Fira Sans','JetBrains Mono'];
   const fontShortList = function(){
     const keep = {};
     KEEP_FONTS.forEach(function(n){ keep[n] = 1; });
@@ -12201,28 +12199,40 @@
         const list = drop.querySelector('.tb-drop-list');
         if(!list) return;
         /* a heading over an empty group goes with the group's items */
+        /* A row is taken out with a CLASS, never with an inline display: the
+           app's own sheet paints every .tb-drop-item display:flex !important,
+           and an inline none loses to that. An inline none left by an older
+           build is cleared here as well. */
+        const off = function(el, gone){
+          if(!el) return;
+          if(el.style && el.style.display === 'none') el.style.display = '';
+          el.classList.toggle('sf-font-off', !!gone);
+        };
         let group = null, shown = false;
         const flush = function(){
           if(!group) return;
-          const want = shown ? '' : 'none';
-          if(group.style.display !== want) group.style.display = want;
+          off(group, !shown);
         };
         Array.prototype.forEach.call(list.children, function(node){
           if(!node || !node.classList) return;
           if(node.classList.contains('tb-drop-group')){ flush(); group = node; shown = false; return; }
           if(!node.classList.contains('tb-drop-item')) return;
-          const on = !!(node.dataset && keep[node.dataset.value || '']);
-          const want = on ? '' : 'none';
-          if(node.style.display !== want) node.style.display = want;
+          /* the row's own name, however the build wrote it: the value of the
+             entry, or — if there is none — the face the label stands in */
+          const key = (node.dataset && node.dataset.value)
+                    || String(node.textContent || '').trim();
+          const on = !!keep[key];
+          off(node, !on);
+          if(node.hidden !== !on) node.hidden = !on;
           if(on) shown = true;
         });
         flush();
       });
   };
 
-  /* ── 12c(4) · AND THE SAME TWELVE IN THE T PANEL ─────────────
+  /* ── 12c(4) · AND THE SAME SEVEN IN THE T PANEL ──────────────
      The type panel (T) is built by pages.js, and it lists every family the
-     app ships in its own Font row. It takes the same twelve — the pack a
+     app ships in its own Font row. It takes the same seven — the pack a
      book is set in — and the page's current face is kept, so the row never
      disagrees with what is on screen. The options are taken out of the
      select and the app's own dropdown card is asked to draw itself again,
@@ -12337,6 +12347,7 @@
       put(card, 'left', Math.round(r.left) + 'px');
       put(card, 'top',  Math.round(r.top)  + 'px');
       card.classList.add('sf-grabbing');
+      card.dataset.sfMoved = '1';   /* the hand put it here — 17e leaves it */
       dragging = 1;
     }, true);
     document.addEventListener('pointermove', function(e){
@@ -12710,66 +12721,432 @@
 
 
 /* ═══════════════════════════════════════════════════════════
-   16 · SHIFT + / OPENS THE FORMATTING MENU — TAPPED OR HELD
+   17 · THE KEYS, THE TWO MENUS, AND THE LAST FEW CHIPS
 
-   Shift + @ opens the app's element menu (write.js: sfOpenMenu), and it is
-   the only formatting menu there is: Paragraph style · Chapter title ·
-   Section head · Sub-section · Quote · Epigraph · Scene break in a prose
-   page, the screenplay elements in a script. Shift + / types “?”, which on
-   most layouts is the same key one row down, and it opened nothing.
+   · SHIFT + Q opens the paragraph-style menu — the one write.js draws for
+     Shift + @ — and SHIFT + E opens the Advanced Formatting panel, which
+     is the menu pages.js opened for Shift + /. Both old keys are taken
+     out: the @ key reaches no menu at all, and Shift + / no longer reaches
+     pages.js on the manuscript.
 
-   Here both readings of the key are answered by that one menu: a tap opens
-   it, and a hold keeps it open — the press is asked for again while the key
-   is down, which is what a held key does, and sfOpenMenu is idempotent, so
-   the menu simply stays where it is rather than flickering. Taken on the
-   window in the capture phase, so the app's own keyboard handling never sees
-   the key, and refused inside a real field (an <input> or <textarea>), where
-   “?” is just a character being typed.
+   · THE ADVANCED PANEL WALKS SIDEWAYS. Its chips sit in rows that read
+     left to right, so ← and → move the picked chip now and ↑ ↓ do nothing
+     there — in place of, not alongside.
+
+   · THE ELEMENT MENU FINDS ITS ACCENT UNDER THE POINTER. The keys could
+     always walk it and the chip they picked wore the accent; the chip the
+     pointer was over wore a grey box. Both wear the accent now.
+
+   · THE FONT LIST READS, AND SO DOES THE RESULT SHEET. The family names in
+     the writing bar's Font list are drawn in their own face at 12.5px/400,
+     which for a light serif read as a hairline: they are 13px/500 in --ink.
+     And in the AI result sheet every action carries the quiet box Replace
+     already wears — Copy · Insert · Append · Retry had no box at all.
+
+   · TWO PRESSES THAT USED TO STICK. Pressing a command that is already on
+     (bold, a list, superscript) turns it off, and pressing the conversion
+     that is on takes the pick off it.
+
+   · AND THE FIND CARD OPENS AT THE BAR'S RIGHT END, under the toolbar,
+     every time it is opened — the place the app's own markup asks for, in
+     the writing card rather than floating wherever the chain of rules
+     happens to put it.
    ═══════════════════════════════════════════════════════════ */
 (function(){
+  /* ── 17a · the sheet ──────────────────────────────────────────
+     The weight of a selector is raised by doubling it ON THE SAME ELEMENT —
+     `#writeToolbar#writeToolbar`, `.adv-btn.adv-btn` — because the sheets this
+     file wrote above are moved about in the head by other passes and this one
+     has to win wherever it lands. (A second id AFTER a space —
+     `#modalRoot #modalRoot` — asks for a #modalRoot inside a #modalRoot and
+     matches nothing at all, which is what the first pass of this sheet did.) */
+  const CSS = [
+    /* ── THE WRITING BARS' FONT LIST READS IN THE APP'S FACE ──
+       write.js writes each row's name in the face that row IS — font-family
+       inline on the row's own span — so every light serif read as a hairline
+       and every script face as a scribble. The T panel and Settings have
+       always shown these names in the interface face, and so does this list
+       now: the app's face, 13px/500, --ink. The override has to be !important
+       because the family is written inline on the span itself. */
+    'html body #writeToolbar#writeToolbar .tb-drop[data-drop="font"] .tb-drop-item,',
+    'html body .fnt-bar.fnt-bar .tb-drop[data-drop="font"] .tb-drop-item{',
+    '  font-family:var(--ui, inherit) !important;',
+    '  font-size:13px !important; font-weight:500 !important;',
+    '  color:var(--ink) !important; padding:8px 10px !important; }',
+    'html body #writeToolbar#writeToolbar .tb-drop[data-drop="font"] .tb-drop-item > span,',
+    'html body .fnt-bar.fnt-bar .tb-drop[data-drop="font"] .tb-drop-item > span{',
+    '  font-family:var(--ui, inherit) !important; font-size:13px !important;',
+    '  font-weight:500 !important; color:var(--ink) !important; }',
+    'html body #writeToolbar#writeToolbar .tb-drop[data-drop="font"] .tb-drop-item:hover,',
+    'html body #writeToolbar#writeToolbar .tb-drop[data-drop="font"] .tb-drop-item.active{',
+    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+    /* ── AND A FAMILY THAT IS NOT IN THE PACK IS TAKEN OUT, NOT DIMMED ──
+       pages.css draws every .tb-drop-item with display:flex !important, so an
+       inline display:none on the row lost the argument — the whole sixty-row
+       list stayed on screen and the trim read as if it did nothing at all.
+       The row and its heading now carry a class, and this sheet takes them out
+       with an !important of its own (two classes deep, so it out-ranks the
+       rule it is answering). */
+    'html body .tb-drop-item.sf-font-off{ display:none !important; }',
+    'html body .tb-drop-group.sf-font-off{ display:none !important; }',
+
+    /* the element menu: the pointer wears the accent, like the keys do */
+    'html body .sf-elem-item.sf-elem-item:hover,',
+    'html body .sf-elem-item.sf-elem-item.sf-elem-active,',
+    'html body .sf-elem-item.sf-elem-item.on{',
+    '  background:var(--accent-soft) !important; color:var(--accent) !important; }',
+    'html body .sf-elem-item.sf-elem-item:hover i,',
+    'html body .sf-elem-item.sf-elem-item.sf-elem-active i,',
+    'html body .sf-elem-item.sf-elem-item.on i{',
+    '  color:var(--accent) !important; }',
+
+    /* ── the advanced panel wears the same accent ──
+       Its chips are a picker: the one under the pointer and the one the keys
+       left on are the accent, exactly as the paragraph-style menu reads now. */
+    'html body .adv-btn.adv-btn:hover,',
+    'html body .adv-btn.adv-btn.adv-on{',
+    '  background:var(--accent-soft) !important; color:var(--accent) !important; }',
+
+    /* the AI result sheet: every action is the box Replace wears */
+    'html body #modalRoot#modalRoot .gt-foot .gt-act{',
+    '  background:var(--surface-3) !important; border-color:transparent !important;',
+    '  color:var(--ink-2) !important; }',
+    'html body #modalRoot#modalRoot .gt-foot .gt-act:hover{',
+    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+    'html body #modalRoot#modalRoot .gt-foot .gt-act.gt-primary{',
+    '  background:var(--surface-3) !important; border-color:transparent !important;',
+    '  color:var(--ink-2) !important; }',
+    'html body #modalRoot#modalRoot .gt-foot .gt-act.gt-primary:hover,',
+    'html body #modalRoot#modalRoot .gt-foot .gt-act.gt-primary:active{',
+    '  background:var(--surface-4) !important; color:var(--accent) !important; }'
+  ].join('\n');
+  const sheet = document.createElement('style');
+  sheet.id = 'sfKeysSheet';
+  sheet.textContent = CSS;
+  (document.head || document.documentElement).appendChild(sheet);
+
+  /* ── 17b · the two menus take the keys the writers asked for ──
+     The paragraph-style menu had exactly one door — the @ key — and two
+     handlers reaching for it by name: write.js's own, and welcome.js's,
+     which binds on the window so it can settle the key first. Neither is
+     this file's to edit, so the name each of them calls is held here and
+     answered for one key only: Shift + Q. Every other caller gets silence,
+     which is what taking the @ key out means. The panel that Shift + / used
+     to open is pages.js's own and its name (advToggle) is left alone — only
+     the key that reached it changes. */
+  const realMenu = (typeof window.sfOpenMenu === 'function') ? window.sfOpenMenu : null;
+  if(realMenu && !realMenu.__sfHeld){
+    const held = function(){ /* the menu has one door now: Shift + Q */ };
+    held.__sfHeld = true;
+    window.sfOpenMenu = held;
+  }
+  /* ── ONE MENU AT A TIME ──
+     Both of these are the page's formatting menu, and two of them open at
+     once is one too many: Shift + Q puts the Advanced panel away first, and
+     Shift + E does the same to the paragraph-style menu. */
+  const closeAdvanced = function(){
+    const p = document.getElementById('advPanel');
+    if(!p || p.hidden) return;
+    try{
+      if(typeof window.advToggle === 'function') window.advToggle(false);
+      else p.hidden = true;
+    }catch(e){ try{ p.hidden = true; }catch(err){} }
+  };
+  const closeStyles = function(){
+    const m = document.getElementById('sfElemMenu');
+    if(m && !m.hidden) m.hidden = true;
+  };
+  const openStyles = function(){
+    closeAdvanced();               /* one menu at a time */
+    if(!realMenu) return;
+    try{ realMenu(); }catch(e){}
+  };
+  const openAdvanced = function(){
+    closeStyles();                 /* one menu at a time */
+    if(typeof window.advToggle !== 'function') return;
+    try{ window.advToggle(); }catch(e){}
+  };
   const isField = function(el){
     return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT');
   };
-  const wantKey = function(e){
-    if(e.ctrlKey || e.metaKey || e.altKey) return false;
-    if(e.key === '?') return true;
-    return e.code === 'Slash' && e.shiftKey;
+  const shiftLetter = function(e, up, code){
+    if(!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return false;
+    if(e.key === up) return true;
+    return e.code === code;
   };
-  const surface = function(){
-    const a = document.activeElement;
-    if(a && a.isContentEditable && a.offsetParent !== null) return a;
-    const list = document.querySelectorAll('#editor,[contenteditable="true"]');
-    for(let i = 0; i < list.length; i++){
-      const el = list[i];
-      if(el.isContentEditable && el.offsetParent !== null) return el;
-    }
-    return null;
+  const atKey = function(e){
+    return e.key === '@' || (e.key === '2' && e.shiftKey) || (e.code === 'Digit2' && e.shiftKey);
   };
-  const open = function(){
-    if(typeof window.sfOpenMenu !== 'function') return;
-    const el = surface();
-    try{
-      if(el) window.sfOpenMenu(el);
-      else window.sfOpenMenu();
-    }catch(e){}
+  const slashKey = function(e){
+    return e.shiftKey && (e.key === '?' || e.code === 'Slash');
   };
-  let held = 0, timer = 0;
+
+  /* ── 17c · the advanced panel's chips, moved one at a time ────
+     pages.js has its own mover, but it is a private function and its keys
+     are ↑ ↓; the row is walked here instead, over the same chips and with
+     the same mark (.adv-on) the panel's own handler paints, so the pointer
+     and the keys agree about which chip is picked. */
+  const advStep = function(dir){
+    const p = document.getElementById('advPanel');
+    if(!p) return;
+    const b = Array.prototype.slice.call(p.querySelectorAll('.adv-btn'));
+    if(!b.length) return;
+    let i = -1;
+    for(let n = 0; n < b.length; n++){ if(b[n].classList.contains('adv-on')){ i = n; break; } }
+    if(i < 0) i = dir > 0 ? -1 : 0;
+    i = (i + dir + b.length) % b.length;
+    b.forEach(function(x){ x.classList.remove('adv-on'); });
+    b[i].classList.add('adv-on');
+    if(b[i].scrollIntoView) b[i].scrollIntoView({ block:'nearest' });
+  };
+
   window.addEventListener('keydown', function(e){
-    if(!wantKey(e)) return;
-    if(isField(e.target)) return;            /* a real field still types “?” */
+    if(e.isComposing) return;
+    if(isField(e.target)) return;          /* a real field still types every key */
+    /* Shift + Q — the paragraph-style menu */
+    if(shiftLetter(e, 'Q', 'KeyQ')){
+      e.preventDefault(); e.stopImmediatePropagation();
+      openStyles();
+      return;
+    }
+    /* Shift + E — the advanced formatting panel */
+    if(shiftLetter(e, 'E', 'KeyE')){
+      e.preventDefault(); e.stopImmediatePropagation();
+      openAdvanced();
+      return;
+    }
+    /* the two keys that are gone: nothing under this one sees them */
+    if(atKey(e) || slashKey(e)){
+      e.preventDefault(); e.stopImmediatePropagation();
+      return;
+    }
+    /* the advanced panel walks left and right — ↑ ↓ are not its keys */
+    const panel = document.getElementById('advPanel');
+    if(panel && !panel.hidden){
+      if(e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+        e.preventDefault(); e.stopImmediatePropagation();
+        advStep(e.key === 'ArrowRight' ? 1 : -1);
+        return;
+      }
+      if(e.key === 'ArrowUp' || e.key === 'ArrowDown'){
+        e.preventDefault(); e.stopImmediatePropagation();
+      }
+    }
+  }, true);
+
+  /* ── 17d · the find card opens at the bar's right end ─────────
+     write.js puts #findBar in flow under the toolbar and the app's own
+     sheets then disagree about it: one asks for the whole row, another for
+     a fixed card, and the margin rule for the manuscript out-ranks both.
+     What is asked for here is the place the screenshot asks for: a 330px
+     card whose right edge sits 16px inside the writing card, its top 8px
+     under the last bar row. Nothing is measured once and kept — every open
+     asks again, so a resize, another page or a rebuilt bar is followed.
+     Written !important, because both of those sheets are. A card the hand
+     has moved is left exactly where the hand left it. */
+  const put = function(el, prop, val){
+    try{ el.style.setProperty(prop, val, 'important'); }
+    catch(e){ try{ el.style[prop] = val; }catch(err){} }
+  };
+  const placeFind = function(){
+    const card = document.getElementById('findBar');
+    if(!card || !card.style) return;
+    if(card.classList && card.classList.contains('find-panel')) return;
+    if(card.dataset && card.dataset.sfMoved) return;
+    const rows = document.querySelectorAll(
+      '#page-manuscript .write-toolbar, #page-script .write-toolbar,'
+    + '#page-manuscript .chapter-controls, #page-script .chapter-controls,'
+    + '#chapterControls, #writeToolbar');
+    let right = 0, bottom = 0;
+    Array.prototype.forEach.call(rows, function(r){
+      if(!r || !r.getBoundingClientRect) return;
+      const b = r.getBoundingClientRect();
+      if(!b || !b.width) return;
+      if(b.right > right) right = b.right;
+      if(b.bottom > bottom) bottom = b.bottom;
+    });
+    const wrap = document.querySelector('#page-manuscript .write-wrap, #page-script .write-wrap, .write-wrap');
+    if(wrap && wrap.getBoundingClientRect){
+      const w = wrap.getBoundingClientRect();
+      if(w && w.width){
+        if(w.right > right) right = w.right;
+        if(!bottom) bottom = w.top + 46;
+      }
+    }
+    const vw = window.innerWidth || 1200;
+    const width = Math.min(330, Math.max(240, vw - 32));
+    if(!right) right = vw - 16;
+    if(!bottom) bottom = 56;
+    put(card, 'position', 'fixed');
+    put(card, 'right', 'auto');
+    put(card, 'bottom', 'auto');
+    put(card, 'max-width', 'none');
+    put(card, 'margin', '0');
+    put(card, 'width', Math.round(width) + 'px');
+    put(card, 'left', Math.round(Math.max(12, right - width - 16)) + 'px');
+    put(card, 'top', Math.round(bottom + 8) + 'px');
+    put(card, 'border-radius', 'var(--r-lg, 8px)');
+  };
+  const settleFind = function(){
+    try{ placeFind(); }catch(e){}
+    [0, 60, 200].forEach(function(ms){
+      setTimeout(function(){ try{ placeFind(); }catch(e){} }, ms);
+    });
+  };
+  if(typeof window.openFind === 'function' && !window.openFind.__sfPlace){
+    const orig = window.openFind;
+    const fn = function(){
+      const out = orig.apply(this, arguments);
+      settleFind();
+      return out;
+    };
+    fn.__sfPlace = true;
+    window.openFind = fn;
+  }
+  document.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest || !t.closest('[data-act="find-open"]')) return;
+    settleFind();
+  }, true);
+  window.addEventListener('resize', function(){ settleFind(); });
+
+  /* ── 17e · the conversion that is on can be taken off ─────────
+     The picked conversion wears .on. Pressing it again used to re-run the
+     same translation and leave the mark on it; now the mark is what the
+     press takes off — one press on, the same press off. */
+  document.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    const b = t.closest('#sfTranslate .sft-pairs .ft-action');
+    if(!b || !b.classList.contains('on')) return;
     e.preventDefault();
-    e.stopPropagation();
-    open();
-    if(e.repeat){ held = 1; return; }        /* the hold keeps it open */
-    held = 0;
-    if(timer) clearTimeout(timer);
-    timer = setTimeout(function(){ timer = 0; if(held) open(); }, 420);
+    e.stopImmediatePropagation();
+    b.classList.remove('on');
   }, true);
-  window.addEventListener('keyup', function(e){
-    if(!wantKey(e)) return;
-    if(timer){ clearTimeout(timer); timer = 0; }
-    held = 0;
+
+  /* ── 17f · a command that is on, pressed again ────────────────
+     Bold · Italic · Underline · Strikethrough · the two scripts · the two
+     lists are toggles, and pressing the one you are in is meant to turn it
+     off — the command toggles, so the run is repeated here whenever the
+     button is already lit, through the app's own three steps (focus, the
+     caret back where it was, the command) so the press lands on the text
+     the writer is in. */
+  const TOGGLES = ['bold','italic','underline','strikeThrough','superscript',
+                   'subscript','insertUnorderedList','insertOrderedList',
+                   'justifyCenter','justifyRight','justifyFull'];
+  const lit = function(b, c){
+    if(b.classList && b.classList.contains('active')) return true;
+    if(c.indexOf('justify') === 0) return false;      /* 12e owns those */
+    try{ return !!(document.queryCommandState && document.queryCommandState(c)); }
+    catch(e){ return false; }
+  };
+  document.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    const b = t.closest('#writeToolbar [data-cmd]');
+    if(!b) return;
+    const c = b.dataset ? b.dataset.cmd : '';
+    if(TOGGLES.indexOf(c) < 0) return;
+    /* the mark the writer sees is .active, but it is read from the browser's
+       own state as well: whichever of the two knows, the press is answered */
+    if(!lit(b, c)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const again = c.indexOf('justify') === 0 ? 'justifyLeft' : c;
+    setTimeout(function(){
+      const ed = document.getElementById('editor');
+      if(ed){ try{ ed.focus(); }catch(err){} }
+      try{ if(typeof restoreSel === 'function') restoreSel(); }catch(err){}
+      try{ document.execCommand(again, false, null); }catch(err){}
+      try{ if(typeof saveSel === 'function') saveSel(); }catch(err){}
+      try{ if(typeof onInput === 'function') onInput(); }catch(err){}
+      try{ b.classList.remove('active'); }catch(err){}
+    }, 0);
   }, true);
+
+  /* ── and a hover mark is not a pick ──────────────────────────
+     The element menu lights the row the pointer is over (.sf-elem-active,
+     write.js's own mousemove) and the row the keys picked. A mark left on a
+     row after the pointer has left the menu is not a pick, so it is taken
+     off: the menu reads as one current style and, at most, the row under the
+     pointer. */
+  document.addEventListener('mouseout', function(e){
+    const m = document.getElementById('sfElemMenu');
+    if(!m || m.hidden) return;
+    const inside = function(el){ return !!(el && el.closest && el.closest('.sf-elem-menu')); };
+    if(!inside(e.target)) return;
+    if(inside(e.relatedTarget)) return;             /* still inside the menu */
+    Array.prototype.forEach.call(m.querySelectorAll('.sf-elem-active'), function(x){
+      x.classList.remove('sf-elem-active');
+    });
+  }, true);
+
+  /* ── 17g · Hindi first, then English, then the rest ───────────
+     The language grid is built by settings.js from allLangs() — the world's
+     languages in their own order, then Hindi on the end — and rebuilt on
+     every keystroke in its search box. The two languages this app is
+     written in come to the front instead, and the order is re-asked for on
+     every rebuild (the grid is watched), so a search can never put them
+     back where they were. */
+  const FRONT = ['hi', 'en'];
+  const orderGrid = function(){
+    const grid = document.getElementById('sftGrid');
+    if(!grid) return;
+    const pick = function(code){
+      const list = grid.querySelectorAll('[data-lang]');
+      for(let i = 0; i < list.length; i++){
+        if(list[i].dataset && list[i].dataset.lang === code) return list[i];
+      }
+      return null;
+    };
+    let at = null;
+    FRONT.forEach(function(code, i){
+      const b = pick(code);
+      if(!b) return;
+      if(i === 0){
+        if(grid.firstElementChild !== b) grid.insertBefore(b, grid.firstChild);
+      }else if(b.previousElementSibling !== at){
+        grid.insertBefore(b, at ? at.nextSibling : grid.firstChild);
+      }
+      at = b;
+    });
+  };
+  const watchGrid = function(){
+    const grid = document.getElementById('sftGrid');
+    if(!grid || watchGrid.done === grid) return;
+    watchGrid.done = grid;
+    try{ orderGrid(); }catch(e){}
+    if(typeof MutationObserver === 'function'){
+      new MutationObserver(function(){ try{ orderGrid(); }catch(e){} })
+        .observe(grid, { childList:true });
+    }
+    if(bodyWatch){ try{ bodyWatch.disconnect(); }catch(e){} bodyWatch = null; }
+  };
+  watchGrid.done = null;
+  [0, 400, 1500, 3000].forEach(function(ms){ setTimeout(watchGrid, ms); });
+  document.addEventListener('DOMContentLoaded', watchGrid);
+
+  /* ── the card is built on the first Translate of the session ──
+     settings.js draws the card lazily, on the click — long after those four
+     timers have gone by — so the grid has to be looked for at the door as
+     well: every chip that opens Translate asks again over the frames the
+     build takes, and until the grid exists at all the body is watched for
+     it (the watch is let go of the moment the grid is found). */
+  let bodyWatch = null;
+  document.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    if(!t.closest('[data-ai="translate"], [data-sft-open], .fab-ai [data-ai="translate"]')) return;
+    [0, 40, 160, 420, 900].forEach(function(ms){ setTimeout(watchGrid, ms); });
+  }, true);
+  const waitForGrid = function(){
+    if(document.getElementById('sftGrid')){ watchGrid(); return true; }
+    return false;
+  };
+  if(typeof MutationObserver === 'function' && document.body && !waitForGrid()){
+    bodyWatch = new MutationObserver(function(){ try{ waitForGrid(); }catch(e){} });
+    bodyWatch.observe(document.body, { childList:true, subtree:true });
+  }
 })();
 
 
