@@ -12187,7 +12187,10 @@
      with the name on the button. Nothing is deleted — the rest are hidden,
      so a face reached some other way still works. */
   const KEEP_FONTS = ['Merriweather','Lora','EB Garamond','Source Serif 4',
-                      'Inter','Fira Sans','JetBrains Mono'];
+                      'Inter','Fira Sans','JetBrains Mono',
+                      /* the screenplay faces — see 17h, which gives them a
+                         group of their own in the shared list */
+                      'Courier Prime','Courier New','Courier Final Draft'];
   const fontShortList = function(){
     const keep = {};
     KEEP_FONTS.forEach(function(n){ keep[n] = 1; });
@@ -12394,20 +12397,26 @@
       return null;
     };
     const KEYS = '.find-nav,.find-btn';
-    document.addEventListener('mousedown', function(e){
+    /* ON THE WINDOW, NOT ON THE DOCUMENT —
+       write.js answers every click in one capture listener of its own on the
+       document (the one that runs runCmd for a [data-cmd] button and the find
+       walk for these four), and the document's capture phase is BELOW the
+       window's. Bound here, this pass is over before that listener runs, so
+       the app's own walk and this one cannot both step the cursor. */
+    window.addEventListener('mousedown', function(e){
       const t = e.target;
       if(!t || !t.closest) return;
       const btn = t.closest('#findBar ' + KEYS + ',#findBar .find-x');
       if(!btn) return;
       e.preventDefault();                     /* the focus stays in the text */
     }, true);
-    document.addEventListener('click', function(e){
+    window.addEventListener('click', function(e){
       const t = e.target;
       if(!t || !t.closest) return;
       const btn = t.closest('#findBar ' + KEYS);
       if(!btn) return;
       e.preventDefault();
-      e.stopPropagation();                   /* the app's own pass is not run */
+      e.stopImmediatePropagation();           /* the app's own pass is not run */
       const ed = surface();
       if(ed){ try{ ed.focus(); }catch(err){} }
       const act = btn.dataset ? btn.dataset.act : '';
@@ -12495,7 +12504,10 @@
      the button stayed lit and nothing changed on the page. Pressing the one
      you are in now goes back to the page's default (left), which is what
      the press reads as. */
-  document.addEventListener('click', function(e){
+  /* ON THE WINDOW — see 12d(3): the app runs every command in its own
+     document-capture listener, which is BELOW the window's capture phase, so
+     a pass bound here answers the press first and the command runs once. */
+  window.addEventListener('click', function(e){
     const t = e.target;
     if(!t || !t.closest) return;
     const b = t.closest('#writeToolbar [data-cmd]');
@@ -12790,14 +12802,23 @@
     'html body .tb-drop-item.sf-font-off{ display:none !important; }',
     'html body .tb-drop-group.sf-font-off{ display:none !important; }',
 
-    /* the element menu: the pointer wears the accent, like the keys do */
-    'html body .sf-elem-item.sf-elem-item:hover,',
-    'html body .sf-elem-item.sf-elem-item.sf-elem-active,',
+    /* ── ONE ACCENT ROW, NEVER TWO ──
+       The style the paragraph already IS (write.js's .on) and the row the
+       pointer or the keys are on (.sf-elem-active) are two different facts,
+       and both were painted the accent — so the menu showed two lit rows at
+       once whenever the pointer rested away from the current style. The
+       current style now wears a quiet grey mark, and the accent belongs to
+       the row under the hand (or under the keys): at most one accent row.
+       The accent rules come after the .on rule, so a row that is both — the
+       current style, hovered — reads as the accent one. */
+    'html body .sf-elem-item.sf-elem-item.on i{ color:var(--ink-2) !important; }',
     'html body .sf-elem-item.sf-elem-item.on{',
+    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+    'html body .sf-elem-item.sf-elem-item:hover,',
+    'html body .sf-elem-item.sf-elem-item.sf-elem-active{',
     '  background:var(--accent-soft) !important; color:var(--accent) !important; }',
     'html body .sf-elem-item.sf-elem-item:hover i,',
-    'html body .sf-elem-item.sf-elem-item.sf-elem-active i,',
-    'html body .sf-elem-item.sf-elem-item.on i{',
+    'html body .sf-elem-item.sf-elem-item.sf-elem-active i{',
     '  color:var(--accent) !important; }',
 
     /* ── the advanced panel wears the same accent ──
@@ -13040,7 +13061,11 @@
     try{ return !!(document.queryCommandState && document.queryCommandState(c)); }
     catch(e){ return false; }
   };
-  document.addEventListener('click', function(e){
+  /* ON THE WINDOW for the same reason as 12d(3) and the alignment press:
+     write.js runs the command in its own document-capture listener, so a
+     handler below it would run the command a SECOND time and put the mark
+     straight back on — which is exactly what a second press looked like. */
+  window.addEventListener('click', function(e){
     const t = e.target;
     if(!t || !t.closest) return;
     const b = t.closest('#writeToolbar [data-cmd]');
@@ -13125,6 +13150,45 @@
   watchGrid.done = null;
   [0, 400, 1500, 3000].forEach(function(ms){ setTimeout(watchGrid, ms); });
   document.addEventListener('DOMContentLoaded', watchGrid);
+
+  /* ── 17h · the screenplay faces ───────────────────────────────
+     A script is written in Courier — it is what the industry reads, and what
+     a page count assumes. The app ships Courier Prime (its 400 and 700 are
+     in vendor/webfonts), but it sat in the middle of the Mono group among
+     three coding faces, and nothing else in the list read like a script at
+     all. The three faces a screenwriter reaches for are given a group of
+     their own, ahead of Mono, in the shared list every picker reads
+     (window.FONTS, mutated in place): Courier Prime as the app ships it,
+     Courier New for the machine's own Courier, and Courier Final Draft — the
+     face Final Draft sets a script in — whose stack falls back to Courier
+     Prime wherever it is not installed. Courier Prime is moved, not added
+     twice, so no list shows the name twice. */
+  try{
+    const all = window.FONTS;
+    const has = function(g){
+      return !!(all && all.some(function(f){ return f && f.g === g; }));
+    };
+    if(all && all.length && !has('Screenplay')){
+      const faces = [
+        { name:'Courier Prime',       f:"'Courier Prime', monospace" },
+        { name:'Courier New',         f:"'Courier New', Courier, monospace" },
+        { name:'Courier Final Draft', f:"'Courier Final Draft', 'Courier Prime', 'Courier New', monospace" }
+      ];
+      for(let i = all.length - 1; i >= 0; i--){
+        const f = all[i];
+        if(f && f.name === 'Courier Prime'){
+          faces[0] = { name:f.name, f:f.f };        /* the app's own stack */
+          all.splice(i, 1);
+        }
+      }
+      faces.forEach(function(f){ f.g = 'Screenplay'; });
+      let at = all.length;
+      for(let i = 0; i < all.length; i++){
+        if(all[i] && all[i].g === 'Mono'){ at = i; break; }
+      }
+      faces.reverse().forEach(function(f){ all.splice(at, 0, f); });
+    }
+  }catch(e){}
 
   /* ── the card is built on the first Translate of the session ──
      settings.js draws the card lazily, on the click — long after those four
