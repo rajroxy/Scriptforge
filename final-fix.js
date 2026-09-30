@@ -11897,11 +11897,14 @@
    Four things were asked for about the manuscript's own bars — and one
    thing asked for before them is taken back out again:
 
-     · AND NO FONT IS TAKEN OUT OF IT. There was a short list here for one
-       turn; the writer asked for the whole pack back, so the writing bar's
-       Font dropdown — the .tb-drop write.js builds with every family the
-       app ships — is left exactly as it was built. No font control in the
-       app drops a face any more (T panel, IMF, this bar or Settings).
+     · AND THE FONT LIST KNOWS WHICH PAGE IT IS ON. A script is set in
+       Courier and a book is set in a text serif, so the writing bar's Font
+       list — and the T panel's Font row — offer the three screenplay faces
+       while the project is a screenplay and the seven a manuscript is
+       actually set in on every other mode. The pack itself is untouched:
+       Settings and the IMF rows keep every family the app ships. The rows
+       that do not belong are taken OUT of the two writing lists rather than
+       dimmed, so what is not wanted is not there at all.
 
      · AND THE DIVIDERS ARE OFF AGAIN. Separate rules were drawn between
        the bar's groups for one turn and taken back the next: the bar draws
@@ -12178,75 +12181,91 @@
     }
   }catch(e){}
 
-  /* ── 12c(2) · the writing bar's Font list is the pack a book is set in ──
+  /* ── 12c(2) · WHICH PAGE, WHICH PACK ─────────────────────────
      write.js builds that dropdown from every family the app ships — sixty
-     of them in six groups, in a list 300px tall. The two writing bars show
-     the seven a manuscript or a screenplay is actually set in. The T
-     panel, IMF and Settings keep the whole pack, and the face the writer is
-     already in is kept in the list as well, so the list can never disagree
-     with the name on the button. Nothing is deleted — the rest are hidden,
-     so a face reached some other way still works. */
-  const KEEP_FONTS = ['Merriweather','Lora','EB Garamond','Source Serif 4',
-                      'Inter','Fira Sans','JetBrains Mono',
-                      /* the screenplay faces — see 17h, which gives them a
-                         group of their own in the shared list */
-                      'Courier Prime','Courier New','Courier Final Draft'];
+     of them in six groups, in a list 300px tall. A script is set in Courier
+     and a book in a text serif, and the Font list inside the writing bar is
+     the one control that says which page the writer is on: in Screenplay it
+     offers the three screenplay faces, and on every other mode the seven a
+     manuscript is actually set in. T panel, IMF and Settings keep the whole
+     pack, and the face the writer is already in is always kept, so the list
+     can never disagree with the name on the button.
+
+     The rows that do not belong are REMOVED from the list, not hidden and
+     not dimmed: an element that is not in the document cannot be brought
+     back by a stylesheet, whatever weight that stylesheet's rule carries —
+     which is why hiding them (as this file did for two rounds, against
+     pages.css's `display:flex !important`) never once showed on screen.
+     The bar's own list is kept in full on the drop, so switching modes puts
+     a family back where it was. */
+  const PACK_SCRIPT = ['Courier Prime','Courier New','Courier Final Draft'];
+  const PACK_PROSE  = ['Merriweather','Lora','EB Garamond','Source Serif 4',
+                       'Inter','Fira Sans','JetBrains Mono'];
+  const sfOnScript = function(){
+    try{ return S.mode === 'screenplay'; }catch(e){ return false; }
+  };
+  /* the pack for the page the writer is on — 17j reads it for the script
+     page's own face, so it is published */
+  const fontPack = function(){ return sfOnScript() ? PACK_SCRIPT : PACK_PROSE; };
+  window.sfFontPack = fontPack;
   const fontShortList = function(){
+    const pack = fontPack();
     const keep = {};
-    KEEP_FONTS.forEach(function(n){ keep[n] = 1; });
-    try{ if(S.config && S.config.font) keep[S.config.font] = 1; }catch(e){}
+    pack.forEach(function(n){ keep[n] = 1; });
+    let cur = '';
+    try{ cur = String((S.config && S.config.font) || ''); }catch(e){ cur = ''; }
+    if(cur) keep[cur] = 1;
+    const sig = pack.join('|') + '>' + cur;
     Array.prototype.forEach.call(
-      document.querySelectorAll('#writeToolbar .tb-drop[data-drop="font"],'
-                              + '.fnt-bar .tb-drop[data-drop="font"]'),
+      document.querySelectorAll('#writeToolbar .tb-drop[data-drop="font"]'),
       function(drop){
         const list = drop.querySelector('.tb-drop-list');
         if(!list) return;
-        /* a heading over an empty group goes with the group's items */
-        /* A row is taken out with a CLASS, never with an inline display: the
-           app's own sheet paints every .tb-drop-item display:flex !important,
-           and an inline none loses to that. An inline none left by an older
-           build is cleared here as well. */
-        const off = function(el, gone){
-          if(!el) return;
-          if(el.style && el.style.display === 'none') el.style.display = '';
-          el.classList.toggle('sf-font-off', !!gone);
-        };
-        let group = null, shown = false;
-        const flush = function(){
-          if(!group) return;
-          off(group, !shown);
-        };
-        Array.prototype.forEach.call(list.children, function(node){
-          if(!node || !node.classList) return;
-          if(node.classList.contains('tb-drop-group')){ flush(); group = node; shown = false; return; }
-          if(!node.classList.contains('tb-drop-item')) return;
-          /* the row's own name, however the build wrote it: the value of the
-             entry, or — if there is none — the face the label stands in */
-          const key = (node.dataset && node.dataset.value)
-                    || String(node.textContent || '').trim();
-          const on = !!keep[key];
-          off(node, !on);
-          if(node.hidden !== !on) node.hidden = !on;
-          if(on) shown = true;
+        /* the bar's own whole list, kept once, so a mode change can put back
+           a family that was taken out for the other mode */
+        if(drop.__sfSrc == null) drop.__sfSrc = list.innerHTML;
+        if(drop.__sfSig === sig) return;
+        drop.__sfSig = sig;
+        /* the whole list first, every time the pack or the face changes: a row
+           that was taken out for the other mode has to be back before it can
+           be judged, and the face the writer is in has to be there to be
+           marked */
+        list.innerHTML = drop.__sfSrc;
+        /* the row's own name is the value write.js wrote on it */
+        Array.prototype.forEach.call(list.querySelectorAll('.tb-drop-item'), function(row){
+          const v = (row.dataset && row.dataset.value) || '';
+          if(!keep[v]){ row.remove(); return; }
+          /* and the check mark follows the face that is really on */
+          if(cur) row.classList.toggle('active', v === cur);
         });
-        flush();
+        /* a heading with nothing left under it goes with its rows */
+        Array.prototype.forEach.call(list.querySelectorAll('.tb-drop-group'), function(g){
+          let n = g.nextElementSibling, any = false;
+          while(n && !n.classList.contains('tb-drop-group')){
+            if(n.classList.contains('tb-drop-item')) any = true;
+            n = n.nextElementSibling;
+          }
+          if(!any) g.remove();
+        });
       });
   };
 
   /* ── 12c(4) · AND THE SAME SEVEN IN THE T PANEL ──────────────
      The type panel (T) is built by pages.js, and it lists every family the
-     app ships in its own Font row. It takes the same seven — the pack a
-     book is set in — and the page's current face is kept, so the row never
-     disagrees with what is on screen. The options are taken out of the
-     select and the app's own dropdown card is asked to draw itself again,
-     which is what makes the card follow; every other font row in the app
-     (IMF, Settings, the advanced panel) keeps the whole pack. */
+     app ships in its own Font row. It takes the same pack as the writing
+     bar — screenplay faces while the project is a screenplay, the seven a
+     manuscript is set in otherwise — and the page's current face is kept,
+     so the row never disagrees with what is on screen. The options are
+     taken out of the select and the app's own dropdown card is asked to
+     draw itself again, which is what makes the card follow; every other
+     font row in the app (IMF, Settings, the advanced panel) keeps the whole
+     pack. */
   const trimTypoFonts = function(){
     Array.prototype.forEach.call(
       document.querySelectorAll('[data-typo-panel] select.typo-font'),
       function(sel){
         const keep = {};
-        KEEP_FONTS.forEach(function(n){ keep[n] = 1; });
+        fontPack().forEach(function(n){ keep[n] = 1; });
         try{ if(sel.value) keep[sel.value] = 1; }catch(e){}
         const gone = [];
         Array.prototype.forEach.call(sel.options, function(o){
@@ -12493,6 +12512,9 @@
       if(b.classList.contains('active') !== on) b.classList.toggle('active', on);
     });
   };
+  /* 17f answers a press that has already been run by hand and asks for the
+     marks to be read again the moment it lands */
+  window.sfPaintCmds = paintCmds;
   const cmdBeat = function(){
     if(cmdRaf) return;
     cmdRaf = requestAnimationFrame(function(){ cmdRaf = 0; paintCmds(); });
@@ -12745,15 +12767,20 @@
      left to right, so ← and → move the picked chip now and ↑ ↓ do nothing
      there — in place of, not alongside.
 
-   · THE ELEMENT MENU FINDS ITS ACCENT UNDER THE POINTER. The keys could
-     always walk it and the chip they picked wore the accent; the chip the
-     pointer was over wore a grey box. Both wear the accent now.
+   · ONE BOX IN THE STYLE MENU. The chip the pointer (or the keys) is on and
+     the style the paragraph already is were both boxed at once, so the menu
+     showed two lit rows the moment the pointer rested anywhere but on the
+     current style. There is one box now — the chip under the hand — and the
+     current style is marked by its own icon in the accent instead.
 
-   · THE FONT LIST READS, AND SO DOES THE RESULT SHEET. The family names in
-     the writing bar's Font list are drawn in their own face at 12.5px/400,
-     which for a light serif read as a hairline: they are 13px/500 in --ink.
-     And in the AI result sheet every action carries the quiet box Replace
-     already wears — Copy · Insert · Append · Retry had no box at all.
+   · AND EVERY ACTION ON THE RESULT SHEET IS A BUTTON. Copy · Insert ·
+     Append · Retry had no box at all beside Replace's filled one: all five
+     are real buttons now, and Replace is the app's accent. The family names
+     in the writing bar's Font list are drawn in the app's face at 13px/500
+     in --ink (they read as hairlines in their own light serifs).
+
+   · AND THE ADVANCED PANEL'S BADGE SAYS THE KEY IT ANSWERS TO, and the
+     script page is set in a screenplay face.
 
    · TWO PRESSES THAT USED TO STICK. Pressing a command that is already on
      (bold, a list, superscript) turns it off, and pressing the conversion
@@ -12792,34 +12819,36 @@
     'html body #writeToolbar#writeToolbar .tb-drop[data-drop="font"] .tb-drop-item:hover,',
     'html body #writeToolbar#writeToolbar .tb-drop[data-drop="font"] .tb-drop-item.active{',
     '  background:var(--surface-4) !important; color:var(--ink) !important; }',
-    /* ── AND A FAMILY THAT IS NOT IN THE PACK IS TAKEN OUT, NOT DIMMED ──
-       pages.css draws every .tb-drop-item with display:flex !important, so an
-       inline display:none on the row lost the argument — the whole sixty-row
-       list stayed on screen and the trim read as if it did nothing at all.
-       The row and its heading now carry a class, and this sheet takes them out
-       with an !important of its own (two classes deep, so it out-ranks the
-       rule it is answering). */
-    'html body .tb-drop-item.sf-font-off{ display:none !important; }',
-    'html body .tb-drop-group.sf-font-off{ display:none !important; }',
+    /* ── A FAMILY THAT IS NOT IN THE PACK IS NOT HIDDEN HERE AT ALL ──
+       The writing bar's Font list is trimmed by taking rows OUT of the
+       document (see 12c(2)). Two rounds of this sheet tried to hide them
+       instead, and pages.css paints every .tb-drop-item `display:flex
+       !important`, so the rows stayed on screen and the trim read as if it
+       had done nothing — which is exactly what it had done. Nothing is
+       needed here for it now, and nothing is left. */
 
-    /* ── ONE ACCENT ROW, NEVER TWO ──
+    /* ── ONE BOX IN THE STYLE MENU, NEVER TWO ──
        The style the paragraph already IS (write.js's .on) and the row the
        pointer or the keys are on (.sf-elem-active) are two different facts,
-       and both were painted the accent — so the menu showed two lit rows at
-       once whenever the pointer rested away from the current style. The
-       current style now wears a quiet grey mark, and the accent belongs to
-       the row under the hand (or under the keys): at most one accent row.
-       The accent rules come after the .on rule, so a row that is both — the
-       current style, hovered — reads as the accent one. */
-    'html body .sf-elem-item.sf-elem-item.on i{ color:var(--ink-2) !important; }',
+       and both were given a box — the .on row a quiet grey one, the row
+       under the hand the accent — so the menu showed TWO lit rows whenever
+       the pointer rested away from the current style, which is what the
+       writer kept pointing at. There is one box now: the row under the hand
+       (or under the keys, or the one just left) wears --surface-4, and the
+       current style carries no box at all — only its own icon in the accent,
+       which is the app's mark for “this is what you are in”.
+       The accent is NOT put back on hover: a row that is the current style
+       and under the pointer keeps the one grey box and the accent icon. */
     'html body .sf-elem-item.sf-elem-item.on{',
-    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+    '  background:transparent !important; color:var(--ink) !important; }',
+    'html body .sf-elem-item.sf-elem-item.on i{',
+    '  color:var(--accent) !important; opacity:1 !important; }',
     'html body .sf-elem-item.sf-elem-item:hover,',
     'html body .sf-elem-item.sf-elem-item.sf-elem-active{',
-    '  background:var(--accent-soft) !important; color:var(--accent) !important; }',
+    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
     'html body .sf-elem-item.sf-elem-item:hover i,',
     'html body .sf-elem-item.sf-elem-item.sf-elem-active i{',
-    '  color:var(--accent) !important; }',
+    '  color:var(--accent) !important; opacity:1 !important; }',
 
     /* ── the advanced panel wears the same accent ──
        Its chips are a picker: the one under the pointer and the one the keys
@@ -12828,18 +12857,34 @@
     'html body .adv-btn.adv-btn.adv-on{',
     '  background:var(--accent-soft) !important; color:var(--accent) !important; }',
 
-    /* the AI result sheet: every action is the box Replace wears */
+    /* ── THE RESULT SHEET'S FIVE ACTIONS ARE FIVE BUTTONS ──
+       Copy · Insert · Append · Retry carried a bare glyph on the sheet's own
+       colour — the volume of a link — while Replace wore the solid one. They
+       are all real buttons now: a --surface-3 fill AND the hairline that
+       makes a fill read as a box at all (the pass before this one filled
+       them with --surface-3 and made the border transparent, which on a
+       --surface-2 foot is a two-percent step — it read as no button, which
+       is what the writer kept reporting). Replace stays the sheet's one
+       filled action, in the app's accent.
+       The weight is raised with the id doubled ON THE SAME ELEMENT; the
+       rules pages.css writes for .gt-act answer to one class each. */
     'html body #modalRoot#modalRoot .gt-foot .gt-act{',
-    '  background:var(--surface-3) !important; border-color:transparent !important;',
-    '  color:var(--ink-2) !important; }',
+    '  background:var(--surface-3) !important;',
+    '  border:1px solid var(--line-2) !important; border-radius:var(--r-md, 6px) !important;',
+    '  color:var(--ink) !important; }',
+    'html body #modalRoot#modalRoot .gt-foot .gt-act i{ color:var(--ink-3) !important; }',
     'html body #modalRoot#modalRoot .gt-foot .gt-act:hover{',
-    '  background:var(--surface-4) !important; color:var(--ink) !important; }',
+    '  background:var(--surface-4) !important; border-color:var(--line-3) !important;',
+    '  color:var(--ink) !important; }',
+    'html body #modalRoot#modalRoot .gt-foot .gt-act:hover i{ color:var(--accent) !important; }',
     'html body #modalRoot#modalRoot .gt-foot .gt-act.gt-primary{',
-    '  background:var(--surface-3) !important; border-color:transparent !important;',
-    '  color:var(--ink-2) !important; }',
+    '  background:var(--accent) !important; border-color:transparent !important;',
+    '  color:var(--accent-ink) !important; }',
+    'html body #modalRoot#modalRoot .gt-foot .gt-act.gt-primary i{ color:var(--accent-ink) !important; }',
     'html body #modalRoot#modalRoot .gt-foot .gt-act.gt-primary:hover,',
     'html body #modalRoot#modalRoot .gt-foot .gt-act.gt-primary:active{',
-    '  background:var(--surface-4) !important; color:var(--accent) !important; }'
+    '  background:var(--accent) !important; border-color:transparent !important;',
+    '  color:var(--accent-ink) !important; filter:brightness(1.05) !important; }'
   ].join('\n');
   const sheet = document.createElement('style');
   sheet.id = 'sfKeysSheet';
@@ -12877,10 +12922,28 @@
     const m = document.getElementById('sfElemMenu');
     if(m && !m.hidden) m.hidden = true;
   };
+  /* ── THE CURRENT STYLE IS NOT ALSO THE PICKED ONE ──
+     write.js ends every open by walking its own highlight onto the current
+     style (sfMenuMove(0)), so the row that already wears .on — the style the
+     paragraph IS — came up wearing .sf-elem-active as well. Two marks on one
+     screen: the .on box and, the moment the pointer moved anywhere else, a
+     second box under the hand. The menu opens with the walk's mark taken
+     back off, so the only box on screen is the one the hand is on. The keys
+     still start from the current style: sfMenuMove falls back to .on when
+     nothing wears .sf-elem-active. */
+  const clearMenuMark = function(){
+    const m = document.getElementById('sfElemMenu');
+    if(!m) return;
+    Array.prototype.forEach.call(m.querySelectorAll('.sf-elem-active'), function(x){
+      x.classList.remove('sf-elem-active');
+    });
+  };
+  window.sfClearMenuMark = clearMenuMark;
   const openStyles = function(){
     closeAdvanced();               /* one menu at a time */
     if(!realMenu) return;
     try{ realMenu(); }catch(e){}
+    try{ clearMenuMark(); }catch(e){}
   };
   const openAdvanced = function(){
     closeStyles();                 /* one menu at a time */
@@ -13055,7 +13118,37 @@
   const TOGGLES = ['bold','italic','underline','strikeThrough','superscript',
                    'subscript','insertUnorderedList','insertOrderedList',
                    'justifyCenter','justifyRight','justifyFull'];
+  /* ── AND THE PRESS IS READ WHILE THE CARET IS STILL IN THE TEXT ──
+     Every one of these is answered from a question the browser can only
+     answer while the caret is still in the writing: queryCommandState reads
+     the state of the FOCUSED editing host, and pressing a toolbar button
+     moves the focus onto the button. By the time the click arrived — one
+     mouseup and one paintCmds later — the honest answer was “off”, so the
+     button's own mark had already been taken back off, this pass read the
+     press as a fresh one and let the app run the command, and the command
+     came back ON. Which is what “the icon takes it but will not let go”
+     looked like. So the state is sampled on mousedown, while the caret is
+     still where the writer left it, and the click is answered from THAT. */
+  const sample = function(b){
+    const c = b.dataset ? b.dataset.cmd : '';
+    let on = !!(b.classList && b.classList.contains('active'));
+    if(!on){
+      try{ on = !!(document.queryCommandState && document.queryCommandState(c)); }catch(e){ on = false; }
+    }
+    /* read fresh on every press — the value belongs to this press and to no
+       other, so it is written here and cleared again by the click that reads
+       it */
+    b.__sfWas = on ? 1 : 0;
+  };
+  window.addEventListener('mousedown', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    const b = t.closest('#writeToolbar [data-cmd]');
+    if(b) sample(b);
+  }, true);
   const lit = function(b, c){
+    if(b.__sfWas === 1) return true;
+    if(b.__sfWas === 0) return false;
     if(b.classList && b.classList.contains('active')) return true;
     if(c.indexOf('justify') === 0) return false;      /* 12e owns those */
     try{ return !!(document.queryCommandState && document.queryCommandState(c)); }
@@ -13074,7 +13167,9 @@
     if(TOGGLES.indexOf(c) < 0) return;
     /* the mark the writer sees is .active, but it is read from the browser's
        own state as well: whichever of the two knows, the press is answered */
-    if(!lit(b, c)) return;
+    const was = lit(b, c);
+    b.__sfWas = null;               /* the sample belongs to this press only */
+    if(!was) return;
     e.preventDefault();
     e.stopImmediatePropagation();
     const again = c.indexOf('justify') === 0 ? 'justifyLeft' : c;
@@ -13086,6 +13181,8 @@
       try{ if(typeof saveSel === 'function') saveSel(); }catch(err){}
       try{ if(typeof onInput === 'function') onInput(); }catch(err){}
       try{ b.classList.remove('active'); }catch(err){}
+      const again2 = function(){ try{ if(typeof window.sfPaintCmds === 'function') window.sfPaintCmds(); }catch(err){} };
+      again2(); setTimeout(again2, 60); setTimeout(again2, 200);
     }, 0);
   }, true);
 
@@ -13211,6 +13308,128 @@
     bodyWatch = new MutationObserver(function(){ try{ waitForGrid(); }catch(e){} });
     bodyWatch.observe(document.body, { childList:true, subtree:true });
   }
+
+  /* ── 17i · the advanced panel's badge names the key it answers to ──
+     pages.js draws that panel and writes the key it used to be opened with
+     into its head — the literal “Shift + /”. The panel answers to Shift + E
+     now, and pages.js is not this file's to edit, so the badge is written
+     again the moment the panel is drawn. Every draw goes through one door
+     (window.advToggle), so the wrap below is the whole of it; the beat at
+     the end of this section asks again, in case another file ever reaches
+     the panel's own markup. */
+  const badge = function(){
+    const p = document.getElementById('advPanel');
+    if(!p || p.hidden) return;
+    const k = p.querySelector('.adv-kbd');
+    if(!k) return;
+    if(k.textContent !== 'Shift + E') k.textContent = 'Shift + E';
+  };
+  if(typeof window.advToggle === 'function' && !window.advToggle.__sfBadge){
+    const origAdv = window.advToggle;
+    const advFn = function(){
+      const out = origAdv.apply(this, arguments);
+      try{ badge(); }catch(e){}
+      return out;
+    };
+    advFn.__sfBadge = true;
+    window.advToggle = advFn;
+  }
+
+  /* ── 17j · THE SCRIPT PAGE IS SET IN A SCREENPLAY FACE ──────────
+     A screenplay is set in Courier — it is what the industry reads and what
+     a page count assumes — and the script page (the writing page while the
+     project is a Screenplay: the source on the left, the formatted page on
+     the right) was set in whatever face the manuscript was set in, so a
+     script could come up in Playfair. The face stays the writer's to
+     choose, but on this page only from the screenplay faces: it is Courier
+     Prime unless the writer has picked another one from the bar or the T
+     panel — both of which are trimmed to the same three on this page by
+     12c(2) and 12c(4). Written inline with !important because applyFont()
+     writes a plain inline font-family onto the editor. */
+  const scriptFace = function(){
+    let name = '';
+    try{ name = String((S.config && S.config.font) || ''); }catch(e){ name = ''; }
+    const pack = (typeof window.sfFontPack === 'function') ? window.sfFontPack() : [];
+    if(pack.indexOf(name) < 0) name = 'Courier Prime';
+    const fallback = "'Courier Prime', 'Courier New', Courier, monospace";
+    try{
+      const all = window.FONTS || [];
+      for(let i = 0; i < all.length; i++){
+        if(all[i] && all[i].name === name){
+          return String(all[i].f || '') + ", 'Courier Prime', 'Courier New', Courier, monospace";
+        }
+      }
+    }catch(e){}
+    return fallback;
+  };
+  const paintScriptFace = function(){
+    let script = false;
+    try{ script = (S.mode === 'screenplay'); }catch(e){ script = false; }
+    if(!script) return;
+    const page = document.querySelector('.sf-script-page');
+    if(!page) return;
+    const face = scriptFace();
+    Array.prototype.forEach.call(
+      page.querySelectorAll('#editor, .fnt-doc, .fnt-src'),
+      function(el){
+        try{
+          if(el.style.getPropertyValue('font-family') !== face){
+            el.style.setProperty('font-family', face, 'important');
+          }
+        }catch(e){}
+      });
+  };
+
+  /* ── the beat — three cheap passes on ONE observer ─────────────
+     The language grid, the panel's badge and the script page's face all live
+     in markup this file does not build, and each of them is built at a
+     different moment (the first Translate of the session, the first Shift +
+     E, the first render in screenplay mode). One observer asks for all three
+     and each pass returns at once when there is nothing to do, so the cost
+     is three lookups a frame at most. */
+  let beat17 = 0;
+  const beatAll = function(){
+    if(beat17) return;
+    beat17 = requestAnimationFrame(function(){
+      beat17 = 0;
+      try{ if(document.getElementById('sftGrid')) orderGrid(); }catch(e){}
+      try{ badge(); }catch(e){}
+      try{ paintScriptFace(); }catch(e){}
+    });
+  };
+  if(typeof MutationObserver === 'function' && document.body){
+    new MutationObserver(beatAll).observe(document.body, { childList:true, subtree:true });
+  }
+  /* the page renderer and the font control are the two moments the script
+     page's face has to be re-asked for */
+  if(typeof window.paintPage === 'function' && !window.paintPage.__sfScriptFace){
+    const origPaint = window.paintPage;
+    const paintFn = function(){
+      const out = origPaint.apply(this, arguments);
+      [0, 60, 200].forEach(function(ms){
+        setTimeout(function(){ try{ paintScriptFace(); }catch(e){} }, ms);
+      });
+      return out;
+    };
+    paintFn.__sfScriptFace = true;
+    window.paintPage = paintFn;
+  }
+  if(typeof window.applyFont === 'function' && !window.applyFont.__sfScriptFace){
+    const origApply = window.applyFont;
+    const applyFn = function(){
+      const out = origApply.apply(this, arguments);
+      try{ paintScriptFace(); }catch(e){}
+      return out;
+    };
+    applyFn.__sfScriptFace = true;
+    window.applyFont = applyFn;
+  }
+  [0, 200, 600, 1400, 2600].forEach(function(ms){
+    setTimeout(function(){
+      try{ badge(); }catch(e){}
+      try{ paintScriptFace(); }catch(e){}
+    }, ms);
+  });
 })();
 
 
