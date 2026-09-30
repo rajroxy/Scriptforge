@@ -268,7 +268,10 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
   const requested = resolveRequestPath(req.url ?? "/");
   if (!requested) return send(res, 403, "Forbidden");
 
-  let filePath = requested;
+  // Preserve the legacy Writer app as the primary preview surface.
+  // The Fluent migration shell remains available at /fluent/ without
+  // replacing the original layout, navigation, panels, or editor.
+  let filePath = url.pathname === "/" ? join(ROOT, "index.html") : requested;
   try {
     const info = await stat(filePath);
     if (info.isDirectory()) filePath = join(filePath, "index.html");

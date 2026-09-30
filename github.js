@@ -38,7 +38,7 @@ function openGitHubPanel(){
   panel.className = 'github-panel';
   panel.innerHTML =
     '<div class="gh-head" id="githubPanelHead">' +
-      '<div class="gh-title"><i class="bi bi-github"></i><span>Import from GitHub</span></div>' +
+      '<div class="gh-title"><span>Import from GitHub</span></div>' +
       '<button class="v-close" data-gh-close title="Close">' +
         '<svg width="14" height="14" viewBox="0 0 14 14" fill="none">' +
           '<path d="M3 3L11 11M11 3L3 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
@@ -174,21 +174,18 @@ function renderGitHubBody(){
 //   VIEWS
 // ═══════════════════════════════════════════════════════════
 
+/* Four things are gone from this view, and the first is gone from the panel
+   header above it: the header's GitHub mark, the "Sign in to GitHub" title
+   under the big mark, the "with GitHub" on the button, and the mark that sat
+   inside the button. The panel is already called "Import from GitHub" at the
+   top, and the big mark is directly above the button — GitHub was named four
+   more times than it needed to be. What is left is the big mark and the plain
+   word, which is the whole of what this does. */
 function renderSignInView(){
   return `
     <div class="gh-signin">
       <div class="gh-signin-icon"><i class="bi bi-github"></i></div>
-      <div class="gh-signin-title">Sign in to GitHub</div>
-      <div class="gh-signin-desc">
-        Import files or whole repos directly from your GitHub account.
-        Your token stays in this browser only.
-      </div>
-      <button class="btn btn-primary" data-gh-signin>
-        <i class="bi bi-github"></i> Continue with GitHub
-      </button>
-      <div class="gh-signin-hint">
-        Uses the GitHub Device Flow — no client secret stored in this app.
-      </div>
+      <button class="btn btn-primary" data-gh-signin>Continue</button>
     </div>
   `;
 }
@@ -504,13 +501,6 @@ async function importRepoFile(path){
     );
     if(dupe){
       toast('A project named "' + newProject.name + '" already exists in this category', 'warn');
-      return;
-    }
-
-    // Cap each category at 5 recent projects
-    const catCount = targetData.projects.filter(p => p.category === cls.category).length;
-    if(catCount >= 5){
-      toast('Category is full — 5 recent projects max', 'warn');
       return;
     }
 

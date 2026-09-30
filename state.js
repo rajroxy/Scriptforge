@@ -7,9 +7,12 @@
 //   MODES — each with its own page set
 // ═══════════════════════════════════════════════════════════
 
-const BASE_PAGES = ['write','read','draft','notes','plan','board','timeline','cast','research','dictionary','canvas','inspire','stats','notebook','format','import'];
-
-const MODES = [
+/* The pages that still exist. Timeline, Cast (Characters), Research,
+   Dictionary, Board, Notes, Formatting, Canvas and Reader were taken out:
+   they are gone from the page registry, so goPage() refuses them and no
+   list can name them. Book (notebook) stays — the writing toolbar's Book
+   button opens it — as does Import, the editor and every FAB page. */
+const BASE_PAGES = ['write','draft','plan','inspire','stats','notebook','import'];const MODES = [
   {
     id: 'novel',
     name: 'Novel',
@@ -64,7 +67,7 @@ const MODES = [
 
 const PAGE_META = {
   // Top-level
-  editor:        { name:'Editor',        icon:'pencil-fill' },
+  editor:        { name:'Manuscript',    icon:'pencil-fill' },
 
   // Editor FAB subpages
   draft:         { name:'Draft',         icon:'lightbulb' },
@@ -90,7 +93,7 @@ const PAGE_META = {
 // ═══════════════════════════════════════════════════════════
 
 const I18N = {
-  en:       { home:'Dashboard', overview:'Overview', stats:'Statistics', reader:'Reader', editor:'Editor', draft:'Draft', outline:'Outline', plan:'Plan', manuscript:'Manuscript', kanban:'Kanban', bible:'Bible', inspire:'Idea' },
+  en:       { home:'Dashboard', overview:'Overview', stats:'Statistics', reader:'Reader', editor:'Manuscript', draft:'Draft', outline:'Outline', plan:'Plan', manuscript:'Manuscript', kanban:'Kanban', bible:'Bible', inspire:'Idea' },
   hinglish: { home:'Dashboard', overview:'Overview', stats:'Statistics', reader:'Reader', editor:'Editor', draft:'Draft', outline:'Outline', manuscript:'Manuscript', kanban:'Kanban', bible:'Bible' },
   hi:       { home:'डैशबोर्ड', overview:'अवलोकन', stats:'आंकड़े', reader:'पाठक', editor:'संपादक', draft:'ड्राफ़्ट', outline:'रूपरेखा', manuscript:'पांडुलिपि', kanban:'कानबान', bible:'बाइबल' },
   bn:       { home:'ড্যাশবোর্ড', overview:'সারসংক্ষেপ', stats:'পরিসংখ্যান', reader:'পাঠক', editor:'সম্পাদক', draft:'খসড়া', outline:'রূপরেখা', manuscript:'পাণ্ডুলিপি', kanban:'কানবান', bible:'বাইবেল' },
@@ -129,7 +132,24 @@ function t(key){
 }
 /* the translated name of a page id, with the plain PAGE_META name as backup */
 function pname(id){
-  return t(id) || (PAGE_META[id] ? PAGE_META[id].name : id);
+  /* The writing page answers to three ids — the FAB's 'manuscript', the
+     writing renderer's 'write' and the older 'editor' — and it is the
+     Manuscript in every mode except Screenplay, where it is the Script.
+     'manuscript' is the translated name, so the pick follows the interface
+     language for all three. */
+  if(id === 'manuscript' || id === 'write' || id === 'editor'){
+    if(S.mode === 'screenplay') return 'Script';
+    return t('manuscript') || 'Manuscript';
+  }
+  /* t() answers with the id ITSELF when the dictionary has nothing for it,
+     and that is a truthy string — so `t(id) || …` was satisfied by the raw
+     id and the PAGE_META name behind it was never read. Canvas is named in
+     PAGE_META (mindmap.js registers it) and appears in no dictionary, so the
+     command box listed it by its id: “mindmap”. A translation counts only
+     when it really is one; otherwise the page's own name wins. */
+  const tr = t(id);
+  if(tr && tr !== id) return tr;
+  return (PAGE_META[id] && PAGE_META[id].name) ? PAGE_META[id].name : id;
 }
 function uiLangCode(){
   const l = (S.config && S.config.uiLang) || 'en';
@@ -162,152 +182,39 @@ window.I18N = I18N;
 //   THEMES · FONTS · LANGUAGES
 // ═══════════════════════════════════════════════════════════
 
-//   Dark-only writing themes — each one is a full token set applied inline on
-//   <html> + <body>, so a theme never has to fight the cascade.
-//   Eye comfort is deliberately NOT a theme: it's a warm light filter that
-//   toggles over whichever theme you're using (Settings → Appearance).
+//   THREE dark palettes, one per surface temperature. Every one of them is
+//   dark — there is no light mode and nothing is derived from anything else.
+//   `acc` is a real colour on every one of them (a blue, a violet and an
+//   amber), not a near-white: it is what paints the dropdowns, the toggles,
+//   the sliders and the solid buttons, so it has to be a colour you can see.
+//   `accInk` is the ink that reads on top of that accent.
+//   A theme is a full token set applied inline on <html> + <body>, so it
+//   never has to fight the cascade.
 const THEMES = [
   {
-    id:'night', name:'Night', c1:'#1b1a19', c2:'#fab387', dark:true,
-    note:'Warm dark — the original',
+    id:'cool', name:'Blue', c1:'#191b1e', c2:'#7cb0f0', dark:true,
+    note:'Cool dark — blue-grey surfaces, a blue accent',
+    palette:{
+      bg:'#191b1e', s1:'#1f2124', s2:'#26282c', s3:'#2e3035', s4:'#373a3f', s5:'#42454b',
+      ov:'rgba(124,176,240,.05)', ovs:'rgba(124,176,240,.09)',
+      ink:'#dbe3ee', ink2:'#b0bccc', ink3:'#8794a6', ink4:'#66717f',
+      line:'#1f252d', line2:'#283039', line3:'#36414d',
+      acc:'#7cb0f0', acc2:'#5b93d6', accInk:'#0b1119', accSoft:'rgba(124,176,240,.12)', accLine:'rgba(124,176,240,.34)',
+      grad:'linear-gradient(135deg,#7cb0f0 0%,#3f7ac2 100%)',
+      docBg:'#1e2024', docInk:'#d3dce8', caret:'#7cb0f0', sel:'#7cb0f0', selInk:'#0b1119'
+    }
+  },
+  {
+    id:'night', name:'Yellow', c1:'#1b1a19', c2:'#f2cb6b', dark:true,
+    note:'Warm dark — brown surfaces, a yellow accent',
     palette:{
       bg:'#1b1a19', s1:'#222120', s2:'#292725', s3:'#312e2c', s4:'#3a3734', s5:'#454140',
-      ov:'rgba(255,255,255,.05)', ovs:'rgba(255,255,255,.09)',
+      ov:'rgba(242,203,107,.05)', ovs:'rgba(242,203,107,.09)',
       ink:'#d9d3cb', ink2:'#b0aaa1', ink3:'#8b857c', ink4:'#6a655e',
       line:'#332f2c', line2:'#3e3a36', line3:'#4c4741',
-      acc:'#e6dfd5', acc2:'#cfc7bb', accInk:'#1b1a19', accSoft:'rgba(230,223,213,.08)', accLine:'rgba(230,223,213,.22)',
-      grad:'linear-gradient(135deg,#e6dfd5 0%,#b8b0a4 100%)',
-      docBg:'#211f1d', docInk:'#d3cdc4', caret:'#fab387', sel:'#fab387', selInk:'#211f1d'
-    }
-  },
-  {
-    id:'lamp', name:'Desk Lamp', c1:'#16130f', c2:'#f0c07a', dark:true,
-    note:'Amber dark — easy on the eyes at 2am',
-    palette:{
-      bg:'#16130f', s1:'#1d1913', s2:'#241f18', s3:'#2c261d', s4:'#352e23', s5:'#41382b',
-      ov:'rgba(240,192,122,.05)', ovs:'rgba(240,192,122,.09)',
-      ink:'#e8ddc8', ink2:'#c3b59b', ink3:'#9b8e77', ink4:'#7a6e58',
-      line:'#2e2820', line2:'#3a3327', line3:'#4a402f',
-      acc:'#f0c07a', acc2:'#d8a75f', accInk:'#1b1610', accSoft:'rgba(240,192,122,.10)', accLine:'rgba(240,192,122,.28)',
-      grad:'linear-gradient(135deg,#f0c07a 0%,#c98f3f 100%)',
-      docBg:'#1e1913', docInk:'#ded1b8', caret:'#f0c07a', sel:'#f0c07a', selInk:'#1b1610'
-    }
-  },
-  {
-    id:'ink', name:'Ink', c1:'#101214', c2:'#e9edf1', dark:true,
-    note:'Cool monochrome, high contrast',
-    palette:{
-      bg:'#101214', s1:'#16191c', s2:'#1c2024', s3:'#24282d', s4:'#2d3238', s5:'#3a4047',
-      ov:'rgba(255,255,255,.05)', ovs:'rgba(255,255,255,.09)',
-      ink:'#e9edf1', ink2:'#b9c2cb', ink3:'#8c959e', ink4:'#666e76',
-      line:'#23272b', line2:'#2c3136', line3:'#3b4249',
-      acc:'#e9edf1', acc2:'#cdd5dc', accInk:'#101214', accSoft:'rgba(233,237,241,.08)', accLine:'rgba(233,237,241,.22)',
-      grad:'linear-gradient(135deg,#e9edf1 0%,#9aa4ad 100%)',
-      docBg:'#15181b', docInk:'#dfe5ea', caret:'#7cc7ff', sel:'#7cc7ff', selInk:'#0d1013'
-    }
-  },
-  {
-    id:'noir', name:'Noir', c1:'#000000', c2:'#ffffff', dark:true,
-    note:'True black — OLED and focus friendly',
-    palette:{
-      bg:'#000000', s1:'#0a0a0a', s2:'#111111', s3:'#181818', s4:'#212121', s5:'#2b2b2b',
-      ov:'rgba(255,255,255,.05)', ovs:'rgba(255,255,255,.09)',
-      ink:'#ededed', ink2:'#bdbdbd', ink3:'#8a8a8a', ink4:'#636363',
-      line:'#1c1c1c', line2:'#252525', line3:'#333333',
-      acc:'#ffffff', acc2:'#d4d4d4', accInk:'#000000', accSoft:'rgba(255,255,255,.08)', accLine:'rgba(255,255,255,.20)',
-      grad:'linear-gradient(135deg,#ffffff 0%,#9e9e9e 100%)',
-      docBg:'#0d0d0d', docInk:'#e3e3e3', caret:'#ffd479', sel:'#ffd479', selInk:'#0d0d0d'
-    }
-  },
-  {
-    id:'midnight', name:'Midnight', c1:'#0d1420', c2:'#7cc7ff', dark:true,
-    note:'Deep navy dark with a cool blue accent',
-    palette:{
-      bg:'#0d1420', s1:'#131b28', s2:'#19222f', s3:'#202a38', s4:'#283343', s5:'#334051',
-      ov:'rgba(124,199,255,.05)', ovs:'rgba(124,199,255,.09)',
-      ink:'#dbe4f0', ink2:'#adb9c9', ink3:'#8391a3', ink4:'#5f6b7c',
-      line:'#1a2331', line2:'#222d3d', line3:'#2e3b4d',
-      acc:'#7cc7ff', acc2:'#5aa9e6', accInk:'#0a1017', accSoft:'rgba(124,199,255,.10)', accLine:'rgba(124,199,255,.28)',
-      grad:'linear-gradient(135deg,#7cc7ff 0%,#3b82c4 100%)',
-      docBg:'#101825', docInk:'#d3dfee', caret:'#7cc7ff', sel:'#7cc7ff', selInk:'#0a1017'
-    }
-  },
-  {
-    id:'ember', name:'Ember', c1:'#1a1310', c2:'#ff8a5c', dark:true,
-    note:'Warm ember dark — a fireside glow at night',
-    palette:{
-      bg:'#1a1310', s1:'#211814', s2:'#281d18', s3:'#30241e', s4:'#3a2c25', s5:'#46362d',
-      ov:'rgba(255,138,92,.05)', ovs:'rgba(255,138,92,.09)',
-      ink:'#ecdfd6', ink2:'#c6b3a6', ink3:'#9b8578', ink4:'#77655a',
-      line:'#2a1e19', line2:'#362821', line3:'#453329',
-      acc:'#ff8a5c', acc2:'#e56f3e', accInk:'#1a1310', accSoft:'rgba(255,138,92,.12)', accLine:'rgba(255,138,92,.30)',
-      grad:'linear-gradient(135deg,#ff8a5c 0%,#c2502a 100%)',
-      docBg:'#211713', docInk:'#e6d6cb', caret:'#ff8a5c', sel:'#ff8a5c', selInk:'#1a1310'
-    }
-  },
-  {
-    id:'forest', name:'Forest', c1:'#0e1512', c2:'#8fd6a8', dark:true,
-    note:'Deep green dark — calm, low glare',
-    palette:{
-      bg:'#0e1512', s1:'#141d19', s2:'#1a251f', s3:'#212e27', s4:'#293930', s5:'#34463c',
-      ov:'rgba(143,214,168,.05)', ovs:'rgba(143,214,168,.09)',
-      ink:'#dce8e1', ink2:'#aebdb4', ink3:'#84948b', ink4:'#61706a',
-      line:'#1a2620', line2:'#22302a', line3:'#2f4136',
-      acc:'#8fd6a8', acc2:'#68b184', accInk:'#0b1210', accSoft:'rgba(143,214,168,.10)', accLine:'rgba(143,214,168,.28)',
-      grad:'linear-gradient(135deg,#8fd6a8 0%,#3f8a5d 100%)',
-      docBg:'#111a16', docInk:'#d3e2d9', caret:'#8fd6a8', sel:'#8fd6a8', selInk:'#0b1210'
-    }
-  },
-  {
-    id:'graphite', name:'Graphite', c1:'#141517', c2:'#c8cdd6', dark:true,
-    note:'Neutral graphite — quiet, no colour cast',
-    palette:{
-      bg:'#141517', s1:'#1b1c1f', s2:'#212327', s3:'#292b30', s4:'#32353b', s5:'#3e424a',
-      ov:'rgba(255,255,255,.05)', ovs:'rgba(255,255,255,.09)',
-      ink:'#e2e4e8', ink2:'#b4b8bf', ink3:'#8b9099', ink4:'#666b74',
-      line:'#222428', line2:'#2b2e33', line3:'#393d44',
-      acc:'#c8cdd6', acc2:'#a9b0bb', accInk:'#141517', accSoft:'rgba(200,205,214,.08)', accLine:'rgba(200,205,214,.22)',
-      grad:'linear-gradient(135deg,#c8cdd6 0%,#7d8590 100%)',
-      docBg:'#17191c', docInk:'#dde0e5', caret:'#9ecbff', sel:'#9ecbff', selInk:'#0f1114'
-    }
-  },
-  {
-    id:'neon', name:'Neon City', c1:'#0b1020', c2:'#5eead4', dark:true,
-    note:'Midnight navy with teal and violet — lit, but never loud',
-    palette:{
-      bg:'#0b1020', s1:'#101733', s2:'#151d3d', s3:'#1b2447', s4:'#232e55', s5:'#2d3a66',
-      ov:'rgba(140,180,255,.06)', ovs:'rgba(140,180,255,.11)',
-      ink:'#e6ecff', ink2:'#b9c6ea', ink3:'#8b9ac4', ink4:'#66739a',
-      line:'#1a2244', line2:'#232d55', line3:'#33406e',
-      acc:'#5eead4', acc2:'#a78bfa', accInk:'#06121f', accSoft:'rgba(94,234,212,.12)', accLine:'rgba(94,234,212,.32)',
-      grad:'linear-gradient(135deg,#5eead4 0%,#a78bfa 100%)',
-      docBg:'#0e1530', docInk:'#dae2f7', caret:'#a78bfa', sel:'#7c5cff', selInk:'#0b1020'
-    }
-  },
-  {
-    id:'sakura', name:'Sakura', c1:'#17101a', c2:'#f09ab8', dark:true,
-    note:'Deep plum with rose and lilac — soft, and still dark',
-    palette:{
-      bg:'#17101a', s1:'#1f1622', s2:'#271c2b', s3:'#312335', s4:'#3d2c42', s5:'#4b3752',
-      ov:'rgba(255,180,220,.05)', ovs:'rgba(255,180,220,.10)',
-      ink:'#f2e9f2', ink2:'#cdbcd0', ink3:'#a291a9', ink4:'#7b6a83',
-      line:'#241a28', line2:'#2e2133', line3:'#3d2c43',
-      acc:'#f09ab8', acc2:'#b98cf0', accInk:'#20101a', accSoft:'rgba(240,154,184,.13)', accLine:'rgba(240,154,184,.34)',
-      grad:'linear-gradient(135deg,#f09ab8 0%,#b98cf0 100%)',
-      docBg:'#1c1320', docInk:'#ecdfef', caret:'#f09ab8', sel:'#a8648f', selInk:'#fdf3f9'
-    }
-  },
-  {
-    id:'cobalt', name:'Cobalt', c1:'#0c1226', c2:'#6f8bff', dark:true,
-    note:'Deep blue paper with a bright ink — clean and precise',
-    palette:{
-      bg:'#0c1226', s1:'#121a33', s2:'#18213f', s3:'#1f2a4d', s4:'#28355d', s5:'#34426f',
-      ov:'rgba(150,175,255,.06)', ovs:'rgba(150,175,255,.11)',
-      ink:'#e8edfb', ink2:'#bcc7e6', ink3:'#8e9cc2', ink4:'#67739a',
-      line:'#16203c', line2:'#1f2a4c', line3:'#2f3c66',
-      acc:'#6f8bff', acc2:'#4fd1c5', accInk:'#081026', accSoft:'rgba(111,139,255,.14)', accLine:'rgba(111,139,255,.34)',
-      grad:'linear-gradient(135deg,#6f8bff 0%,#4fd1c5 100%)',
-      docBg:'#101836', docInk:'#dde5fb', caret:'#6f8bff', sel:'#3f61e0', selInk:'#f2f6ff'
+      acc:'#f2cb6b', acc2:'#d9ab45', accInk:'#1b1610', accSoft:'rgba(242,203,107,.12)', accLine:'rgba(242,203,107,.34)',
+      grad:'linear-gradient(135deg,#f2cb6b 0%,#c9971f 100%)',
+      docBg:'#211f1d', docInk:'#d3cdc4', caret:'#f2cb6b', sel:'#f2cb6b', selInk:'#1b1610'
     }
   }
 ];
@@ -336,8 +243,9 @@ function themeById(id){
   return THEMES.find(t => t.id === id) || THEMES.find(t => t.id === 'night') || THEMES[0];
 }
 
-// Every theme is dark, so this only has to normalise ids (old saved values
-// like 'auto' / 'paper' / 'eye' fall back to Night instead of breaking boot)
+// Every theme is dark and named by its colour, so this only has to normalise
+// a saved id (an old profile may still name 'paper' / 'midnight' / 'auto' /
+// 'violet' — they fall back to Yellow instead of breaking boot)
 function resolveThemeId(id){
   return THEMES.some(t => t.id === id) ? id : 'night';
 }
@@ -355,11 +263,15 @@ function applyThemeVars(id){
   const scheme = t.dark ? 'dark' : 'light';
   html.style.colorScheme = scheme;
   body.style.colorScheme = scheme;
-  body.setAttribute('data-theme', id || 'night');
+  /* Night is the only palette, so a saved profile that still names one of
+     the twenty deleted themes ('paper', 'cobalt', …) is normalised to Night
+     here rather than left as a dead id on <body> and in the config. */
+  try{ if(S && S.config && S.config.theme !== tid) S.config.theme = tid; }catch(e){}
+  body.setAttribute('data-theme', tid);
   body.setAttribute('data-theme-resolved', tid);
   // cache the resolved tokens so the next boot can paint before JS loads
   try{
-    localStorage.setItem('sf6_theme', JSON.stringify({ id:id || 'night', resolved:tid, dark:!!t.dark, scheme, tokens:toks }));
+    localStorage.setItem('sf6_theme', JSON.stringify({ id:tid, resolved:tid, dark:!!t.dark, scheme, tokens:toks }));
   }catch(e){}
   return t;
 }
@@ -447,7 +359,7 @@ const AI_PROVIDERS = [
     models:[{id:'local-model',n:'Currently loaded model'}] },
   { id:'openai', name:'OpenAI — your own key', group:'Bring your own key', base:'https://api.openai.com/v1',
     keyLabel:'OpenAI API key', keyHint:'platform.openai.com/api-keys', keyPh:'sk-…',
-    about:'Point ScriptForge at your own paid OpenAI key.',
+    about:'Use your own paid OpenAI key.',
     models:[{id:'gpt-4o-mini',n:'GPT-4o mini'},{id:'gpt-4o',n:'GPT-4o'},{id:'gpt-4.1-mini',n:'GPT-4.1 mini'}] },
   { id:'deepseek', name:'DeepSeek — your own key', group:'Bring your own key', base:'https://api.deepseek.com/v1',
     keyLabel:'DeepSeek API key', keyHint:'platform.deepseek.com/api_keys', keyPh:'sk-…',
@@ -663,9 +575,10 @@ const S = {
     musicProxy:false,           // route catbox URLs through CORS proxy
     style:'vercel',           // style preset: vercel, netflix, linear, flutter, apple, notion, arc, discord, material, windows, macos, figma
     theme:'night',            // color theme id from THEMES (every theme is dark)
-    eyeComfort:false,         // warm light filter over any theme — night writing
-    eyeComfortLevel:40,       // 0–100 → overlay strength
-    uiBrightness:100,         // 40–160 % → dims or lifts the whole interface (100 = untouched)
+    eyeComfort:false,         // light filter over any theme — neutral at 50
+    eyeComfortLevel:50,       // 0–100 → cold below 50, normal at 50, warm above 50
+    uiBrightness:50,          // 0–100 → dim below 50, normal at 50, bright above 50
+    visualScaleVersion:2,
     uiStyle:'modern',         // interface style: modern (the app's own) | flutter (Material 3)
     iconPack:'bootstrap',     // the one icon set the app ships (vendor/bootstrap-icons)
     // ── experimental (Settings → Experimental) ──
@@ -696,6 +609,18 @@ const S = {
       wolfram:false, merriam:false, idioms:false, quotes:false, etymology:false
     },
     uiScale:1, layout:'classic',
+    /* the round button's two clicks, and which of the project's five
+       workspaces are in the rotation (Settings → Custom). A switch per
+       workspace; `workspaces` is only the older single flag, read once to
+       migrate a profile written before the per-workspace switches. */
+    fabLeftClick:true, fabRightClick:true, workspaces:true,
+    wsOff:[false,false,false,false,false],
+    /* which pages the round button's LEFT click still lists, by page id
+       (`fabPages.plan === false` takes Plan out of the menu) */
+    fabPages:{},
+    /* the project card's own shape, per mode - see homeProjLayout()
+       (pages.js) and the two rows in Settings -> General */
+    projCardNovel:'tiles', projCardScreenplay:'tiles',
     pickerSources:['editor','chapters','notes','ideas','bible','drafts','references'],
     defaultExport:'md', includeMetadata:true, pageSize:'A4', pageMargins:25,
     authorName:'', authorEmail:'',
@@ -874,9 +799,7 @@ function totalWords(){
 function modePages(){
   const m = currentMode();
   if(!m) return BASE_PAGES;
-  return ['editor', 'write', 'read', 'draft', 'notes', 'plan', 'board',
-          'timeline', 'cast', 'research', 'dictionary', 'canvas', 'inspire', 'stats',
-          'notebook', 'format', 'import']
+  return ['editor', 'write', 'draft', 'plan', 'inspire', 'stats', 'notebook', 'import']
     .concat(m.editorViews || []);
 }
 // Mode/page helpers

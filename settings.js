@@ -47,62 +47,11 @@
 (function(){
   if(typeof THEMES === 'undefined' || !Array.isArray(THEMES)) return;
 
-  /* ── 1 · Plum — the ninth palette ── */
-  if(!THEMES.some(function(t){ return t.id === 'plum'; })){
-    THEMES.push({
-      id:'plum', name:'Plum', c1:'#151120', c2:'#c9b6ff', dark:true,
-      note:'Soft violet dark — quiet, creative',
-      palette:{
-        bg:'#151120', s1:'#1c1729', s2:'#231d33', s3:'#2b243d', s4:'#342c49', s5:'#3f3557',
-        ov:'rgba(201,182,255,.05)', ovs:'rgba(201,182,255,.09)',
-        ink:'#ded8ee', ink2:'#b8b0cf', ink3:'#948cae', ink4:'#756d8c',
-        line:'#2a2438', line2:'#372f49', line3:'#473d5d',
-        acc:'#c9b6ff', acc2:'#a893f0', accInk:'#151120',
-        accSoft:'rgba(201,182,255,.10)', accLine:'rgba(201,182,255,.28)',
-        grad:'linear-gradient(135deg,#c9b6ff 0%,#8f78d8 100%)',
-        docBg:'#1a1526', docInk:'#d6cfe8', caret:'#c9b6ff', sel:'#c9b6ff', selInk:'#151120'
-      }
-    });
-  }
+  /* The seven palettes this IIFE used to push — Plum, Rosewood, Lagoon,
+     Solar, Aero, Umber, Orchid — are gone with every other colour theme.
+     What it still owns is the mode. */
 
-  /* ── 2 · Rosewood and Lagoon — the two more ──
-     The picker had no rose and no true teal, so the warm-pink and
-     cool-green sides of the wheel get a theme each. Same shape as every
-     other theme — one full token set, applied inline. */
-  if(!THEMES.some(function(t){ return t.id === 'rosewood'; })){
-    THEMES.push({
-      id:'rosewood', name:'Rosewood', c1:'#1a1013', c2:'#e8a7b0', dark:true,
-      note:'Rose dark — dusty pink on deep maroon',
-      palette:{
-        bg:'#1a1013', s1:'#221619', s2:'#2a1c20', s3:'#332327', s4:'#3d2b30', s5:'#49353b',
-        ov:'rgba(232,167,176,.05)', ovs:'rgba(232,167,176,.09)',
-        ink:'#ecdfe2', ink2:'#c9b2b7', ink3:'#a08a8f', ink4:'#7c686d',
-        line:'#2b1d21', line2:'#39272c', line3:'#4a343a',
-        acc:'#e8a7b0', acc2:'#c97f8c', accInk:'#1a1013',
-        accSoft:'rgba(232,167,176,.10)', accLine:'rgba(232,167,176,.28)',
-        grad:'linear-gradient(135deg,#e8a7b0 0%,#b56274 100%)',
-        docBg:'#1f1317', docInk:'#e3d4d8', caret:'#e8a7b0', sel:'#e8a7b0', selInk:'#1a1013'
-      }
-    });
-  }
-  if(!THEMES.some(function(t){ return t.id === 'lagoon'; })){
-    THEMES.push({
-      id:'lagoon', name:'Lagoon', c1:'#0b1618', c2:'#7fd8c8', dark:true,
-      note:'Teal dark — cool water, soft cyan accent',
-      palette:{
-        bg:'#0b1618', s1:'#101d1f', s2:'#152427', s3:'#1b2d30', s4:'#22383c', s5:'#2c464a',
-        ov:'rgba(127,216,200,.05)', ovs:'rgba(127,216,200,.09)',
-        ink:'#d9e7e4', ink2:'#a9c0bc', ink3:'#7f9a96', ink4:'#5d7572',
-        line:'#172527', line2:'#1f3033', line3:'#2b4044',
-        acc:'#7fd8c8', acc2:'#4fb3a4', accInk:'#08191a',
-        accSoft:'rgba(127,216,200,.10)', accLine:'rgba(127,216,200,.28)',
-        grad:'linear-gradient(135deg,#7fd8c8 0%,#3d8e85 100%)',
-        docBg:'#0e1b1d', docInk:'#d0e0dd', caret:'#7fd8c8', sel:'#7fd8c8', selInk:'#08191a'
-      }
-    });
-  }
-
-  /* ── 3 · the mode: one, and it is dark ──
+  /* ── the mode: one, and it is dark ──
      These two answer the questions the rest of the app asks about the
      mode. They answer with the only answer there is, so a caller that
      asks “is this light?” gets a plain no instead of a palette that would
@@ -237,10 +186,11 @@
     p.innerHTML =
       '<div class="sft-head"><i class="bi bi-translate"></i><span>Translate</span>'
       +   '<button class="sft-x" data-sft-close title="Close"><i class="bi bi-x-lg"></i></button></div>'
-      + '<div class="sft-pairs">'
-      +   PAIRS.map(function(x, i){
-            return '<button class="ft-pair' + (i === 0 ? ' on' : '') + '" data-ftpair="' + x.id + '">' + x.label + '</button>';
-          }).join('')
+      + '<div class="ft-actions" aria-label="Translation actions">'
+      +   '<button class="ft-action" type="button" data-sft-act="copy" disabled><i class="bi bi-clipboard"></i> Copy</button>'
+      +   '<button class="ft-action" type="button" data-sft-act="insert" disabled><i class="bi bi-text-indent-left"></i> Insert</button>'
+      +   '<button class="ft-action" type="button" data-sft-act="append" disabled><i class="bi bi-plus-lg"></i> Append</button>'
+      +   '<button class="ft-action ft-primary" type="button" data-sft-act="replace" disabled><i class="bi bi-check-lg"></i> Replace</button>'
       + '</div>'
       + '<div class="ft-bar">'
       +   '<div class="ft-cell"><span class="ft-lang">Source</span><div class="ft-text" id="sftSrc"></div></div>'
@@ -253,6 +203,57 @@
     document.body.appendChild(p);
 
     const grid = p.querySelector('#sftGrid');
+    const actionBar = p.querySelector('.ft-actions');
+    const actionButtons = actionBar ? actionBar.querySelectorAll('[data-sft-act]') : [];
+    const syncActions = function(){
+      const dst = p.querySelector('#sftDst');
+      const text = dst ? dst.textContent.trim() : '';
+      const ready = !!text && text !== 'Translation' && text.indexOf('Translating…') !== 0 && text.indexOf('Nothing to translate') !== 0 && text !== 'No response';
+      actionButtons.forEach(function(button){ button.disabled = !ready; });
+    };
+    p._sftSyncActions = syncActions;
+    if(p.querySelector('#sftDst') && typeof MutationObserver === 'function'){
+      new MutationObserver(syncActions).observe(p.querySelector('#sftDst'), {childList:true, subtree:true, characterData:true});
+    }
+    if(actionBar) actionBar.addEventListener('click', function(e){
+      const button = e.target.closest('[data-sft-act]');
+      if(!button || button.disabled) return;
+      const dst = p.querySelector('#sftDst');
+      const text = dst ? dst.textContent.trim() : '';
+      const target = document.getElementById('editor');
+      if(!text || !target) return;
+      if(button.dataset.sftAct === 'copy'){
+        if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ toast('Copied'); });
+        return;
+      }
+      target.focus();
+      if(button.dataset.sftAct === 'append'){
+        target.innerHTML += text.split(/\n\n+/).map(function(paragraph){ return '<p>' + esc(paragraph).replace(/\n/g, '<br>') + '</p>'; }).join('');
+      }else if(button.dataset.sftAct === 'replace'){
+        const selectionNow = window.getSelection();
+        const saved = p._sftSaved;
+        if(saved && target.contains(saved.startContainer)){
+          selectionNow.removeAllRanges(); selectionNow.addRange(saved);
+          selectionNow.deleteFromDocument();
+          selectionNow.getRangeAt(0).insertNode(document.createTextNode(text));
+        }else target.innerText = text;
+      }else{
+        const selectionNow = window.getSelection();
+        const saved = p._sftSaved;
+        if(saved && target.contains(saved.startContainer)){
+          selectionNow.removeAllRanges(); selectionNow.addRange(saved);
+        }else{
+          const range = document.createRange(); range.selectNodeContents(target); range.collapse(false);
+          selectionNow.removeAllRanges(); selectionNow.addRange(range);
+        }
+        const html = text.split(/\n\n+/).map(function(paragraph){ return '<p>' + esc(paragraph).replace(/\n/g, '<br>') + '</p>'; }).join('');
+        try{ document.execCommand('insertHTML', false, html); }
+        catch(err){ document.execCommand('insertText', false, text); }
+      }
+      if(typeof onInput === 'function') onInput();
+      close();
+      toast('Translation applied');
+    });
     const render = function(q){
       const needle = (q || '').toLowerCase();
       const list = langs.filter(function(l){
@@ -267,16 +268,6 @@
     };
     render('');
     p.querySelector('#sftQuery').addEventListener('input', function(){ render(this.value); });
-
-    p.querySelector('.sft-pairs').addEventListener('click', function(e){
-      const b = e.target.closest('[data-ftpair]');
-      if(!b) return;
-      e.preventDefault();
-      Array.prototype.slice.call(p.querySelectorAll('.ft-pair'))
-        .forEach(function(x){ x.classList.toggle('on', x === b); });
-      const pair = PAIRS.filter(function(x){ return x.id === b.dataset.ftpair; })[0];
-      if(pair) run(pair.label, pair.from, pair.to);
-    });
 
     grid.addEventListener('click', function(e){
       const b = e.target.closest('[data-lang]');
@@ -348,6 +339,10 @@
   const open = function(){
     let p = document.getElementById('sfTranslate');
     if(!p) p = build();
+    const editor = document.getElementById('editor');
+    const selection = window.getSelection();
+    p._sftSaved = selection && selection.rangeCount && editor && editor.contains(selection.anchorNode)
+      ? selection.getRangeAt(0).cloneRange() : null;
 
     const src = p.querySelector('#sftSrc');
     const txt = sourceText();
@@ -358,6 +353,7 @@
     p.classList.add('open');
 
     const dst = p.querySelector('#sftDst');
+    if(typeof p._sftSyncActions === 'function') p._sftSyncActions();
     if(dst && !dst.textContent.trim()) run(PAIRS[0].label, PAIRS[0].from, PAIRS[0].to);
 
     /* the FAB card itself steps aside */
@@ -422,6 +418,9 @@
     if(!page) return;
 
     Array.prototype.forEach.call(page.querySelectorAll('.idea-bar button, .idea-tools button'), function(b){
+      /* the bar's own New prompt (app.js) is not the AI button this
+         sweep was written for: it is marked, and it stays */
+      if(b.hasAttribute('data-ic-new')) return;
       if(/^\s*new prompt\s*$/i.test((b.textContent || '').trim())) b.remove();
     });
   };
@@ -741,7 +740,6 @@ SETTINGS.open = function(){
      const tabs = [
     {divider:true},
     {id:'ai',           icon:'stars',          label:'AI Assistance'},
-    {id:'plugins',      icon:'puzzle',         label:'Plugins'},
     {divider:true},
     {id:'general',      icon:'gear',           label:'General'},
     {id:'appearance',   icon:'palette',        label:'Appearance'},
@@ -768,8 +766,8 @@ SETTINGS.open = function(){
   });
 
   /* ── IMPORT — the button that used to float over the dashboard now sits at
-     the foot of this rail. It keeps both of the floating button's jobs, by
-     driving that same button: click for GitHub, right-click for a file. */
+     the foot of this rail. Left click opens GitHub import; right click opens
+     the local JSON picker without closing Settings. */
   if(!document.getElementById('setImportStyle')){
     const st = document.createElement('style');
     st.id = 'setImportStyle';
@@ -779,31 +777,64 @@ SETTINGS.open = function(){
       'html body .settings-modal #setTabs .set-import-btn{' +
         'margin-top:auto !important;width:100% !important;height:32px !important;' +
         'display:flex !important;align-items:center !important;justify-content:center !important;gap:7px !important;' +
-        'border:1px solid var(--line-2) !important;border-radius:var(--r-sm,4px) !important;' +
+        'border:0 !important;outline:0 !important;border-radius:var(--r-sm,4px) !important;' +
         'background:var(--surface-3) !important;color:var(--ink) !important;' +
         'font-size:12px !important;font-weight:600 !important;letter-spacing:0 !important;' +
-        'cursor:pointer !important;transition:background .12s ease, border-color .12s ease !important;}' +
+        'cursor:pointer !important;transition:background .12s ease !important;}' +
       'html body .settings-modal #setTabs .set-import-btn i{font-size:12px !important;}' +
       'html body .settings-modal #setTabs .set-import-btn:hover{' +
-        'background:var(--surface-4) !important;border-color:var(--line-3) !important;}';
+        'background:var(--surface-4) !important;}';
     document.head.appendChild(st);
   }
   const impBtn = document.createElement('button');
   impBtn.type = 'button';
   impBtn.className = 'set-import-btn';
   impBtn.id = 'setImportBtn';
-  impBtn.title = 'Click: GitHub · Right-click: a file on this computer';
+  impBtn.title = 'Left click: import from GitHub · Right click: import local JSON';
   impBtn.innerHTML = '<i class="bi bi-box-arrow-in-down"></i> Import';
+  /* A secondary click must never be read as a primary one. macOS ctrl-click
+     and a touch long-press deliver TWO events for the one gesture: the
+     contextmenu that opens the picker below, and a click that carries the
+     left-click job - close Settings, open the GitHub panel. So the writer
+     picked a file, the import landed, and Settings was already gone by the
+     time it did. A right click stamps the time here, and a click that
+     arrives inside that stamp's window sits the left-click job out; a real
+     left click is a gesture of its own and runs it exactly as before. */
+  let secondaryAt = 0;
   impBtn.addEventListener('click', function(e){
     e.preventDefault();
+    e.stopPropagation();
+    if(Date.now() - secondaryAt < 400) return;     /* the click that rode in with a right click */
+    if(typeof closeModal === 'function') closeModal();
     if(typeof window.openGitHubPanel === 'function') window.openGitHubPanel();
     else if(typeof toast === 'function') toast('GitHub panel not loaded', 'err');
-  });
+  }, true);
   impBtn.addEventListener('contextmenu', function(e){
     e.preventDefault();
-    const src = document.getElementById('floatingImport');
-    if(src) src.dispatchEvent(new MouseEvent('contextmenu', {bubbles:true, cancelable:true}));
-  });
+    e.stopImmediatePropagation();
+    secondaryAt = Date.now();
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.multiple = false;
+    input.onchange = async function(ev){
+      const file = ev.target.files && ev.target.files[0];
+      if(!file) return;
+      if(!file.name.toLowerCase().endsWith('.json')){
+        if(typeof toast === 'function') toast('Only .json project files are supported', 'err');
+        return;
+      }
+      try{
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if(typeof window.importJSONProject === 'function') window.importJSONProject(parsed, file.name);
+        else if(typeof toast === 'function') toast('JSON importer not loaded', 'err');
+      }catch(err){
+        if(typeof toast === 'function') toast('Invalid JSON file', 'err');
+      }
+    };
+    input.click();
+  }, true);
   tabBar.appendChild(impBtn);
 
   /* sidebar layout — nothing to mirror into the head any more */
@@ -824,7 +855,7 @@ function renderSetTab(id){
   body.innerHTML = '';
   // two tabs are named differently to their renderer — without this they'd
   // open an empty panel
-  const RENDER_ALIAS = { typography:'type' };
+  const RENDER_ALIAS = { typography:'type', utility:'plugins' };
   const key = RENDER_ALIAS[id] || id;
   if(SETTINGS.renderers[key]) SETTINGS.renderers[key](body);
   enhanceSelects(body);
@@ -907,10 +938,87 @@ function enhanceSelects(root){
 
     sel._ddRefresh = build;
 
+    /* ── keep the open list fully visible ──
+       The panel a dropdown lives in clips and scrolls — .modal-body on the
+       Settings tabs, a board or a pane elsewhere — so one sitting near the
+       bottom edge had its last row cut in half ("Very slow" on the Animation
+       speed was the reported one: 17px of it under the edge). This is the
+       same flip app.js already does on the board: measure the room
+       under the trigger inside whatever clips it and open upwards when the
+       list does not fit. The list height is measured, not guessed, so a
+       4-row list and a 40-row one both land right. */
+    function place(){
+      card.classList.remove('dd-up');
+      list.style.removeProperty('max-height');   /* last open's cut, if any */
+      list.style.removeProperty('max-width');    /* and last open's width */
+      list.style.removeProperty('left');         /* and its side */
+      list.style.removeProperty('right');
+      if(!card.classList.contains('open')) return;
+      let clip = null, n = card.parentElement;
+      while(n && n !== document.documentElement){
+        const cs = getComputedStyle(n);
+        if(/hidden|auto|scroll/.test(cs.overflowY)){ clip = n; break; }
+        n = n.parentElement;
+      }
+      const frame = clip ? clip.getBoundingClientRect() : { top:0, bottom: window.innerHeight };
+      const limit = frame.bottom;
+      const roomBelow = limit - card.getBoundingClientRect().bottom;
+      const roomAbove = card.getBoundingClientRect().top - frame.top;
+      const need = list.getBoundingClientRect().height + 8;
+      /* Open upwards only when that side really has more room. The list got
+         taller, and flipping into the smaller side put the last options past
+         the edge of the panel with nothing to scroll — the exact thing this
+         function is here to prevent. */
+      if(roomBelow < need && roomAbove > roomBelow) card.classList.add('dd-up');
+      /* and when neither side holds the whole list, the window is cut to the
+         room there is: the list scrolls inside the panel instead of running
+         off it. Written as !important because the stylesheets pin their own
+         max-heights with it. */
+      const room = card.classList.contains('dd-up') ? roomAbove : roomBelow;
+      if(need > room && room > 0){
+        list.style.setProperty('max-height', Math.max(120, Math.floor(room - 8)) + 'px', 'important');
+      }
+      /* ── and the width, measured the same way ──
+         The list is as wide as its longest name now, which is what a provider
+         label needs: “Groq — fast, free & open” and “Custom — any
+         OpenAI-compatible endpoint (BYOK)” are not names the writer should
+         have to guess at. But a popup can only be as wide as the room around
+         it — .modal-body clips and scrolls, so a list that reached past it
+         would be cut off or grow the sideways bar this all exists to avoid.
+
+         The list is anchored by the stylesheet to its box's left edge
+         (left:-1px; right:-1px), so it has always grown to the right. In the
+         Settings column the box sits near the right edge of the panel and
+         there is barely 180px that way, while the whole panel — some 900px —
+         is free on the other side. So when the name does not fit to the
+         right and the left has more room, the list swaps its anchor to the
+         box's right edge instead: the same flip the height does, in the
+         other axis, and the same one a menu near the edge of a screen makes.
+         Only a name longer than the room on BOTH sides is ellipsised. */
+      list.style.setProperty('max-width', 'none', 'important');
+      const wantW = Math.ceil(list.getBoundingClientRect().width);
+      list.style.removeProperty('max-width');
+      const box = card.getBoundingClientRect();
+      const frameLeft  = clip ? clip.getBoundingClientRect().left  : 0;
+      const frameRight = clip ? clip.getBoundingClientRect().right : window.innerWidth;
+      const roomRight = frameRight - box.left - 8;
+      const roomLeft  = box.right - frameLeft - 8;
+      let roomX = roomRight;
+      if(wantW > roomRight && roomLeft > roomRight){
+        list.style.setProperty('left', 'auto', 'important');
+        list.style.setProperty('right', '-1px', 'important');
+        roomX = roomLeft;
+      }
+      if(roomX > 0 && wantW > roomX){
+        list.style.setProperty('max-width', Math.floor(roomX) + 'px', 'important');
+      }
+    }
+
     title.onclick = function(e){
       e.stopPropagation();
       document.querySelectorAll('.dd-card.open').forEach(function(c){ if(c !== card) c.classList.remove('open'); });
       card.classList.toggle('open');
+      place();
     };
 
     // carry over an explicit width the renderer asked for (e.g. the font picker)
@@ -931,11 +1039,16 @@ document.addEventListener('click', function(e){
 }, true);
 
 // ═══ Small helpers for building rows ═══
+// Every option is just its name. The second line under it - the "how many
+// projects", the "leave empty for auto", the sentence explaining what a
+// toggle does - is gone, and it is gone here rather than at forty call
+// sites so that nothing can add one back by accident. The argument is kept
+// in the signature so every call still lines up, it is simply not drawn.
 function row(label, desc, control){
   const r = document.createElement('div');
   r.className = 'set-row';
   const l = document.createElement('div');
-  l.innerHTML = `<div class="set-label">${label}</div>${desc ? `<div class="set-desc">${desc}</div>` : ''}`;
+  l.innerHTML = `<div class="set-label">${label}</div>`;
   r.appendChild(l);
   const c = document.createElement('div');
   c.className = 'set-ctrl';
@@ -950,7 +1063,7 @@ function row(label, desc, control){
 function card(title, icon){
   const d = document.createElement('div');
   d.className = 'set-card';
-  d.innerHTML = `<div class="set-card-title"><i class="bi bi-${icon}"></i> ${title}</div>`;
+  d.innerHTML = '<div class="set-card-title">' + (icon ? '<i class="bi bi-' + icon + '"></i> ' : '') + title + '</div>';
   return d;
 }
 
@@ -994,12 +1107,127 @@ function bindToggle(el, key){
   });
 }
 
+/* The three shared surfaces. Each had a row in Appearance - Panels,
+   Cards, Dropdowns - and each could be pinned to a palette of its own
+   while the rest of the app followed Appearance. That is gone, so the
+   three tokens are now just the theme's own steps and nothing is written
+   to config: the rules below read the same on every theme, and a profile
+   still carrying componentPanels / componentCards / componentDropdowns
+   keeps its keys unused rather than being rewritten. */
+function applyComponentThemes(){
+  const c = S.config || (S.config = {});
+  const root = document.documentElement;
+  const set = function(name, value){ root.style.setProperty(name, value); };
+  set('--component-panels', 'var(--surface-1)');
+  set('--component-cards', 'var(--surface-2)');
+  /* The default is --surface-2, one step BELOW the --surface-3 the settings
+     card behind it is painted, so a dropdown reads as an inset control
+     rather than dissolving into the card. At --surface-3 the fill was
+     identical to the card behind it - measured 1.00:1 on all seven themes
+     checked - so the only thing left of the control was the 1px hairline,
+     and a dropdown with a hairline and no fill is the flat, boxed-out look
+     this was supposed to avoid. */
+  set('--component-dropdowns', 'var(--surface-2)');
+
+  root.setAttribute('data-component-themes', '1');
+  if(c.fontWeightEnabled == null) c.fontWeightEnabled = false;
+  if(c.fontWeight == null) c.fontWeight = 400;
+  document.body.classList.toggle('custom-font-weight', !!c.fontWeightEnabled);
+  root.style.setProperty('--ui-font-weight', c.fontWeightEnabled ? (Number(c.fontWeight) || 400) : 400);
+  if(!document.getElementById('componentThemeStyle')){
+    const st = document.createElement('style');
+    st.id = 'componentThemeStyle';
+    /* The three lists below are the app's real surfaces, read off every
+       page rather than guessed: each class here is one that actually paints
+       a background on the page it lives on. They are what make the Custom
+       tab's per-page colors land on something - a selector that matches
+       nothing is a setting that silently does nothing. The original three
+       lists named ten classes, of which only .set-card, .dd-card and
+       .stats-cat-list ever appeared inside a page; the rest live in
+       modals, and those are kept. New classes belong at the end of the
+       group they belong to, not in a second stylesheet. */
+    st.textContent =
+      /* The three GLOBAL groups, exactly as they were. These are the
+         app-wide defaults from Settings → Appearance, and any per-page
+         component left on "global" falls through to the group its class
+         sits in, so an unconfigured page looks precisely as it did before.
+
+         They stayed three rules on purpose. An earlier version merged them
+         into one list to keep the block short, and every surface then took
+         --component-panels: on Noir the page and the card on it resolved to
+         the same value, and the two read as one flat sheet. The step
+         between page, card and dropdown is the whole reason the global
+         setting has three names. */
+      'html[data-component-themes="1"] body :is(.modal,.pages-overlay,.panel-shell,.ai-panel,.util-panel,.notes-panel,.modes-panel,.info-panel,.fab-menu,.write-wrap,.read-wrap,.read-page,.draft-pane,.plan-wrap,.idea-side,.canvas-stage,.read-top,.read-foot,.sf-bar,.page-head,.ol-head,.chapter-controls,.canvas-tools,.idea-bar,.draft-list,.write-canvas){background:var(--component-panels)!important;}' +
+      'html[data-component-themes="1"] body :is(.home-pane,.home-stats,.proj-row,.card-tile,.stat-card,.tile,.set-card,.home-overview-card,.stat-card-lg,.stat-duo-card,.stats-chart-card,.kcard,.col,.beat-card,.dict-card,.draft-card,.draft-row,.nb-tree-row,.idea-slot,.idea-slot-brief,.chip){background:var(--component-cards)!important;}' +
+      'html[data-component-themes="1"] body :is(.dd-card,.stats-cat-list,.select-menu,.dropdown-menu,.stats-cat-card,.tb-drop-list,.imf-drop-list,.draft-drop-list){background:var(--component-dropdowns)!important;}' +
+      /* Nothing after the three groups above.
+
+         Two more rules used to sit here, both of them per-component: one
+         forcing the Settings primary button to a chosen colour, and one
+         lifting a selected row a step above its neighbours. Both read a
+         --sf-c-* variable that the per-component system set. That system is
+         gone, so the variables are never assigned - and an unassigned
+         custom property inside a background is not "fall through to the
+         rule below", it is "no background at all".
+
+         The first one was the visible half of it. `html body .modal
+         .settings-modal .btn.btn-primary` outranks every rule that actually
+         paints a primary button, so the Save button and the "Fetch models"
+         button both went transparent, and the colour pages.css:3997 gives
+         them - --bg, near-black - then put near-black text on a dark
+         panel. Measured: background rgba(0,0,0,0) with the text at
+         rgb(27,26,25), against a panel around rgb(29,27,26). The primary
+         button was invisible. */
+    document.head.appendChild(st);
+  }
+}
+window.applyComponentThemes = applyComponentThemes;
+applyComponentThemes();
+
+/* Adds the custom font-weight rows to the Font card, once the Appearance
+   renderer has finished building it. */
+document.addEventListener('DOMContentLoaded', function(){
+  const originalAppearance = SETTINGS.renderers.appearance;
+  if(typeof originalAppearance !== 'function') return;
+  SETTINGS.renderers.appearance = function(root){
+    originalAppearance(root);
+    const fontCard = Array.from(root.querySelectorAll('.set-card')).find(function(el){
+      const title = el.querySelector('.set-card-title');
+      return title && title.textContent.trim() === 'Font';
+    });
+    const weightTarget = fontCard || card('Font', 'fonts');
+    if(!fontCard) root.appendChild(weightTarget);
+    const toggle = document.createElement('div'); toggle.className = 'tgl';
+    toggle.classList.toggle('on', !!S.config.fontWeightEnabled);
+    const range = document.createElement('input');
+    range.type = 'range'; range.className = 'rng'; range.min = '100'; range.max = '900'; range.step = '100';
+    range.value = S.config.fontWeight || 400; range.disabled = !S.config.fontWeightEnabled;
+    const sync = function(){
+      toggle.classList.toggle('on', !!S.config.fontWeightEnabled);
+      range.disabled = !S.config.fontWeightEnabled;
+      applyConfig('fontWeightEnabled'); applyConfig('fontWeight');
+    };
+    toggle.onclick = function(){ S.config.fontWeightEnabled = !S.config.fontWeightEnabled; sync(); save(); };
+    range.oninput = function(){ S.config.fontWeight = Number(range.value); sync(); save(); };
+    weightTarget.appendChild(row('Enable custom weight', 'Applies one weight across the interface', toggle));
+    weightTarget.appendChild(row('Weight', 'Thin → Regular → Bold', range));
+  };
+});
+
 // ═══ Config appliers ═══
 function applyConfig(key){
   const c = S.config;
   const root = document.documentElement;
   switch(key){
     case 'theme': applyThemeVars(c.theme); break;
+    case 'fontWeightEnabled':
+      document.body.classList.toggle('custom-font-weight', !!c.fontWeightEnabled);
+      document.documentElement.style.setProperty('--ui-font-weight', c.fontWeightEnabled ? (Number(c.fontWeight) || 400) : 400);
+      break;
+    case 'fontWeight':
+      document.documentElement.style.setProperty('--ui-font-weight', Number(c.fontWeight) || 400);
+      break;
     case 'font': {
       /* the writing face, written as the whole stack it belongs to — a sans
          pick falls back to sans and a mono pick to mono, instead of every
@@ -1051,14 +1279,23 @@ function applyConfig(key){
     case 'editorWidth':
       root.style.setProperty('--doc-max', c.editorWidth);
       break;
+    case 'projCardNovel':
+    case 'projCardScreenplay':
+      /* the dashboard draws the card, so it is the dashboard that has to
+         be drawn again - and only if it is the page on screen */
+      if(typeof refreshHomeCards === 'function') refreshHomeCards();
+      break;
     case 'uiScale':
       root.style.setProperty('--ui-scale', c.uiScale);
       document.body.style.zoom = c.uiScale;
       break;
     case 'eyeComfort':
-      // a warm light filter across the whole app — independent of the theme
-      document.body.classList.toggle('eye-comfort', !!c.eyeComfort);
-      root.style.setProperty('--eye-amount', eyeComfortAlpha());
+      // The Comfort card is gone, so the filter can never be on. A profile
+      // that had it switched on is cleared here rather than left glowing
+      // with no control anywhere to switch it off.
+      c.eyeComfort = false;
+      document.body.classList.remove('eye-comfort');
+      root.style.removeProperty('--eye-amount');
       break;
     case 'uiStyle':
     case 'iconPack':
@@ -1137,7 +1374,12 @@ function hexToRgb(h){
 // ═══ Renderers per tab ═══
 SETTINGS.renderers = {};
 
-// ═══ COLOR THEMES — one grid, used by both Appearance and Look ═══
+// ═══ COLOUR SECTION — the base palette, one for the whole app ═══
+/* This is the app's own colour picker and it stays in Appearance, where
+   it has always been: one grid, every palette, and the pick repaints
+   everything at once. It is not a preset. A preset lives in Custom and
+   does the opposite of this - it spreads several colours across the app
+   rather than setting one of them. */
 function setTheme(id){
   S.config.theme = id;
   applyThemeVars(id);
@@ -1145,131 +1387,38 @@ function setTheme(id){
 }
 window.setTheme = setTheme;
 
-function buildThemeGrid(){
-  const wrap = document.createElement('div');
-  const grid = document.createElement('div');
-  grid.className = 'grid-auto';
-
-  /* EVERY theme, and every one of them dark. There is no second palette
-     to swap in: a theme is the palette on its tile, with nothing derived
-     from it, so the grid is the whole list and the pick falls to
-     S.config.theme. */
-  const list = THEMES;
-  const active = S.config.theme || 'night';
-
-  /* paint reads the LIVE pick, not the one the grid was built with. It used
-     to close over `active`, so choosing a theme moved the palette but left
-     the highlight on the tile that was selected when the tab was opened —
-     pick Noir and the ring stayed on Neon City. */
-  const paint = () => {
-    const cur = S.config.theme || 'night';
-    grid.querySelectorAll('[data-theme-pick]').forEach(x =>
-      x.classList.toggle('on', x.dataset.themePick === cur));
-  };
-
-  list.forEach(t => {
-    const sw = (typeof window.sfThemeSwatch === 'function') ? window.sfThemeSwatch(t) : { c1:t.c1, c2:t.c2 };
-    const tile = document.createElement('div');
-    tile.className = 'tile' + (t.id === active ? ' on' : '');
-    tile.dataset.themePick = t.id;
-    tile.innerHTML = `
-      <div style="display:flex;height:40px;border-radius:8px;overflow:hidden;margin-bottom:8px;border:1px solid var(--line-2);">
-        <div style="flex:1;background:${sw.c1}"></div>
-        <div style="flex:1;background:${sw.c2}"></div>
-      </div>
-      <div style="font-size:11.5px;font-weight:600;">${t.name}</div>
-      <div style="font-size:10.5px;color:var(--ink-4);margin-top:3px;line-height:1.4;">${t.note || ''}</div>
-    `;
-    grid.appendChild(tile);
-  });
-
-  grid.addEventListener('click', e => {
-    const el = e.target.closest('[data-theme-pick]');
-    if(!el) return;
-    const id = el.dataset.themePick;
-
-    setTheme(id);
-    paint();
-    toast('Theme: ' + themeById(resolveThemeId(id)).name);
-  });
-
-  wrap.appendChild(grid);
-  return wrap;
-}
-
 // ═══ APPEARANCE ═══
 SETTINGS.renderers.appearance = function(root){
 
-  // ── COLOR THEME — the whole list, twelve dark palettes, one grid.
-  /* Every theme here is a dark one and the app runs dark, always — the
-     Light / Dark switch is gone, and setThemeMode is pinned in
-     final-fix.js so nothing stored from before can bring light back.
-     Nothing is derived from a theme either: no light palette is worked
-     out of a dark one, so the tile is the palette you get. */
-  const c0 = card('Color theme', 'palette2');
-  c0.appendChild(buildThemeGrid());
-  root.appendChild(c0);
-
-  // ── EYE COMFORT — a toggle, not a theme, so it layers over any palette ──
-  const cEye = card('Comfort', 'brightness-high');
-
-  const eyeTgl = document.createElement('div');
-  eyeTgl.className = 'tgl';
-  bindToggle(eyeTgl, 'eyeComfort');
-  cEye.appendChild(row('Eye comfort', 'Warm light filter over any theme — cuts blue light', eyeTgl));
-
-  const eyeRng = document.createElement('input');
-  eyeRng.type = 'range';
-  eyeRng.className = 'rng';
-  eyeRng.min = '0'; eyeRng.max = '100'; eyeRng.step = '5';
-  eyeRng.value = S.config.eyeComfortLevel ?? 40;
-  const eyeVal = document.createElement('span');
-  eyeVal.className = 'rng-val';
-  eyeVal.textContent = (S.config.eyeComfortLevel ?? 40) + '%';
-  eyeRng.oninput = function(){
-    S.config.eyeComfortLevel = parseInt(eyeRng.value, 10) || 0;
-    eyeVal.textContent = S.config.eyeComfortLevel + '%';
-    applyConfig('eyeComfort');
-    save();
+  // ── COLOR — two dark palettes, Blue and Yellow, and each carries a real
+  //    accent colour. That accent is what paints the dropdowns, the toggles,
+  //    the sliders and the solid buttons, so the selected chip is filled
+  //    with it: the palette you are on, at a glance, in the colour it
+  //    lights the app up with. Neither is a light theme.
+  const cTheme = card('Color');
+  const themeGrid = document.createElement('div');
+  themeGrid.className = 'sf-theme-grid';
+  const paintThemeGrid = function(){
+    Array.prototype.forEach.call(themeGrid.children, function(tile){
+      tile.classList.toggle('on', tile.dataset.theme === (S.config.theme || 'night'));
+    });
   };
-  cEye.appendChild(row('Filter strength', 'How warm the filter is (0 = off)', [eyeRng, eyeVal]));
-
-  // ── BRIGHTNESS — dim or lift the WHOLE interface, every theme included.
-  //    100% is the app exactly as it is; below dims, above lifts.
-  const brRng = document.createElement('input');
-  brRng.type = 'range';
-  brRng.className = 'rng';
-  brRng.min = '40'; brRng.max = '160'; brRng.step = '5';
-  brRng.value = S.config.uiBrightness ?? 100;
-  const brVal = document.createElement('span');
-  brVal.className = 'rng-val';
-  brVal.textContent = (S.config.uiBrightness ?? 100) + '%';
-  brRng.oninput = function(){
-    S.config.uiBrightness = parseInt(brRng.value, 10) || 100;
-    brVal.textContent = S.config.uiBrightness + '%';
-    applyConfig('uiBrightness');
-    save();
-  };
-  const brReset = document.createElement('button');
-  brReset.type = 'button';
-  brReset.className = 'btn btn-ghost';
-  brReset.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i>';
-  brReset.title = 'Reset to 100%';
-  brReset.onclick = function(){
-    S.config.uiBrightness = 100;
-    brRng.value = 100;
-    brVal.textContent = '100%';
-    applyConfig('uiBrightness');
-    save();
-  };
-  cEye.appendChild(row('Brightness', 'Dim or lift the whole interface (100% = untouched)', [brRng, brVal, brReset]));
-
-  const eyeHint = document.createElement('div');
-  eyeHint.className = 'tiny muted';
-  eyeHint.style.marginTop = '4px';
-  eyeHint.textContent = 'Both layer over every theme and every light-on-dark surface — including the overlay screen and the players. Eye comfort tints warm; Brightness dims or lifts the whole interface.';
-  cEye.appendChild(eyeHint);
-  root.appendChild(cEye);
+  (typeof THEMES !== 'undefined' && Array.isArray(THEMES) ? THEMES : []).forEach(function(t){
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'sf-theme-tile';
+    tile.dataset.theme = t.id;
+    tile.title = t.note || t.name;
+    const nm = document.createElement('span');
+    nm.className = 'sf-theme-name';
+    nm.textContent = t.name;
+    tile.appendChild(nm);
+    tile.onclick = function(){ setTheme(t.id); paintThemeGrid(); };
+    themeGrid.appendChild(tile);
+  });
+  paintThemeGrid();
+  cTheme.appendChild(row('Palette', 'Blue or Yellow — each with its own accent colour', themeGrid));
+  root.appendChild(cTheme);
 
   // ── FONT — the typeface used across the whole app ──
   const cFont = card('Font', 'fonts');
@@ -1449,6 +1598,39 @@ SETTINGS.renderers.general = function(root){
 
   root.appendChild(c2);
 
+  /* ── THE PROJECT CARD — the dashboard's folders — in a section of its own,
+     after the interface one: one row per mode ──
+     Novel and Screenplay are set independently, because the two modes
+     hold different numbers of projects and the card that reads well for
+     one is not the one that reads well for the other. Both are dropdowns
+     (the enhancer turns every <select class="sel"> into the app's own
+     card), five or ten to a page - see homeProjLayout() in pages.js. */
+  const c3 = card('Project cards', 'folder2');
+  const projCard = function(label, key){
+    const sel = document.createElement('select');
+    sel.className = 'sel';
+    sel.style.minWidth = '170px';
+    /* Tiles or List, and nothing about how many are on a page: the card
+       decides that for itself (ten tiles, five rows) */
+    [['tiles', 'Tiles'], ['list', 'List']].forEach(function(p){
+      const o = document.createElement('option');
+      o.value = p[0]; o.textContent = p[1];
+      if(p[0] === (S.config[key] || 'tiles')) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.onchange = function(){
+      S.config[key] = sel.value;
+      applyConfig(key);
+      save();
+    };
+    c3.appendChild(row(label, '', sel));
+    if(typeof window.enhanceSelects === 'function') window.enhanceSelects(c3);
+  };
+  projCard('Project card · Novel', 'projCardNovel');
+  projCard('Project card · Screenplay', 'projCardScreenplay');
+
+  root.appendChild(c3);
+
   const snap = document.createElement('button');
   snap.className = 'btn btn-ghost';
   snap.innerHTML = '<i class="bi bi-bookmark-plus"></i> Snapshot now';
@@ -1495,13 +1677,7 @@ SETTINGS.renderers.ai = function(root){
 
   // ── KEY + ENDPOINT for the selected provider (BYOK lives here) ──
   const c2 = card('Key & endpoint', 'key');
-  if(prov.keyless){
-    const note = document.createElement('div');
-    note.className = 'tiny muted';
-    note.style.marginBottom = '6px';
-    note.textContent = 'No API key needed — this provider runs on your own machine.';
-    c2.appendChild(note);
-  } else {
+  if(!prov.keyless){
     const inp = document.createElement('input');
     inp.type = 'password';
     inp.className = 'inp';
@@ -1548,7 +1724,8 @@ SETTINGS.renderers.ai = function(root){
   }
 
   const fetchBtn = document.createElement('button');
-  fetchBtn.className = 'btn btn-primary';
+  /* the app's own button skin, same as Snapshot now / Save a copy */
+  fetchBtn.className = 'btn btn-ghost';
   fetchBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Fetch models';
   fetchBtn.onclick = async () => {
     const models = await fetchModels();
@@ -1703,197 +1880,18 @@ function sfRightClick(){
 window.sfRightClick = sfRightClick;
 window.sfRcOn = function(k){ return sfRightClick().actions[k] !== false; };
 
-SETTINGS.renderers.custom = function(root){
-  const rc = sfRightClick();
+/* ═══ CUSTOM ═══
 
-  /* ═══ YOUR SWITCHES ═══
-     Overlay · Remixing · What you like · Intermixing. They used to live in
-     the little panel that opens when you right-click the Settings button;
-     they are Settings of their own now, with their controls beside them. */
-  const applyCfg = function(k){ try{ if(typeof applyConfig === 'function') applyConfig(k); }catch(e){} };
-  const wrap = function(){ const d = document.createElement('div'); d.className = 'cust-inline'; return d; };
-  const tgl = function(on, fn){
-    const t = document.createElement('div');
-    t.className = 'tgl';
-    t.classList.toggle('on', !!on);
-    t.onclick = function(e){ e.stopPropagation(); fn(t); };
-    return t;
-  };
-  const sel = function(pairs, value, onPick){
-    const s = document.createElement('select');
-    s.className = 'sel';
-    pairs.forEach(function(p){
-      const o = document.createElement('option');
-      o.value = p[0]; o.textContent = p[1];
-      if(String(p[0]) === String(value)) o.selected = true;
-      s.appendChild(o);
-    });
-    s.onchange = function(){ onPick(s.value); save(); };
-    return s;
-  };
-  const btn = function(icon, label, fn){
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'btn btn-ghost';
-    b.innerHTML = '<i class="bi bi-' + icon + '"></i> ' + label;
-    b.onclick = fn;
-    return b;
-  };
+   The per-page and per-component colouring is gone from here. Every
+   class that painted a background on a page - eighty-two shapes across
+   twelve surfaces - had a row on this tab that picked a palette for it,
+   the whole set was generated into a stylesheet on every change, and a
+   second layer on top of that wrote one preset across all of it. It was
+   asked to be removed.
 
-  const c0 = card('Your switches', 'sliders');
-
-  /* Overlay */
-  const ovWrap = wrap();
-  if(!S.config.overlay) S.config.overlay = {};
-  ovWrap.appendChild(sel([[480,'480 px'],[560,'560 px'],[640,'640 px'],[760,'760 px'],[900,'900 px']],
-    S.config.overlay.w || 640,
-    function(v){ S.config.overlay.w = parseInt(v, 10) || 640; if(window.overlayShow) overlayShow(true); }));
-  ovWrap.appendChild(sel([[320,'320 px'],[420,'420 px'],[500,'500 px'],[600,'600 px']],
-    S.config.overlay.h || 420,
-    function(v){ S.config.overlay.h = parseInt(v, 10) || 420; if(window.overlayShow) overlayShow(true); }));
-  ovWrap.appendChild(btn('arrow-clockwise', 'Re-centre', function(){
-    S.config.overlay.x = null; S.config.overlay.y = null;
-    save();
-    if(window.overlayShow) overlayShow(true);
-    toast('Overlay re-centred');
-  }));
-  c0.appendChild(row('Overlay', 'A floating pane over the whole app — width, height and where it sits',
-    [tgl(S.config.expOverlay, function(t){
-        S.config.expOverlay = !S.config.expOverlay;
-        t.classList.toggle('on', !!S.config.expOverlay);
-        applyCfg('expOverlay'); save();
-      }), ovWrap]));
-
-  /* Remixing */
-  c0.appendChild(row('Remixing', 'Tidy your own text into proper paragraphs as you write',
-    [tgl(S.config.expOrganize, function(t){
-        S.config.expOrganize = !S.config.expOrganize;
-        t.classList.toggle('on', !!S.config.expOrganize);
-        save();
-      }),
-     btn('list-nested', 'Organise now', function(){
-       closeModal();
-       if(window.AI_FNS && window.AI_FNS.organize) window.AI_FNS.organize();
-       else toast('Open the editor first', 'warn');
-     })]));
-
-  /* What you like */
-  if(!S.config.plugins) S.config.plugins = {};
-  c0.appendChild(row('What you like', 'Type Hinglish, get Devanagari as you go',
-    [tgl(S.config.plugins.hinglish !== false, function(t){
-        S.config.plugins.hinglish = S.config.plugins.hinglish === false;
-        t.classList.toggle('on', S.config.plugins.hinglish !== false);
-        applyCfg('plugins'); save();
-      }),
-     sel([['devanagari','Hindi (देवनागरी)'],['english','English']],
-         (S.config.liveBarTarget === 'english') ? 'english' : 'devanagari',
-         function(v){ S.config.liveBarTarget = v; })]));
-
-  /* Intermixing — three faces taking turns */
-  if(!Array.isArray(S.config.mixedFonts)) S.config.mixedFonts = ['', '', ''];
-  const mixWrap = wrap();
-  mixWrap.classList.add('cust-mix-wrap');
-  /* the three faces on one line, the rotation on its own line under them */
-  const mixFaces = wrap();
-  /* Hand-written faces (Caveat, Dancing Script — the script/manuscript
-     faces) are left out on purpose: a script face taking its turn mid-word
-     is unreadable, so Intermixing offers the reading faces only. */
-  const fontPairs = [['','Editor font']].concat((window.FONTS || [])
-    .filter(function(f){ return f.g !== 'Hand'; })
-    .map(function(f){ return [f.name, f.name]; }));
-  [0,1,2].forEach(function(i){
-    mixFaces.appendChild(sel(fontPairs, S.config.mixedFonts[i] || '', function(v){
-      S.config.mixedFonts[i] = v;
-      paintMix();
-    }));
-  });
-  mixWrap.appendChild(mixFaces);
-
-  /* A live preview, because a font setting you cannot see is a setting you
-     cannot tell apart from a broken one: the sample line below takes the
-     turns exactly the way your typing will. */
-  const mixPreview = document.createElement('div');
-  mixPreview.className = 'mix-preview';
-  const mixLegend = document.createElement('div');
-  mixLegend.className = 'mix-legend';
-
-  const fontList = function(){ return (window.FONTS || []); };
-  const faceByName = function(name){
-    return fontList().filter(function(x){ return x.name === name; })[0] || null;
-  };
-  function mixStack(name){
-    if(!name) return '';
-    const f = faceByName(name);
-    return f ? f.f : "'" + name + "', serif";
-  }
-  /* The three faces the sample falls back on when a slot is left on
-     “Editor font” (or names something that is no longer in the list): a
-     serif, a sans and a mono, so the sample can never read as one face.
-     A mix you cannot see is exactly what made this setting look broken. */
-  const mixFallback = function(){
-    const first = function(g){ const l = fontList().filter(function(f){ return f.g === g; }); return l[0] ? l[0].name : ''; };
-    return [first('Serif'), first('Sans'), first('Mono')];
-  };
-  const mixFaces3 = function(){
-    const fb = mixFallback();
-    return [0,1,2].map(function(i){
-      const chosen = (S.config.mixedFonts || [])[i];
-      return (chosen && faceByName(chosen)) ? chosen : (fb[i] || 'Editor font');
-    });
-  };
-  function paintMix(){
-    if(!Array.isArray(S.config.mixedFonts)) S.config.mixedFonts = ['', '', ''];
-    const sc = (S.config.mixedFontScope === 'word' || S.config.mixedFontScope === 'sentence')
-      ? S.config.mixedFontScope : 'letter';
-    const faces = mixFaces3();
-    const stackAt = function(i){
-      const s = mixStack(faces[i % 3]);
-      return s ? 'font-family:' + s : 'font-family:inherit';
-    };
-    const one = 'The rain has not stopped for a week.';
-    const two = 'You kept the receipt.';
-    if(sc === 'word'){
-      mixPreview.innerHTML = (one + ' ' + two).split(' ').map(function(w, i){
-        return '<span style="' + stackAt(i) + '">' + w + '</span>';
-      }).join(' ');
-    }else if(sc === 'sentence'){
-      mixPreview.innerHTML = '<span style="' + stackAt(0) + '">' + one + '</span> '
-        + '<span style="' + stackAt(1) + '">' + two + '</span>';
-    }else{
-      mixPreview.innerHTML = one.split('').map(function(ch, i){
-        return '<span style="' + stackAt(i) + '">' + (ch === ' ' ? '&nbsp;' : ch) + '</span>';
-      }).join('');
-    }
-    /* which face is which, so the sample can be read rather than guessed */
-    mixLegend.innerHTML = faces.map(function(n, i){
-      return '<span><b>' + (i + 1) + '</b> ' + esc(n) + '</span>';
-    }).join('');
-    const on = !!S.config.expMixedFonts;
-    mixPreview.classList.toggle('off', !on);
-    mixPreview.setAttribute('title', on
-      ? 'This is what your typing does'
-      : 'Switch Intermixing on to write with it');
-  }
-
-  const scopes = ['letter','word','sentence'];
-  if(scopes.indexOf(S.config.mixedFontScope) < 0) S.config.mixedFontScope = 'letter';
-  const mixScope = wrap();
-  mixScope.appendChild(sel([['letter','Letter randomisation'],['word','Word randomisation'],['sentence','Sentence randomisation']],
-    S.config.mixedFontScope,
-    function(v){ S.config.mixedFontScope = v; paintMix(); }));
-  mixWrap.appendChild(mixScope);
-  mixWrap.appendChild(mixPreview);
-  mixWrap.appendChild(mixLegend);
-  paintMix();
-  c0.appendChild(row('Intermixing', 'Three fonts take turns as you type, in the editor — the preview below shows it',      [tgl(S.config.expMixedFonts, function(t){
-        S.config.expMixedFonts = !S.config.expMixedFonts;
-        t.classList.toggle('on', !!S.config.expMixedFonts);
-        applyCfg('expMixedFonts');
-        paintMix();
-        save();
-      }), mixWrap]));
-  root.appendChild(c0);
-};
+   Appearance keeps the one thing that is left: the Color card and its
+   three families, which set the palette for the whole app. */
+SETTINGS.renderers.custom = function(root){};
 
 /* The round-button menu's switches (its actions, Translate, per-page
    options, the chat shortcut) are no longer offered in Settings: the
@@ -1992,13 +1990,6 @@ SETTINGS.renderers.plugins = function(root){
      floating panel — nothing to configure past on / off. */
   GROUPS.forEach(function(g){
     const c = card(g.title, g.icon);
-    if(g.note){
-      const n = document.createElement('div');
-      n.className = 'tiny muted';
-      n.style.margin = '-2px 0 6px';
-      n.textContent = g.note;
-      c.appendChild(n);
-    }
     g.items.forEach(function(p){
       const t = document.createElement('div');
       t.className = 'tgl';
@@ -2064,11 +2055,6 @@ SETTINGS.renderers.language = function(root){
   };
   ui.appendChild(row('Language of the app', 'Page and menu names switch language, right-to-left included.', uiSel));
 
-  const note = document.createElement('div');
-  note.className = 'tiny muted';
-  note.style.marginTop = '4px';
-  note.textContent = 'Page names, the page menu and the breadcrumb follow this setting today. The writing tools, prompts and panels are still in English.';
-  ui.appendChild(note);
   root.appendChild(ui);
 
   // ── the language you write in ──
@@ -2076,7 +2062,7 @@ SETTINGS.renderers.language = function(root){
   const wrSel = document.createElement('select');
   wrSel.className = 'sel';
   wrSel.style.minWidth = '220px';
-    const all = [].concat(window.LANGS_INDIA || [], (window.LANGS_INTL || []).filter(l => l.code === 'en'));
+    const all = [].concat((window.LANGS_INTL || []).filter(l => l.code === 'en'), window.LANGS_INDIA || []);
 
   const seen = {};
   all.forEach(function(l){
@@ -2105,12 +2091,15 @@ SETTINGS.renderers.language = function(root){
   const outSel = document.createElement('select');
   outSel.className = 'sel';
   outSel.style.minWidth = '220px';
-      [ ['auto','Match the writing language'], ['en','English'], ['hi','हिन्दी — Hindi'] ].forEach(function(pair){
+      /* No "match the writing language" entry: state.js normalises
+         outputLang to 'en' unless it is one of these codes (OK_LANG),
+         so an 'auto' choice could never survive a reload anyway. */
+      [ ['en','English'], ['hi','हिन्दी — Hindi'] ].forEach(function(pair){
 
     const o = document.createElement('option');
     o.value = pair[0];
     o.textContent = pair[1];
-    if((S.config.outputLang || 'auto') === pair[0]) o.selected = true;
+    if((S.config.outputLang || 'en') === pair[0]) o.selected = true;
     outSel.appendChild(o);
   });
   outSel.onchange = function(){ S.config.outputLang = outSel.value; save(); toast('AI reply language set'); };
@@ -2202,7 +2191,7 @@ SETTINGS.renderFormat = function(){
   const c4 = card('Quick access', 'lightning');
   const quick = document.createElement('div');
   quick.className = 'chips';
-  ['write','read','draft','notebook','plan','board','timeline','cast','research','canvas'].forEach(pid => {
+  ['write','draft','plan','notebook','inspire'].forEach(pid => {
     const p = PAGES.find(x => x.id === pid);
     if(!p) return;
     const b = document.createElement('button');

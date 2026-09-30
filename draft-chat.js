@@ -954,31 +954,16 @@
     else rerender();
   }
 
-  /* right-click the FAB on Draft → this chat */
-  let gestureAt = 0;
-  function fabRight(e){
-    if(typeof S === 'undefined') return;
-    if(typeof window.sfRightClick === 'function' && window.sfRightClick().chat === false) return;
-    if(!(S.page === 'draft' || document.getElementById('draftBody'))) return;
-    if(!(e.target && e.target.closest && e.target.closest('#fabBtn'))) return;
-    if(e.type !== 'contextmenu' && e.button !== 2) return;
-    e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-    const ai = document.getElementById('fabAI');  if(ai) ai.hidden = true;
-    const mn = document.getElementById('fabMenu'); if(mn) mn.hidden = true;
-    const fw = document.getElementById('fabWrap'); if(fw) fw.classList.remove('menu-open');
-    if(e.type === 'contextmenu'){
-      const now = Date.now();
-      if(now - gestureAt > 350){ gestureAt = now; setOn(!dcOn()); }
-      [0, 60, 200].forEach(function(ms){
-        setTimeout(function(){
-          const a = document.getElementById('fabAI');  if(a) a.hidden = true;
-          const m = document.getElementById('fabMenu'); if(m) m.hidden = true;
-        }, ms);
-      });
-    }
-  }
-  ['pointerdown','mousedown','pointerup','mouseup','auxclick','contextmenu']
-    .forEach(function(t){ window.addEventListener(t, fabRight, true); });
+  /* The FAB's right-click is the app's again.
+     It used to open THIS chat, and only on the Draft page - so the round
+     button meant two different things depending on where you were, and the
+     page's own right-click panel (the one with the Text and Language rows,
+     polish.js) never appeared on Draft at all. The gesture now opens that
+     panel on every page, which is the same thing it does everywhere else.
+     The chat itself is untouched and still mounts on `dc-on`; it simply has
+     no gesture of its own now. setOn is exposed so a control can be wired to
+     it later without rebuilding any of this. */
+  window.sfDraftChatSet = setOn;
 
   /* the top bar's sliders button opens the chat's AI settings (draft-bar.js) */
   function openSettings(){

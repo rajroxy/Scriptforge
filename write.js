@@ -191,12 +191,12 @@ function renderChapterControls(){
      whole structure at once. */
   el.innerHTML = `
     <div class="chapter-control">
-      <select class="tb-select" data-chapter-select title="${L.ch}">
+      <select class="sel" data-chapter-select title="${L.ch}">
         ${chapters.map(ch => `<option value="${ch.id}" ${ch.id === (parent && parent.id) ? 'selected' : ''}>${esc(ch.title || 'Untitled')}</option>`).join('')}
       </select>
     </div>
     <div class="chapter-control">
-      <select class="tb-select" data-subchapter-select title="${L.sub}">
+      <select class="sel" data-subchapter-select title="${L.sub}">
         ${((parent && parent.children) || []).map(ch => `<option value="${ch.id}" ${ch.id === (current && current.id) ? 'selected' : ''}>${esc(ch.title || 'Untitled')}</option>`).join('')}
       </select>
     </div>
@@ -209,23 +209,116 @@ function renderChapterControls(){
     </div>
     <span class="cc-sep"></span>
     <div class="chapter-control cc-right">
+      <div class="imf-drop" id="imfDrop">
+        <button type="button" class="imf-drop-btn" data-imf-toggle="1" title="Intermixing fonts"><i class="bi bi-fonts"></i><span>IMF</span><i class="bi bi-chevron-down imf-drop-caret"></i></button>
+        <div class="imf-drop-list" id="imfDropList">
+          <div class="imf-drop-head"><span>Intermixing fonts</span></div>
+          <div class="imf-font-row">
+            ${[0,1,2].map(function(i){
+              const current = (Array.isArray(S.config.mixedFonts) ? S.config.mixedFonts[i] : '') || '';
+              const options = [['','Editor font']].concat((window.FONTS || [])
+                .filter(function(f){ return f.g !== 'Hand'; })
+                .map(function(f){ return [f.name, f.name]; }));
+              return '<label class="imf-field"><span>Font ' + (i + 1) + '</span><select class="sel" data-imf-font="' + i + '">'
+                + options.map(function(pair){ return '<option value="' + esc(pair[0]) + '"' + (pair[0] === current ? ' selected' : '') + '>' + esc(pair[1]) + '</option>'; }).join('')
+                + '</select></label>';
+            }).join('')}
+          </div>
+          <label class="imf-field imf-scope"><span>Rotate by</span><select class="sel" data-imf-scope="1">
+            ${[['letter','Letter randomisation'],['word','Word randomisation'],['sentence','Sentence randomisation']].map(function(pair){
+              return '<option value="' + pair[0] + '"' + ((S.config.mixedFontScope || 'letter') === pair[0] ? ' selected' : '') + '>' + pair[1] + '</option>';
+            }).join('')}
+          </select></label>
+        </div>
+      </div>
       ${(typeof isWritingPage === 'function' ? isWritingPage() : S.page === 'manuscript')
         ? '<button class="icon-btn-sm" data-act="split-open" title="Split screen"><i class="bi bi-layout-sidebar-inset-reverse"></i></button>'
         : ''}
-      ${S.config.expOverlay
-        ? '<button class="icon-btn-sm" data-act="overlay-open" title="Overlay screen"><i class="bi bi-layout-split"></i></button>'
-        : ''}
+      <button class="icon-btn-sm" data-act="overlay-open" title="Overlay screen"><i class="bi bi-layout-split"></i></button>
       <span class="cc-sep"></span>
       <button class="icon-btn-sm" data-act="find-open" title="Find &amp; replace (Ctrl+F)"><i class="bi bi-search"></i></button>
     </div>`;
 
   // chapter + subchapter selects → the Settings-style stats dropdown card
   if(typeof window.enhanceSelects === 'function') window.enhanceSelects(el);
+  paintImfPreview();
 
   /* the two mini players in the bar show what is actually playing */
   if(typeof ccMiniRefresh === 'function') ccMiniRefresh();
   paintSwatches();
 }
+
+function paintImfPreview(){
+  const root = document.getElementById('imfDropList');
+  if(!root) return;
+  if(!Array.isArray(S.config.mixedFonts)) S.config.mixedFonts = ['', '', ''];
+  const all = (window.FONTS || []).filter(function(f){ return f.g !== 'Hand'; });
+  const fallbackGroup = ['Serif','Sans','Mono'];
+  const faces = [0,1,2].map(function(i){
+    const chosen = S.config.mixedFonts[i];
+    if(chosen && all.some(function(f){ return f.name === chosen; })) return chosen;
+    return (all.find(function(f){ return f.g === fallbackGroup[i]; }) || all[i] || {}).name || '';
+  });
+  const stack = function(name){
+    const f = all.find(function(x){ return x.name === name; });
+    return f ? f.f : (name ? "'" + name + "', serif" : '');
+  };
+  const text = 'The rain has not stopped for a week.';
+  const preview = root.querySelector('#imfPreview');
+  if(preview){
+    preview.innerHTML = text.split('').map(function(ch, i){
+      const family = stack(faces[i % 3]);
+      return '<span' + (family ? ' style="font-family:' + esc(family) + '"' : '') + '>' + (ch === ' ' ? '&nbsp;' : esc(ch)) + '</span>';
+    }).join('');
+  }
+  const legend = root.querySelector('#imfLegend');
+  if(legend) legend.innerHTML = faces.map(function(name, i){ return '<span><b>' + (i + 1) + '</b> ' + esc(name || 'Editor font') + '</span>'; }).join('');
+  const button = document.querySelector('[data-imf-toggle]');
+  if(button){
+    button.classList.toggle('active', !!S.config.expMixedFonts);
+    button.setAttribute('aria-pressed', S.config.expMixedFonts ? 'true' : 'false');
+  }
+}
+window.paintImfPreview = paintImfPreview;
+
+document.addEventListener('click', function(e){
+  const toggle = e.target.closest('[data-imf-toggle]');
+  if(toggle){
+    e.preventDefault();
+    e.stopPropagation();
+    const drop = document.getElementById('imfDrop');
+    if(drop){
+      document.querySelectorAll('.imf-drop.open').forEach(function(x){ if(x !== drop) x.classList.remove('open'); });
+      drop.classList.toggle('open');
+    }
+    return;
+  }
+  if(!e.target.closest('#imfDrop')) document.querySelectorAll('.imf-drop.open').forEach(function(x){ x.classList.remove('open'); });
+}, true);
+
+document.addEventListener('change', function(e){
+  const t = e.target;
+  if(!t || !t.dataset) return;
+  if(t.dataset.imfFont !== undefined){
+    if(!Array.isArray(S.config.mixedFonts)) S.config.mixedFonts = ['', '', ''];
+    S.config.mixedFonts[Number(t.dataset.imfFont)] = t.value;
+    S.config.expMixedFonts = true;
+    S.config.font = '';
+    if(typeof applyConfig === 'function'){ applyConfig('font'); applyConfig('expMixedFonts'); }
+    paintImfPreview();
+    save();
+    return;
+  }
+  if(t.dataset.imfScope){
+    const scope = ['letter','word','sentence'].indexOf(t.value) >= 0 ? t.value : 'letter';
+    S.config.mixedFontScope = scope;
+    S.config.expMixedFonts = true;
+    S.config.font = '';
+    if(typeof applyConfig === 'function'){ applyConfig('font'); applyConfig('expMixedFonts'); }
+    paintImfPreview();
+    save();
+  }
+}, true);
 
 /* ═══════════════════════════════════════════════════════════
    MINI PLAYERS — music + video, living in the chapter bar
@@ -563,7 +656,7 @@ function renderToolbar(){
   tb.innerHTML = `
     <div class="tb-group">
       ${tbDropdown({
-        id:'font', icon:'fonts', title:'Font',
+        id:'font', icon:'fonts', title:'Editor font',
         value: S.config.font, valueLabel: S.config.font || 'Default',
         groups: fontGroupList
       })}
@@ -720,7 +813,7 @@ function mixedFontWrap(node, from, to, fontName){
 
 function mixedFontScope(){
   const s = S.config.mixedFontScope;
-  return (s === 'sentence' || s === 'random' || s === 'letter') ? s : 'word';
+  return (s === 'sentence' || s === 'word' || s === 'letter') ? s : 'letter';
 }
 
 /* Wrap every letter of [from..to] in its own span, each taking a random
@@ -769,6 +862,9 @@ function mixedFontApply(){
   if(!S.config.expMixedFonts) return;
   const fonts = mixedFontList();
   if(!fonts.length) return;
+  /* The custom controls save names, not CSS declarations. If FONTS is
+     unavailable at boot, keep the name so the setting can still be used
+     after the font pack loads. */
   const ed = $('editor');
   if(!ed) return;
   const sel = window.getSelection();

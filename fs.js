@@ -145,7 +145,7 @@ IO.exportProject = async function(){
   }
 
   const payload = {
-    app: 'ScriptForge',
+    app: 'app',
     version: 1,
     exportedAt: new Date().toISOString(),
     mode: S.mode,
@@ -226,7 +226,7 @@ IO.importProject = async function(){
   };
 
   if(!Array.isArray(d.projects)) d.projects = [];
-  d.projects.push(newProj);
+  d.projects.unshift(newProj);
   useProjectData(newProj);           // the import gets its own Views · Reference · Workflow
   d.currentCategory = catId;
   d.currentChapter = newProj.chapters[0]?.id || null;

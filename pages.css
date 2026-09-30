@@ -689,7 +689,199 @@
 .home-menu-btn i{font-size:15px;}
 
 /* ═══════════════════════════════════════════════════════════
-   PROJECT ROW — selectable (stats show in the panel on the right)
+   PROJECT ROW — selectable (stats show in the panel on the right) */
+
+/* Compact density and dashboard surfaces live here with the page styles. */
+:root{--compact-topbar:40px;--compact-status:20px;--compact-control:28px;--compact-gap:4px;}
+html body{grid-template-rows:var(--compact-topbar) 0 0 1fr var(--compact-status);}
+html body.statusbar-hidden{grid-template-rows:var(--compact-topbar) 0 0 1fr 0;}
+html body .topbar{height:var(--compact-topbar);min-height:var(--compact-topbar);padding-inline:12px;gap:8px;}
+html body .logo-btn{padding:3px 6px;gap:6px;}
+html body .logo-mark{width:22px;height:22px;font-size:12px;}
+html body .topbar-actions{gap:4px;}
+html body .topbar-btn{min-height:28px;padding:4px 9px;font-size:11px;}
+html body .topbar-btn i{font-size:12px;}
+html body .mode-pills{gap:2px;}
+html body .mode-pill{min-height:28px;padding:3px 9px;font-size:11px;}
+html body .mode-pill i{font-size:12px;}
+html body .menubar{min-height:30px;padding-inline:8px;}
+html body .menu-btn{min-height:26px;padding:3px 8px;font-size:11px;}
+html body :is(.toolbar,.write-toolbar,.sf-bar){min-height:34px;padding-block:3px;gap:var(--compact-gap);}
+html body :is(.toolbar,.write-toolbar,.sf-bar) :is(.tb-group,.sf-bar-end){gap:var(--compact-gap);}
+html body :is(.tb-btn,.write-toolbar .tb-btn,.sf-bar button,.sf-bar .ol-btn){min-width:var(--compact-control);min-height:var(--compact-control);padding:3px 7px;font-size:11px;}
+html body :is(.tb-btn,.write-toolbar .tb-btn,.sf-bar button,.sf-bar .ol-btn) i{font-size:12px;}
+html body .statusbar{min-height:var(--compact-status);padding:1px 12px;font-size:10px;line-height:1.15;}
+html body .page-head{padding-bottom:6px;}
+html body :is(.card-tile,.tile,.stat-card,.stat-card-lg){gap:4px;}
+html body .floating-import{right:12px;bottom:12px;min-height:30px;padding:5px 9px;font-size:11px;}
+html body .fab-wrap{right:12px;bottom:32px;gap:6px;}
+html body .fab-btn{width:38px;height:38px;font-size:16px;}
+html body :is(.fab-menu,.fab-ai){min-width:176px;max-height:64vh;padding:4px;}
+html body :is(.fab-menu-head,.fab-ai-head){padding-block:4px;}
+html body .panel-shell{--compact-panel-pad:8px;}
+html body .panel-head{min-height:34px;padding-block:4px;}
+html body .panel-body{padding:var(--compact-panel-pad);}
+html body .modal-head{min-height:38px;padding-block:6px;}
+html body .modal-body{padding:10px;}
+html body .pages-overlay{max-height:calc(100dvh - 64px);}
+@media (pointer:coarse){html body :is(.tb-btn,.write-toolbar .tb-btn,.sf-bar button,.sf-bar .ol-btn){min-width:36px;min-height:36px;}}
+html body :is(button,.btn,.util-chip,.ai-chip,.fab-menu button,.modal button){min-height:28px;padding:3px 8px;font-size:11px;}
+html body :is(.icon-btn,.icon-btn-sm,.v-close,.panel-icon-btn,.tb-color){min-width:28px;min-height:28px;width:28px;height:28px;padding:4px;}
+html body :is(.icon-btn,.icon-btn-sm,.v-close,.panel-icon-btn,.tb-color) i{font-size:12px;}
+html body :is(input,select,textarea,.tb-input,.tb-select,.search-input,.panel-search-input){min-height:28px;padding:4px 7px;font-size:11px;}
+html body :is(.menu-drop,.dropdown-menu,.dd-menu,.select-menu,[role="listbox"]){padding:3px;border-radius:8px;font-size:11px;}
+html body :is(.menu-drop button,.menu-drop a,[role="menuitem"],.dd-item,.dropdown-item){min-height:26px;padding:3px 8px;font-size:11px;}
+html body :is(.card-tile,.tile,.stat-card,.stat-card-lg,.draft-card,.project-card,.outline-card,.prompt-card,.kb-card){padding:8px !important;gap:4px;border-radius:8px;}
+html body :is(.card-tile,.tile,.stat-card,.stat-card-lg){min-height:0;}
+html body :is(.panel-shell,.modal,.pages-overlay,.util-panel,.notes-panel,.ai-panel,.modes-panel){border-radius:8px;}
+html body :is(.modal-body,.panel-body,.pages-overlay-body,.util-body,.notes-body,.ai-body){padding:8px;}
+html body :is(.modal-head,.panel-head,.util-head,.notes-head,.ai-head){min-height:32px;padding-block:4px;}
+html body .home-panes{gap:8px !important;}
+html body .home-pane-head{min-height:30px;padding:6px 10px !important;}
+html body .home-pane-body{gap:6px !important;padding:8px 10px 10px !important;}
+html body .home-stats{gap:6px !important;padding:8px 10px !important;}
+html body .home-stats .cat-stats-half{gap:4px !important;padding-right:10px !important;}
+html body .home-stats .cat-stats-half-b{padding-left:10px !important;}
+html body .home-stats :is(.cat-stats-head,.cat-stat-lbl){font-size:9.5px !important;}
+html body .home-stats :is(.cat-stat-val,.cat-stat-val-sm){font-size:14px !important;}
+html body .home-stats .cat-dates{gap:8px !important;}
+html body .home-recent .proj-list-head{margin-bottom:4px !important;}
+html body .home-recent .proj-list-head button{height:24px !important;padding-inline:8px !important;}
+html body .home-proj-list .proj-item-wrap{margin-bottom:3px !important;}
+html body #pagesOverlay .cat-stats{padding:6px 10px !important;gap:4px !important;}
+html body #pagesOverlay .cat-stats-half{gap:4px !important;padding-right:10px !important;}
+html body #pagesOverlay .cat-stats-half-b{padding-left:10px !important;}
+html body #pagesOverlay .pages-grid-wrap{padding:6px 12px 8px !important;}
+html body #pagesOverlay .cat-stats{min-height:92px !important;padding:6px 12px !important;gap:4px !important;}
+html body #pagesOverlay .cat-stats-head{font-size:9px !important;line-height:1.1 !important;}
+html body #pagesOverlay .cat-stat-val-sm{font-size:13px !important;}
+html body #pagesOverlay .cat-stat-val{font-size:15px !important;}
+html body #pagesOverlay .cat-stat-lbl{font-size:9px !important;}
+html body #pagesOverlay .cat-dates{margin-top:3px !important;gap:8px !important;}
+html body #pagesOverlay .projects-wrap{padding:6px 12px 8px !important;}
+html body #pagesOverlay .proj-list-head{margin-bottom:4px !important;}
+html body #pagesOverlay .proj-item{min-height:34px !important;padding:6px 8px !important;}
+html body #pagesOverlay .proj-icon{width:28px !important;height:28px !important;font-size:13px !important;}
+html body #page-home .home-panes{gap:8px !important;padding:8px 10px 10px !important;}
+html body #page-home .home-pane{border:0 !important;border-radius:8px !important;box-shadow:none !important;}
+html body #page-home .home-pane-head{min-height:30px !important;padding:6px 10px !important;}
+html body #page-home .home-pane-body{gap:6px !important;padding:8px 10px 10px !important;}
+html body #page-home .home-stats{gap:4px !important;padding:7px 9px !important;}
+html body #page-home .home-recent{gap:2px !important;}
+html body :is(.home-pane,.home-stats,.cat-stats,#pagesOverlay .cat-stats){box-shadow:none !important;filter:none !important;}
+html body #page-home .home-pane.on{border-color:var(--line-2) !important;}
+html body .cat-stats{padding:7px 10px !important;gap:4px !important;border:0 !important;border-radius:8px !important;box-shadow:none !important;}
+html body .cat-stats .cat-stats-half{gap:4px !important;}
+html body .cat-stats :is(.cat-stats-head,.cat-stat-lbl){font-size:9px !important;}
+html body .cat-stats .cat-stat-val{font-size:15px !important;}
+html body :is(#page-home,#pagesOverlay) :is(.proj-row.active,.proj-item-wrap.active){background:color-mix(in srgb,var(--surface-3) 78%,var(--overlay-strong)) !important;border-color:color-mix(in srgb,var(--line) 55%,transparent) !important;box-shadow:inset 2px 0 0 var(--accent) !important;}
+html body :is(#page-home,#pagesOverlay) .proj-row.active .proj-btn{opacity:0 !important;pointer-events:none !important;}
+
+/* Theme-aware structural dividers stay visible in every interface theme. */
+:root html body :is(.topbar,.menubar,.toolbar,.write-toolbar,.chapter-controls,.page-head,.sf-bar,.panel-head,.modal-head,.util-head,.notes-head,.ai-head){
+  border-color:var(--line-2) !important;
+}
+:root html body :is(.pages-divider,.fab-divider,.fab-menu-divider,.adv-sep,.sf-split-divider){
+  background:var(--line-2) !important;
+}
+:root html body :is(.write-toolbar,.toolbar,.tb,.fnt-bar,.sf-bar,.page-head) .tb-group{
+  border-right-color:var(--line-2) !important;
+}
+:root html body :is(.home-stats,.cat-stats) .cat-stats-half-b{
+  border-left-color:var(--line-2) !important;
+}
+html body :is(#page-home,#pagesOverlay) .proj-row.active:hover .proj-btn,html body :is(#page-home,#pagesOverlay) .proj-row:hover .proj-btn{opacity:1 !important;pointer-events:auto !important;}
+html body :is(button,input,textarea,select,[tabindex]):focus,html body :is(button,input,textarea,select,[tabindex]):focus-visible{outline:none !important;box-shadow:none !important;}
+html body *:focus,html body *:focus-visible,html body *:focus-within{outline:0 !important;box-shadow:none !important;}
+html body :is(.home-pane,.home-stats,.cat-stats,.card-tile,.tile,.stat-card,.stat-card-lg,.panel-shell,.modal,.pages-overlay,.util-panel,.notes-panel){border-color:color-mix(in srgb,var(--line) 45%,transparent) !important;box-shadow:none !important;}
+html body #page-manuscript.sf-script-page.active .sf-bar.fnt-bar{border-radius:8px !important;}
+html body #page-manuscript.sf-script-page.active .fnt-pane{border:0 !important;box-shadow:none !important;}
+html body #page-manuscript.sf-script-page.active .fnt-src-pane{border-right:1px solid color-mix(in srgb,var(--line) 45%,transparent) !important;}
+html body :is(#page-home,#pagesOverlay) :is(.home-proj-list,#projList){gap:3px !important;}
+html body :is(#page-home,#pagesOverlay) :is(.proj-item-wrap,.proj-row){min-height:32px !important;border-radius:6px !important;}
+html body :is(#page-home,#pagesOverlay) .proj-item{min-height:32px !important;gap:8px !important;padding:4px 7px !important;}
+html body :is(#page-home,#pagesOverlay) .proj-icon{flex:0 0 28px !important;width:28px !important;height:28px !important;border-radius:6px !important;font-size:12px !important;}
+html body :is(#page-home,#pagesOverlay) .proj-body{gap:1px !important;min-width:0 !important;}
+html body :is(#page-home,#pagesOverlay) .proj-name{overflow:hidden !important;font-size:11px !important;line-height:1.2 !important;text-overflow:ellipsis !important;white-space:nowrap !important;}
+html body :is(#page-home,#pagesOverlay) .proj-source{font-size:9px !important;}
+html body :is(#page-home,#pagesOverlay) .proj-actions{gap:1px !important;}
+html body :is(#page-home,#pagesOverlay) .proj-btn{width:22px !important;height:22px !important;font-size:10px !important;}
+html body #page-home .home-dashboard{display:flex !important;flex:1 1 auto !important;flex-direction:column !important;gap:6px !important;min-height:0 !important;padding:6px 10px 8px !important;overflow:hidden !important;}
+html body #page-home .home-overview-card{flex:0 0 auto !important;height:132px !important;min-height:132px !important;max-height:132px !important;overflow:hidden !important;background:var(--surface-1) !important;border:0 !important;border-radius:8px !important;box-shadow:none !important;}
+html body #page-home .home-overview-stats{height:108px !important;min-height:108px !important;max-height:108px !important;margin:6px !important;padding:12px 14px 8px !important;gap:6px !important;background:var(--surface-2) !important;border:0 !important;border-radius:8px !important;box-shadow:none !important;}
+html body #page-home .home-overview-stats .cat-stats-half{display:grid !important;grid-template-rows:auto 1fr !important;align-items:start !important;justify-content:stretch !important;gap:0 !important;padding-right:14px !important;}
+html body #page-home .home-overview-stats .cat-dates{align-self:end !important;margin-top:0 !important;padding-top:18px !important;}
+html body #page-home .home-overview-stats .cat-stats-half-b{padding-right:0 !important;padding-left:14px !important;}
+html body #page-home .home-overview-stats .cat-stat-val-sm{font-size:12.5px !important;line-height:1.15 !important;}
+html body #page-home .home-overview-stats .cat-stat-lbl{font-size:9px !important;line-height:1.1 !important;}
+html body #page-home .home-panes{flex:1 1 auto !important;min-height:0 !important;padding:0 !important;}
+/* Ten dashboard projects are a fixed page, not a scroll area. The rows share
+   the available card height so the tenth row is visible without a wheel. */
+html body #page-home .home-proj-list{
+  display:grid !important;
+  grid-template-rows:none !important;
+  grid-auto-rows:minmax(0, 1fr) !important;
+  gap:3px !important;
+  overflow:hidden !important;
+}
+html body #page-home .home-proj-list .proj-item-wrap,
+html body #page-home .home-proj-list .proj-row,
+html body #page-home .home-proj-list .proj-item{
+  min-height:0 !important;
+  height:100% !important;
+}
+html body #page-home .home-proj-list .proj-item-wrap{ margin-bottom:0 !important; }
+html body #page-home .home-proj-list{
+  align-content:start !important;
+  grid-auto-rows:38px !important;
+}
+html body #page-home .home-proj-list .proj-item-wrap,
+html body #page-home .home-proj-list .proj-row,
+html body #page-home .home-proj-list .proj-item{
+  border:0 !important;
+  outline:0 !important;
+  box-shadow:none !important;
+}
+html body #page-home .home-proj-list .proj-item{ padding-block:2px !important; }
+@media (max-height:700px){
+  html body #page-home .home-proj-list{ grid-auto-rows:34px !important; }
+}
+
+/* Script page: keep the two Fountain cards genuinely side by side, with the
+   same 8px card radius used by the dashboard and the rest of the app. */
+html body #page-manuscript.sf-script-page.active .fnt-wrap{
+  display:grid !important;
+  grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+  grid-template-rows:minmax(0, 1fr) !important;
+  width:100% !important;
+  min-width:0 !important;
+  gap:12px !important;
+}
+html body #page-manuscript.sf-script-page.active .fnt-pane{
+  display:flex !important;
+  min-width:0 !important;
+  width:auto !important;
+  border:1px solid color-mix(in srgb,var(--line) 45%,transparent) !important;
+  border-radius:8px !important;
+}
+html body #page-manuscript.sf-script-page.active .fnt-prev-pane{
+  display:flex !important;
+  visibility:visible !important;
+  opacity:1 !important;
+}
+html body #page-manuscript.sf-script-page.active .fnt-prev-pane .write-doc.fnt-doc{
+  flex:1 1 auto !important;
+  width:100% !important;
+}
+@media (max-width:760px){
+  html body #page-manuscript.sf-script-page.active .fnt-wrap{
+    grid-template-columns:minmax(0, 1fr) !important;
+    grid-template-rows:repeat(2, minmax(300px, 1fr)) !important;
+    overflow-y:auto !important;
+  }
+}
+
+
    ═══════════════════════════════════════════════════════════ */
 .proj-item-wrap{
   background:var(--surface-2);
@@ -1029,6 +1221,24 @@
   text-transform:uppercase;
   letter-spacing:.08em;
 }
+.stat-duo-card{padding:12px 13px !important;}
+.stat-duo{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+  width:100%;
+  height:100%;
+}
+.stat-duo-item{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.stat-duo-item + .stat-duo-item{
+  border-left:1px solid var(--line-2);
+  padding-left:14px;
+}
 
 /* Mid row — goal + streak */
 .stats-grid-mid{
@@ -1171,14 +1381,17 @@
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:6px;
+  gap:8px;
   height:100%;
   color:var(--ink-3);
   text-align:center;
 }
-.wave-empty i{font-size:28px;color:var(--ink-4);margin-bottom:4px;}
-.wave-empty-title{font-size:13px;font-weight:500;color:var(--ink-2);}
-.wave-empty-sub{font-size:11.5px;color:var(--ink-4);}
+/* The icon is a flex item, so it inherits the body line-height and its box
+   grows taller than the glyph — that half-leading read as a gap between the
+   glyph and the title. line-height:1 hugs it; `gap` alone owns the spacing. */
+.wave-empty i{font-size:28px;line-height:1;color:var(--ink-4);}
+.wave-empty-title{font-size:13px;font-weight:500;line-height:1.3;color:var(--ink-2);}
+.wave-empty-sub{font-size:11.5px;line-height:1.3;color:var(--ink-4);}
 
 /* Info column */
 .stats-wave-info{
@@ -5505,6 +5718,10 @@ html body .ft-hg{
   border-top:1px solid var(--line-2);
 }
 html body .ft-hg .ai-chip{ flex:1; justify-content:center; }
+html body .ft-actions{display:flex !important;gap:4px !important;margin:6px 2px 2px !important;padding-top:6px !important;border-top:1px solid var(--line-2) !important;}
+html body .ft-actions .ai-chip{flex:1 1 0;justify-content:center;min-width:0;}
+html body .ft-actions .ai-chip:disabled{opacity:.42;cursor:not-allowed;}
+html body .ft-actions .ft-primary{color:var(--accent);}
 
 /* ═══ NOTEBOOK — library split ═══ */
 html body .nb-split{ align-items:stretch; }
@@ -7008,6 +7225,11 @@ html body .draft-pane-head{
   flex:0 0 auto !important; display:flex !important; align-items:center !important; gap:8px !important;
   padding:8px 10px !important;
 }
+/* Clear takes the far end of the bar, the way .idea-clear does on the Idea
+   page and .plan-btn-clear on the Plan board. margin-left:auto is what
+   pushes it there - the head is a flex row whose other children are all
+   left-aligned. */
+html body .draft-pane-head .draft-clear{ margin-left:auto !important; }
 html body .draft-pane-title{
   flex:1 1 auto !important; min-width:0 !important;
   background:transparent !important; border:0 !important; outline:none !important;
@@ -10057,6 +10279,8 @@ html body .cust-mix-wrap > .cust-inline{
   gap:6px !important;
 }
 html body .cust-mix-wrap > .cust-inline:last-child > .sel{ min-width:220px !important; }
+html body .cust-mix-label{display:flex !important;flex-direction:column !important;gap:4px !important;min-width:0 !important;flex:1 1 0 !important;color:var(--ink-3) !important;font-size:10px !important;font-weight:600 !important;text-transform:uppercase !important;letter-spacing:.06em !important;}
+html body .cust-mix-label > .sel{width:100% !important;min-width:0 !important;}
 
 /* The chapter strip's hairlines are placed by chapter-align.js and nothing
    else — see the note in polish.js. The old --sf-sep-x margin lived here and
@@ -10753,10 +10977,12 @@ html body .cmd-box .cmd-head{ padding:10px 12px !important; }
 html body .cmd-box .cmd-input{ font-size:12.5px !important; }
 
 /* ═══ 2c · WORKSPACES ON THE ROUND BUTTON ═══
-   The button's third job: with the pointer on it, ← → or a wheel notch
-   moves to the next workspace (workspaces.js). The badge says which one
-   you are in; it is only there while you are on the button, so the button
-   stays the button the rest of the time. */
+   The button's third job: with the pointer on it, ← → ↑ ↓ or a wheel notch
+   moves to the next workspace (workspaces.js). The arrows move it the way
+   they point - ← → across, ↑ ↓ up and down - and the wheel moves it up and
+   down, which is the way a wheel points. The badge says which one you are
+   in; it is only there while you are on the button, so the button stays the
+   button the rest of the time. */
 html body .fab-wrap .fab-ws-badge{
   position:absolute;
   right:14px; bottom:12px;
@@ -10784,15 +11010,33 @@ html body .fab-wrap.ws-hover .fab-ws-badge{ opacity:1; transform:translateY(0); 
   from{ transform:translateX(-14px); opacity:.35; }
   to  { transform:translateX(0);     opacity:1; }
 }
+/* the same 14px and the same 420ms on the other axis: a wheel notch or an
+   ↑ ↓ moves the workspace that way, so the page travels with it */
+@keyframes sfWsDown{
+  from{ transform:translateY(14px);  opacity:.35; }
+  to  { transform:translateY(0);     opacity:1; }
+}
+@keyframes sfWsUp{
+  from{ transform:translateY(-14px); opacity:.35; }
+  to  { transform:translateY(0);     opacity:1; }
+}
 html body #stage.ws-slide-fwd{ animation:sfWsFwd 420ms var(--ease) both; }
 html body #stage.ws-slide-back{ animation:sfWsBack 420ms var(--ease) both; }
+html body #stage.ws-slide-down{ animation:sfWsDown 420ms var(--ease) both; }
+html body #stage.ws-slide-up{ animation:sfWsUp 420ms var(--ease) both; }
 html body .fab-wrap.ws-slide-fwd .fab-mark{ animation:sfWsFwd 420ms var(--ease) both; }
 html body .fab-wrap.ws-slide-back .fab-mark{ animation:sfWsBack 420ms var(--ease) both; }
+html body .fab-wrap.ws-slide-down .fab-mark{ animation:sfWsDown 420ms var(--ease) both; }
+html body .fab-wrap.ws-slide-up .fab-mark{ animation:sfWsUp 420ms var(--ease) both; }
 /* the preference for less motion wins, as it does everywhere else */
 html body.reduce-motion #stage.ws-slide-fwd,
 html body.reduce-motion #stage.ws-slide-back,
+html body.reduce-motion #stage.ws-slide-down,
+html body.reduce-motion #stage.ws-slide-up,
 html body.reduce-motion .fab-wrap.ws-slide-fwd .fab-mark,
-html body.reduce-motion .fab-wrap.ws-slide-back .fab-mark{ animation:none !important; }
+html body.reduce-motion .fab-wrap.ws-slide-back .fab-mark,
+html body.reduce-motion .fab-wrap.ws-slide-down .fab-mark,
+html body.reduce-motion .fab-wrap.ws-slide-up .fab-mark{ animation:none !important; }
 
 /* ═══ 3 · THE CANVAS ═══ */
 

@@ -38,6 +38,7 @@ function overlayCfg(){
   }
   const o = S.config.overlay;
   if(typeof o.open !== 'boolean') o.open = false;
+  if(typeof o.pinned !== 'boolean') o.pinned = false;
   /* the pane always starts on the dashboard when the app loads — the source
      you last picked is a session choice, not a remembered one */
   if(!window.__ovlPageInit){
@@ -61,10 +62,8 @@ function overlayCfg(){
    in PAGE_META; the extra mode pages below only exist in the page list, so
    they get a proper label here instead of showing a raw id. */
 const OVERLAY_LABELS = {
-  write:'Editor', read:'Reader', draft:'Draft', notes:'Notes', plan:'Plan',
-  board:'Board', timeline:'Timeline', cast:'Characters', research:'Research',
-  dictionary:'Dictionary', canvas:'Canvas', inspire:'Inspiration',
-  notebook:'Book', format:'Formatting', import:'Import',
+  write:'Manuscript', draft:'Draft', plan:'Plan', inspire:'Inspiration',
+  notebook:'Book', import:'Import',
   chapters:'Chapters', characters:'Characters', arcs:'Arcs', scenes:'Scenes',
   beatsheet:'Beat sheet', shots:'Shot list', episodes:'Episodes',
   seasonarc:'Season arc', acts:'Acts', blocking:'Blocking', cues:'Cues',
@@ -86,7 +85,7 @@ function overlaySources(){
     seen[id] = 1;
     out.push({ id, label: label || overlayLabel(id) });
   };
-  ['home', 'stats', 'overview', 'reader'].forEach(id => push(id));
+  ['home', 'stats', 'overview'].forEach(id => push(id));
   let pages = [];
   try{ pages = (typeof modePages === 'function') ? modePages() : []; }catch(e){ pages = []; }
   pages.forEach(id => push(id));
@@ -113,6 +112,7 @@ function overlayEls(){
   return {
     wrap:  document.getElementById('ovlWrap'),
     panel: document.getElementById('ovlPanel'),
+    pin:   document.querySelector('[data-ovl="pin"]'),
     head:  document.getElementById('ovlHead'),
     title: document.getElementById('ovlTitle'),
     sel:   document.getElementById('ovlSource'),
@@ -385,11 +385,26 @@ function splitClampW(){
   return s.w;
 }
 
+function overlayPaintPin(){
+  const el = overlayEls();
+  const pinned = overlayCfg().pinned;
+  if(el.panel) el.panel.classList.toggle('ovl-pinned', pinned);
+  if(el.pin){
+    el.pin.classList.toggle('on', pinned);
+    el.pin.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+    el.pin.setAttribute('aria-label', pinned ? 'Unpin overlay' : 'Pin overlay');
+    el.pin.title = pinned ? 'Unpin overlay' : 'Pin overlay';
+    const icon = el.pin.querySelector('i');
+    if(icon) icon.className = pinned ? 'bi bi-pin-angle-fill' : 'bi bi-pin-angle';
+  }
+}
+
 function overlayApplyMode(){
   const el = overlayEls();
   if(el.wrap)  el.wrap.classList.remove('ovl-docked');
   if(el.panel) el.panel.classList.remove('ovl-docked');
   if(el.grip)  el.grip.title = 'Drag to resize';
+  overlayPaintPin();
   document.body.classList.remove('split-open');
 }
 
@@ -442,13 +457,44 @@ window.overlayShow   = overlayShow;
 (function overlayMove(){
   const el = overlayEls();
   if(!el.panel) return;
+  /* The pin has one owner: this capture listener runs before the general
+     overlay controls and consumes the click, so it can never toggle twice. */
+  document.addEventListener('click', function(e){
+    const pin = e.target.closest && e.target.closest('[data-ovl="pin"]');
+    if(!pin) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const o = overlayCfg();
+    o.pinned = !o.pinned;
+    overlayPaintPin();
+    save();
+  }, true);
+
+  /* A pinned panel must reject the gesture before the header listener sees
+     it. Pointer and mouse listeners both run: browsers synthesize mouse
+     events from touch, and older embedded views may only send mouse events.
+     Header buttons remain live so the user can still unpin, swap, or close. */
+  const blockPinnedHeaderDrag = function(e){
+    const target = e.target;
+    if(!target || !target.closest || !target.closest('#ovlHead')) return;
+    if(target.closest('button, input, select, textarea, a, [contenteditable="true"]')) return;
+    if(!overlayCfg().pinned) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if(typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+  };
+  document.addEventListener('pointerdown', blockPinnedHeaderDrag, true);
+  document.addEventListener('mousedown', blockPinnedHeaderDrag, true);
+
   let mode = null, sx = 0, sy = 0, ox = 0, oy = 0, ow = 0, oh = 0;
 
   function start(kind, e){
     if(e.button != null && e.button !== 0) return;
+    if(e.pointerType === 'mouse' && e.buttons != null && e.buttons !== 1) return;
     if(kind === 'move' && e.target.closest('button, select, input')) return;
     if(kind === 'move' && overlayIsSplit()) return;      // a docked column doesn't move
     const o = overlayClamp();
+    if(kind === 'move' && o.pinned) return;
     mode = kind;
     sx = e.clientX; sy = e.clientY;
     ox = o.x; oy = o.y; oh = o.h;
@@ -459,7 +505,10 @@ window.overlayShow   = overlayShow;
 
   function move(e){
     if(!mode) return;
+    if(e.pointerType === 'mouse' && e.buttons === 0){ end(); return; }
     const o = overlayCfg();
+    /* Also cancel an in-flight move if pinning happens during the gesture. */
+    if(mode === 'move' && o.pinned){ end(); return; }
     const dx = e.clientX - sx, dy = e.clientY - sy;
     if(mode === 'move'){
       o.x = ox + dx;
@@ -483,12 +532,25 @@ window.overlayShow   = overlayShow;
     save();
   }
 
-  if(el.head) el.head.addEventListener('mousedown', e => start('move', e));
-  if(el.grip) el.grip.addEventListener('mousedown', e => start('size', e));
-  if(el.edge) el.edge.addEventListener('mousedown', e => start('width', e));
-  document.addEventListener('mousemove', move);
-  document.addEventListener('mouseup', end);
-  window.addEventListener('resize', () => { if(overlayCfg().open) overlayGeometry(); });
+  if(el.head){
+    el.head.addEventListener('pointerdown', blockPinnedHeaderDrag, true);
+    el.head.addEventListener('mousedown', blockPinnedHeaderDrag, true);
+  }
+  /* Only the explicit header grip starts a move. The rest of the header is
+     for its buttons and labels, so a loose pointer crossing it can never
+     drag the pane. */
+  const headGrab = el.head && el.head.querySelector('.ovl-grab');
+  if(headGrab) headGrab.addEventListener('pointerdown', e => start('move', e));
+  if(el.grip) el.grip.addEventListener('pointerdown', e => start('size', e));
+  if(el.edge) el.edge.addEventListener('pointerdown', e => start('width', e));
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', end);
+  document.addEventListener('pointercancel', end);
+  document.addEventListener('mousemove', function(e){ if(e.buttons === 0) end(); });
+  window.addEventListener('resize', () => {
+    const o = overlayCfg();
+    if(o.open && !o.pinned) overlayGeometry();
+  });
 })();
 
 /* What the pane is really showing. The pane is the same origin, so its own
@@ -723,7 +785,11 @@ const UTIL_GROUPS = [
             { id:'units', label:'Unit converter', icon:'arrow-left-right' },
             { id:'pick',  label:'Random picker',  icon:'shuffle' } ] },
   { id:'lookup', label:'Lookup', icon:'book',
-    tools:[ { id:'dictionary', label:'Dictionary', icon:'book' } ] }
+    tools:[ { id:'dictionary', label:'Dictionary', icon:'book' } ] },
+  { id:'writing-tools', label:'Audio', icon:'volume-up',
+    tools:[ { id:'voice', label:'Voice dictation', icon:'mic' },
+            { id:'tts', label:'Text-to-speech', icon:'volume-up' },
+            { id:'hinglish', label:'Live transliteration', icon:'keyboard' } ] }
 ];
 
 function notesRender(){

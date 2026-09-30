@@ -156,7 +156,22 @@
       const g = icon.getBoundingClientRect();
       const r = ref.getBoundingClientRect();
       if(!g.width || !r.width) return;
-      shift(icon, (r.left + r.width / 2) - (g.left + g.width / 2));
+      let dx = (r.left + r.width / 2) - (g.left + g.width / 2);
+      /* Toolbar alignment must never pull the first strip icon back over the
+         Subchapter picker. If the requested mark is inside that picker, keep
+         the icon at the picker's trailing edge and accept the small alignment
+         difference; clear controls are more important than a perfect column. */
+      if(icon.matches('[data-act="notes-open"]')){
+        const subchapter = bar.querySelector('select[data-subchapter-select]');
+        const picker = subchapter && subchapter.parentElement
+          ? subchapter.parentElement.querySelector('.dd-card') : null;
+        if(picker){
+          const pr = picker.getBoundingClientRect();
+          const minDx = pr.right + 8 - (g.left + g.width / 2);
+          if(pr.right && minDx > dx) dx = minDx;
+        }
+      }
+      shift(icon, dx);
     });
   };
 
@@ -459,7 +474,7 @@
       +       '</div>'
       +     '</div>'
       +     '<button class="ol-btn ol-btn-icon" data-mm="fit" title="Fit to screen"><i class="bi bi-arrows-angle-contract"></i></button>'
-      +     '<button class="ol-btn" data-mm="clear" title="Clear canvas"><i class="bi bi-eraser"></i> Clear</button>'
+      +     '<button class="ol-btn" data-mm="clear" title="Reset canvas"><i class="bi bi-eraser"></i> Reset</button>'
       +   '</div>'
       + '</div>'
       + '<div class="mm-wrap">'

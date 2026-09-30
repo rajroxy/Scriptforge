@@ -21,6 +21,16 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   };
 
+  /* Import routing treats underscores like spaces, so names such as
+     novel_fiction and screenplay_fiction are accepted by the existing rules. */
+  const importClassifier = window.classifyProjectName;
+  if(typeof importClassifier === 'function'){
+    window.classifyProjectName = function(rawName){
+      const normalized = String(rawName || '').toLowerCase().replace(/[_\-\s]+/g, ' ').trim();
+      return importClassifier(normalized);
+    };
+  }
+
   /* ═══ 1 · FONT SIZE ═══ */
   const paintSize = function(px){
     px = Math.max(10, Math.min(60, Math.round(+px || 17)));
@@ -79,11 +89,7 @@
     const words = parseInt(String((cards[0].querySelector('.stat-big') || {}).textContent || '').replace(/[^0-9]/g, ''), 10) || 0;
     const pages = Math.max(1, Math.round(words / 250));
 
-    /* keep what the four cards showed, then re-letter them */
-    const secondVal = (cards[1].querySelector('.stat-big') || {}).textContent || '0';
-    const fourthVal = (cards[3].querySelector('.stat-big') || {}).textContent || '';
-    const fourthLbl = (cards[3].querySelector('.stat-lbl') || {}).textContent || '';
-
+    /* keep the page-derived totals, then update the KPI labels */
     const setCard = function(card, icon, value, label, title){
       const ic = card.querySelector('.stat-ico i'); if(ic) ic.className = 'bi bi-' + icon;
       const big = card.querySelector('.stat-big'); if(big) big.textContent = value;
@@ -92,16 +98,36 @@
     };
 
     /* second tile → Pages */
-    setCard(cards[1], 'file-earmark', pages.toLocaleString(), 'Pages', 'About 250 words a page');
+    setCard(cards[1], 'file-earmark', pages.toLocaleString(), 'Total pages', 'About 250 words a page');
     cards[1].dataset.sfPages = '1';
 
-    /* fourth tile → Sections (with the count it was moved from) */
-    if(/reading time/i.test(fourthLbl)){
-      setCard(cards[3], 'file-earmark-text', secondVal, 'Sections', '');
-    }else{
-      setCard(cards[3], 'file-earmark-text', (fourthVal || secondVal), 'Sections', '');
-    }
-    cards[3].dataset.sfSections = '1';
+    const statsNovelCat = (S.config && S.config.statsNovel) || 'none';
+    const statsScreenplayCat = (S.config && S.config.statsScreenplay) || 'none';
+    const statsModeId = statsNovelCat !== 'none' ? 'novel' : (statsScreenplayCat !== 'none' ? 'screenplay' : null);
+    const statsCatId = statsModeId === 'novel' ? statsNovelCat : statsScreenplayCat;
+    const statsProjects = statsModeId && S.modes && S.modes[statsModeId]
+      ? (S.modes[statsModeId].projects || []).filter(function(p){ return p && p.category === statsCatId; })
+      : [];
+    const totalChapters = statsProjects.reduce(function(a, p){
+      return a + (Array.isArray(p.chapters) ? p.chapters.length : 0);
+    }, 0);
+    const totalSubchapters = statsProjects.reduce(function(a, p){
+      return a + (Array.isArray(p.chapters) ? p.chapters.reduce(function(b, c){
+        return b + ((c.children || []).length);
+      }, 0) : 0);
+    }, 0);
+    const isScreenplay = statsModeId === 'screenplay';
+    const primaryLabel = isScreenplay ? 'Total scenes' : 'Total chapters';
+    const secondaryLabel = isScreenplay ? 'Total subscenes' : 'Total subchapters';
+    const primaryIcon = isScreenplay ? 'film' : 'book';
+    const secondaryIcon = isScreenplay ? 'camera-reels' : 'diagram-2';
+    cards[2].classList.add('stat-duo-card');
+    cards[2].innerHTML = '<div class="stat-duo">' +
+      '<div class="stat-duo-item"><div class="stat-ico"><i class="bi bi-' + primaryIcon + '"></i></div><div class="stat-big">' + totalChapters.toLocaleString() + '</div><div class="stat-lbl">' + primaryLabel + '</div></div>' +
+      '<div class="stat-duo-item"><div class="stat-ico"><i class="bi bi-' + secondaryIcon + '"></i></div><div class="stat-big">' + totalSubchapters.toLocaleString() + '</div><div class="stat-lbl">' + secondaryLabel + '</div></div>' +
+    '</div>';
+    setCard(cards[3], 'collection', statsProjects.length.toLocaleString(), 'Total projects', 'Projects in the selected category');
+
   };
 
   /* ═══ KANBAN — a chapter card holds its subchapters
@@ -463,7 +489,7 @@
     if(!bar) return;
 
     /* the AI settings button — and the popover it opens — are off this page:
-       the bar is Prompt me and the three pickers, nothing else */
+       the bar is the page's own type, New prompt, and Clear at the far end */
     Array.prototype.forEach.call(root.querySelectorAll('.idea-ai-wrap'), function(el){ el.remove(); });
 
     if(bar.querySelector('[data-sf-picks]')) return;   /* already built */
@@ -471,39 +497,21 @@
     if(!S.config.ideaAI) S.config.ideaAI = {};
     const cfg = S.config.ideaAI;
 
-    /* the two pickers sit in the bar itself: Genres on the left, where Themes
-       used to be, then Tags — and Clear where Genres used to sit, at the
-       right end of the bar */
+    /* one group at the right end of the bar, and it holds Clear alone */
     const box = document.createElement('div');
     box.className = 'idea-picks';
     box.setAttribute('data-sf-picks', '1');
     box.innerHTML =
-      [['genre', 'Genres', GENRES, cfg.genre, ''],
-       ['tag',   'Tags',   TAGS,   cfg.tag,   '']]
-        .map(function(p){
-          return '<label class="idea-pick' + p[4] + '">'
-            + '<span>' + p[1] + '</span>'
-            + '<select class="sel" data-sf-pick="' + p[0] + '">'
-            + p[2].map(function(v){
-                return '<option value="' + esc(v) + '"' + ((p[3] || p[2][0]) === v ? ' selected' : '') + '>' + esc(v) + '</option>';
-              }).join('')
-            + '</select></label>';
-        }).join('')
-      /* Clear keeps the end of the bar: it empties the prompt the card you
-         are on is showing */
-      + '<button class="ol-btn idea-clear" data-sf-clear="1"'
+      /* Genres and Tags are OFF this page. They only ever flavoured the AI
+         door that used to sit at the left end of this bar, and that door is
+         gone: the page does not write prompts for the writer any more. Clear
+         keeps the end of the bar, and it empties the prompt the card you are
+         on is showing. */
+      '<button class="ol-btn idea-clear" data-sf-clear="1"'
       +   ' title="Clear the prompt in the card you are on">'
       +   '<i class="bi bi-eraser"></i><span>Clear</span></button>';
 
     bar.appendChild(box);
-
-    box.addEventListener('change', function(e){
-      const sel = e.target.closest('[data-sf-pick]');
-      if(!sel) return;
-      S.config.ideaAI[sel.dataset.sfPick] = sel.value;
-      if(typeof save === 'function') save();
-      if(typeof toast === 'function') toast(sel.value === 'None' ? 'Cleared' : sel.value);
-    }, true);
 
     if(typeof window.enhanceSelects === 'function') window.enhanceSelects(box);
   }

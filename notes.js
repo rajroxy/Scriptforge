@@ -647,11 +647,30 @@ document.addEventListener('keydown', function(e){
 }, true);
 
 /* ═══ Settings tab ═══ */
+/* This is the one row builder in the app that does NOT go through row() in
+   settings.js - it lays itself out inline instead of taking the .set-row
+   class. That is why it was missed when every other option lost its second
+   line, and why a scan counting .set-row reported this tab as empty when it
+   was not. The subtitle is gone here too; the `sub` argument stays so the
+   call sites still line up. */
+/* The label grows. This row is space-between, and a range row ends up with
+   THREE children, not two: the slider, and then a .rng-val readout that
+   index.html appends to input.parentElement - the row - after this returns
+   (index.html:1090). With only the label growing, space-between spread all
+   three across the full width and the slider floated in the middle of the
+   row with a gap on each side, while the toggle above it sat hard right.
+   Letting the label absorb the free space packs the slider and its number
+   together at the right edge, which is where every other settings row puts
+   its control: the built ones wrap theirs in a .set-ctrl, so label / control
+   and nothing in between.
+
+   flex rather than width, so it holds whatever the readout turns out to be
+   and however wide the number gets. */
 function sndRow(label, sub, control){
   const r = document.createElement('div');
+  r.className = 'snd-row';
   r.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;';
-  r.innerHTML = '<div style="min-width:0"><div style="font-size:12.5px;color:var(--ink);">' + label +
-    '</div><div style="font-size:10.5px;color:var(--ink-4);margin-top:2px;">' + sub + '</div></div>';
+  r.innerHTML = '<div class="snd-lbl" style="flex:1 1 auto;min-width:0"><div style="font-size:12.5px;color:var(--ink);">' + label + '</div></div>';
   r.appendChild(control);
   return r;
 }

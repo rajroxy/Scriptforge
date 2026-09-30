@@ -81,8 +81,7 @@ function renderPagesOverlay(){
       <div class="projects-wrap">
         <div class="proj-list-head">
           <div class="pages-grid-label">
-            <i class="bi bi-clock-history"></i> Recent projects
-          </div>
+            <i class="bi bi-clock-history"></i> Projects</div>
           ${selectedCat ? `
           <button data-proj-open-sel title="Open the project selected in the list below">
             <i class="bi bi-folder2-open"></i> Open project
@@ -107,20 +106,42 @@ function renderPagesOverlay(){
 let statsProjectId = null;
 
 function setStatsProject(pid){
-  statsProjectId = pid || null;
+  const next = pid || null;
+  if(next && statsProjectId === next){
+    statsProjectId = null;
+    Object.keys(homePick).forEach(function(modeId){ delete homePick[modeId]; });
+    homeLastPick = null;
+    return;
+  }
+  statsProjectId = next;
+  /* One project is selected at a time across both mode cards. */
+  Object.keys(homePick).forEach(function(modeId){ delete homePick[modeId]; });
+  if(pid){
+    let ownerMode = null;
+    Object.keys(S.modes || {}).forEach(function(modeId){
+      if(!ownerMode && ((S.modes[modeId] && S.modes[modeId].projects) || []).some(function(p){ return p.id === pid; })) ownerMode = modeId;
+    });
+    if(ownerMode){
+      homePick[ownerMode] = pid;
+      homeLastPick = pid;
+    }
+  } else {
+    homeLastPick = null;
+  }
 }
 
 function getStatsProject(){
   return statsProjectId;
 }
 
-/* ── A project's card, as the two halves it is: “Project stats” and
+/* ── A project's card, as the two halves it is: “Stats” and
    “Progress”. One builder for both places that show it — the panel over the
    projects list, and the novel / screenplay cards on the dashboard — so the
    two can never drift apart. */
-function statsHalvesHTML(proj){
+function statsHalvesHTML(proj, heading){
+  const statsHeading = heading || 'Stats';
   if(!proj){
-    return '<div class="cat-stats-half"><div class="cat-stats-head"><i class="bi bi-bar-chart"></i> Project stats</div>' +
+    return '<div class="cat-stats-half"><div class="cat-stats-head"><i class="bi bi-bar-chart"></i> ' + statsHeading + '</div>' +
       '<div class="cat-stats-empty">Click a project to see its stats.</div></div>' +
       '<div class="cat-stats-half cat-stats-half-b"><div class="cat-stats-head"><i class="bi bi-hdd-stack"></i> Progress</div>' +
       '<div class="cat-stats-empty">—</div></div>';
@@ -136,12 +157,14 @@ function statsHalvesHTML(proj){
   const created = dt(proj.created);
   const upd     = dt(proj.updated || proj.created);
 
-  /* units come from the PROJECT's mode (never the mode you're browsing in) */
-  const L = (typeof CH_LABELS !== 'undefined' && CH_LABELS[proj.mode]) || { ch:'Chapter', sub:'Subchapter' };
+  /* The progress card names the sections from the project's own mode. */
+  const L = proj.mode === 'screenplay'
+    ? { ch:'Scene', sub:'Subscene' }
+    : { ch:'Chapter', sub:'Subchapter' };
 
   return `
     <div class="cat-stats-half">
-      <div class="cat-stats-head"><i class="bi bi-bar-chart"></i> Project stats</div>
+      <div class="cat-stats-head"><i class="bi bi-bar-chart"></i> ${statsHeading}</div>
       <div class="cat-dates">
         <div class="cat-stat">
           <div class="cat-stat-val-sm">${created}</div>
@@ -157,15 +180,24 @@ function statsHalvesHTML(proj){
       <div class="cat-stats-head"><i class="bi bi-hdd-stack"></i> Progress</div>
       <div class="cat-dates">
         <div class="cat-stat">
-          <div class="cat-stat-lbl">${L.ch}</div>
           <div class="cat-stat-val">${chCount}</div>
+          <div class="cat-stat-lbl">${L.ch}</div>
         </div>
         <div class="cat-stat cat-stat-right">
-          <div class="cat-stat-lbl">${L.sub}</div>
           <div class="cat-stat-val">${subCount}</div>
+          <div class="cat-stat-lbl">${L.sub}</div>
         </div>
       </div>
     </div>`;
+}
+
+/* The dashboard's own card: the Stats half ALONE. statsHalvesHTML still
+   draws both halves, because the projects panel wants the pair — this card
+   is not that panel, and the Progress half is not drawn here. */
+function statsCardHTML(proj, heading){
+  const both = statsHalvesHTML(proj, heading);
+  const cut = both.indexOf('<div class="cat-stats-half cat-stats-half-b">');
+  return cut > 0 ? both.slice(0, cut) : both;
 }
 
 // Stats panel sitting in the empty space to the right of the category cards.
@@ -221,7 +253,7 @@ function renderProjectsForCategory(catId){
     const pa = pins.indexOf(a.id) >= 0 ? 0 : 1, pb = pins.indexOf(b.id) >= 0 ? 0 : 1;
     if(pa !== pb) return pa - pb;
     return (b.created || 0) - (a.created || 0);
-  }).slice(0, 10);
+  });
   if(!projs.length){
     list.innerHTML = `<div class="pages-empty" style="padding:24px;">No projects in ${esc(getCatName(catId))} yet.</div>`;
     return;
@@ -286,7 +318,7 @@ function togglePagesOverlay(force){
 
 function goPage(id){
   // Allow universal pages (home, overview, stats, reader)
-  const universalPages = ['home', 'overview', 'stats', 'reader'];
+  const universalPages = ['home', 'overview', 'stats'];
   if(!universalPages.includes(id) && !modePages().includes(id)){
     toast('Page not available in this mode', 'warn');
     return;
@@ -449,16 +481,18 @@ function updateStatusBar(){
 
 const PAGE_RENDERERS = {};
 
-/* The projects of one mode, in the order the projects panel lists them:
-   pinned first, then newest, and never more than the ten that panel shows. */
-function projectsOfMode(m){
+/* Recent-project view for one mode/category: pinned first, newest next, and
+   unlimited in storage. The dashboard paginates this complete list. */
+function projectsOfMode(m, categoryId){
   const data = (S.modes && S.modes[m.id]) || {};
   const pins = pinnedProjects();
-  return (data.projects || []).slice().sort(function(a, b){
+  const all = data.projects || [];
+  const list = categoryId ? all.filter(function(p){ return p.category === categoryId; }) : all;
+  return list.slice().sort(function(a, b){
     const pa = pins.indexOf(a.id) >= 0 ? 0 : 1, pb = pins.indexOf(b.id) >= 0 ? 0 : 1;
     if(pa !== pb) return pa - pb;
     return (b.created || 0) - (a.created || 0);
-  }).slice(0, 10);
+  });
 }
 
 /* ── the project a dashboard card is describing ──
@@ -466,6 +500,46 @@ function projectsOfMode(m){
    list, exactly as in the projects panel: session-only, never saved, and one
    pick per mode so the two cards never describe the same row. */
 const homePick = {};
+const HOME_PROJECT_PAGE_SIZE = 8;    /* the fallback - homeProjPerPage rules */
+const homeProjectPages = {};
+
+/* ── THE PROJECT CARD'S LAYOUT, PER MODE ──────────────────────────
+   Settings -> General carries one of these per mode, so Novel and
+   Screenplay are set independently:
+
+     'tiles'  two columns, ten projects a page. The 20px gutter between
+              the two columns IS the divider - the hairline that used to
+              be painted down the middle of it is gone, so what is left is
+              an invisible one.
+     'list'   one column, five projects a page, nothing dividing anything.
+
+   Both are the same row markup, and five rows tall either way: tiles put
+   those five rows in two columns (ten projects), list stacks five in one.
+   Anything unrecognised - including a config from before this existed -
+   resolves to 'tiles', which is what the card already looked like. */
+const HOME_PROJ_KEY = { novel:'projCardNovel', screenplay:'projCardScreenplay' };
+function homeProjLayout(modeId){
+  let v = null;
+  try { v = S.config[HOME_PROJ_KEY[modeId] || 'projCardNovel']; } catch(e){}
+  return v === 'list' ? 'list' : 'tiles';
+}
+function homeProjPerPage(modeId){
+  return homeProjLayout(modeId) === 'list' ? 5 : 10;
+}
+/* The overview follows the most recently clicked project. */
+let homeLastPick = null;
+
+function homeProjectPage(modeId, totalPages){
+  const maxPage = Math.max(0, totalPages - 1);
+  const page = Math.min(Math.max(0, homeProjectPages[modeId] || 0), maxPage);
+  homeProjectPages[modeId] = page;
+  return page;
+}
+function setHomeProjectPage(modeId, page){
+  homeProjectPages[modeId] = Math.max(0, Number(page) || 0);
+  refreshHomeCards();
+}
+window.setHomeProjectPage = setHomeProjectPage;
 
 function getHomePick(modeId){
   return homePick[modeId] || null;
@@ -479,7 +553,19 @@ function setHomePick(pid){
     if((S.modes[k].projects || []).some(function(p){ return p.id === pid; })) mode = k;
   });
   if(!mode) return;
+  /* Clicking the selected project again clears the selection. */
+  if(homePick[mode] === pid){
+    Object.keys(homePick).forEach(function(modeId){ delete homePick[modeId]; });
+    homeLastPick = null;
+    statsProjectId = null;
+    refreshHomeCards();
+    return;
+  }
+  /* Selecting a different project removes the previous row's active state. */
+  Object.keys(homePick).forEach(function(modeId){ delete homePick[modeId]; });
   homePick[mode] = pid;
+  homeLastPick = pid;
+  statsProjectId = pid;
   refreshHomeCards();
 }
 window.setHomePick = setHomePick;
@@ -520,79 +606,185 @@ function homeProjectRow(p, modeId){
 }
 
 // ─── HOME ───
-/* The dashboard is two cards — Novel and Screenplay — sized like the two
-   panes of the Script page: side by side, filling what the top bar leaves.
-   Each card is built the way the projects panel is: the mode's own head strip
-   first, then the project's stats · its progress, then its recent projects. */
+/* The dashboard: one card for the Stats of the project clicked in the list,
+   and one card that IS the workspace — the active mode's projects, with the
+   mode, the search and the two actions in its own bar.
+
+   Both cards are 60% of the page and centred on it, so they line up as one
+   column down the middle. */
+
+/* ── the dashboard's search box ─────────────────────────
+   Session only, like every other dashboard pick: it narrows the one card
+   below the box and nothing is written to the project. */
+let homeSearchQ = '';
+let homeSearchOpen = false;
+function setHomeSearch(q){
+  homeSearchQ = String(q == null ? '' : q);
+  refreshHomeCards();
+}
+window.setHomeSearch = setHomeSearch;
+
+/* The bar keeps a 28px magnifier, not a field: that button puts the field
+   there and focuses it (which has to wait for the repaint the button
+   causes). Because it is the same button in the same spot once the field is
+   open, clicking it again takes the field away — and closing has to clear,
+   since a filtered list with no box on screen would read as lost projects.
+   A live query keeps the field open, so a filtered list can never lose the
+   box it was filtered with. Session only, like the query. */
+function toggleHomeSearch(open){
+  const next = (open === undefined) ? !homeSearchOpen : !!open;
+  homeSearchOpen = next;
+  if(!next) homeSearchQ = '';
+  refreshHomeCards();
+  if(!next) return;
+  setTimeout(function(){
+    const el = document.querySelector('#page-home [data-home-search]');
+    if(!el) return;
+    try{ el.focus(); el.select(); }catch(e){}
+  }, 0);
+}
+window.toggleHomeSearch = toggleHomeSearch;
+
+/* Escape inside the field lands here: clear a live filter, or put the
+   magnifier back when there is nothing left to clear, so the first Escape
+   clears and the second closes the box. */
+
+function clearHomeSearch(){
+  const had = !!String(homeSearchQ || '').trim();
+  homeSearchQ = '';
+  homeSearchOpen = had;
+  refreshHomeCards();
+  /* the repaint takes the focus with it, so hand it back: without this a
+     second Escape — the one that closes the box — reaches the body, not
+     the field. */
+  if(!homeSearchOpen) return;
+  setTimeout(function(){
+    const el = document.querySelector('#page-home [data-home-search]');
+    if(el){ try{ el.focus(); }catch(e){} }
+  }, 0);
+}
+window.clearHomeSearch = clearHomeSearch;
+
 PAGE_RENDERERS.home = function(root){
   const d = D();
   const mode = currentMode() || MODES[0];
-  const words = (typeof totalWords === 'function') ? totalWords() : 0;
-  const chapters = d.chapters ? flatChs(d.chapters).length : 0;
-  const projects = d.projects ? d.projects.length : 0;
-  const today = new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+  const mData = S.modes[mode.id] || {};
+  const catId = mData.currentCategory || ((mode.categories && mode.categories[0] && mode.categories[0].id) || null);
+  const other = MODES.filter(function(m){ return m.id !== mode.id; })[0] || null;
 
-  const modePanes = MODES.map(function(m){
-    const on = (m.id === S.mode) ? ' on' : '';
-    const data = S.modes[m.id] || {};
-    const count = data.chapters ? flatChs(data.chapters).length : 0;
-    const catId = data.currentCategory || ((m.categories && m.categories[0] && m.categories[0].id) || null);
-    const projs = projectsOfMode(m);
-    /* the stats · progress halves speak only for the project clicked in the
-       list below them — never for the mode's own open project */
-    const pick = getHomePick(m.id);
-    const proj = pick ? (projs.filter(function(p){ return p.id === pick; })[0] || null) : null;
-    /* New project belongs to the mode the card is: on the active card it is
-       the panel's own button, on the other one it switches first. */
-    const newBtn = !catId ? ''
-      : (on
-          ? '<button data-cat-new="' + catId + '" title="New project"><i class="bi bi-plus-lg"></i> New project</button>'
-          : '<button data-home-new="' + m.id + '" title="New project"><i class="bi bi-plus-lg"></i> New project</button>');
-    /* the panel's own pair: open what the list has selected */
-    const openBtn = proj
-      ? '<button data-home-open-sel="' + m.id + '" title="Open the project selected in the list below">' +
-        '<i class="bi bi-folder2-open"></i> Open project</button>'
-      : '';
+  /* ── the Stats card — the project clicked in the list below ── */
+  const overviewProject = (homeLastPick
+    ? MODES.map(function(m){ return projectsOfMode(m).filter(function(p){ return p.id === homeLastPick; })[0] || null; }).filter(Boolean)[0]
+    : null) || MODES.map(function(m){
+      const pick = getHomePick(m.id);
+      return pick ? (projectsOfMode(m).filter(function(p){ return p.id === pick; })[0] || null) : null;
+    }).filter(Boolean)[0] || null;
+  const overviewCard = '<section class="home-overview-card" style="height:120px;min-height:120px;max-height:120px;flex:0 0 120px;box-sizing:border-box;">' +
+    '<div class="home-stats home-overview-stats" style="height:108px;min-height:108px;max-height:108px;margin:6px;box-sizing:border-box;">' +
+      statsCardHTML(overviewProject, 'Stats') +
+    '</div>' +
+  '</section>';
 
-    const statsBlock = proj
-      ? '<div class="home-stats">' + statsHalvesHTML(proj) + '</div><div class="home-pane-div"></div>'
-      : '';
-    return '<section class="home-pane' + on + '">' +
-      '<div class="home-pane-head" data-home-mode="' + m.id + '" title="Switch to ' + m.name + '">' +
-        '<i class="bi bi-' + m.icon + '"></i>' +
-        '<span class="home-pane-name">' + m.name + '</span>' +
-        '<span class="home-pane-count">' + count + '</span>' +
-      '</div>' +
-      '<div class="home-pane-body">' +
-        statsBlock +
-        '<div class="home-recent">' +
-          '<div class="proj-list-head">' +
-            '<div class="pages-grid-label"><i class="bi bi-clock-history"></i> Recent projects</div>' +
-            openBtn +
-            newBtn +
-          '</div>' +
-          '<div class="home-proj-list">' +
-            (projs.length
-              ? projs.map(function(p){ return homeProjectRow(p, m.id); }).join('')
-              : '<div class="pages-empty" style="padding:12px 2px;">No projects in ' + esc(m.name) + ' yet.</div>') +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-    '</section>';
-  }).join('');
+  /* ── the workspace card — the active mode's projects ──
+     One card, one mode: the mode the toggle at its top left is showing. The
+     search box narrows the list before the page is cut, so the pager counts
+     what is actually on screen. */
+  const every = projectsOfMode(mode, mData.currentCategory);
+  const needle = homeSearchQ.trim().toLowerCase();
+  const all = needle
+    ? every.filter(function(p){ return String(p.name || '').toLowerCase().indexOf(needle) >= 0; })
+    : every;
+
+  const folderKey = 'folderView' + mode.id.charAt(0).toUpperCase() + mode.id.slice(1);
+  const folderMode = S.config[folderKey] != null
+    ? S.config[folderKey]
+    : (S.config.folderView === true ? 'cards' : (S.config.folderView || 'off'));
+  const projLayout = homeProjLayout(mode.id);
+  const perPage = homeProjPerPage(mode.id);
+  const pageCount = Math.max(1, Math.ceil(all.length / perPage));
+  const pageIndex = homeProjectPage(mode.id, pageCount);
+  const projs = folderMode === 'all'
+    ? all
+    : all.slice(pageIndex * perPage, (pageIndex + 1) * perPage);
+
+  /* the Stats card above describes the project this list has selected */
+  const pick = getHomePick(mode.id);
+  const proj = pick ? (every.filter(function(p){ return p.id === pick; })[0] || null) : null;
+
+  /* The label reads page-end — 1-8, 2-16, 3-24, 4-32: the page you are on,
+     and how much of the list you have reached by the end of it. The end is
+     that page's own last item, so the last page of 39 reads 39 rather than
+     the nominal 40. The total is not printed: the pager's own chevrons say
+     where the list ends. */
+  const rangeEnd = Math.min((pageIndex + 1) * perPage, all.length);
+  const pager = (folderMode === 'all' || !all.length) ? '' :
+    '<div class="home-project-pager">' +
+      '<button type="button" data-home-page="prev" data-home-page-mode="' + mode.id + '" data-home-page-index="' + pageIndex + '" aria-label="Previous projects"' + (pageIndex === 0 ? ' disabled' : '') + '><i class="bi bi-chevron-left"></i></button>' +
+      '<span class="home-pager-num">' + (pageIndex + 1) + '-' + rangeEnd + '</span>' +
+      '<button type="button" data-home-page="next" data-home-page-mode="' + mode.id + '" data-home-page-index="' + pageIndex + '" aria-label="Next projects"' + (pageIndex >= pageCount - 1 ? ' disabled' : '') + '><i class="bi bi-chevron-right"></i></button>' +
+    '</div>';
+
+  const rows = projs.length
+    ? projs.map(function(p){ return homeProjectRow(p, mode.id); }).join('')
+    : '<div class="home-empty">' + (needle
+        ? 'No project named &ldquo;' + esc(homeSearchQ.trim()) + '&rdquo; in ' + esc(mode.name) + '.'
+        : 'No projects in ' + esc(mode.name) + ' yet.') + '</div>';
+
+  /* the bar's four parts, built as strings because the markup is the same
+     whether or not there is a second mode to switch to */
+  const toggleBtn = '<button type="button" class="home-mode-toggle" data-home-mode="' + (other ? other.id : mode.id) + '"' +
+      ' title="' + (other ? 'Switch to ' + other.name : mode.name) + '">' +
+      '<i class="bi bi-' + mode.icon + '"></i>' +
+      '<span class="home-mode-name">' + esc(mode.name) + '</span>' +
+      (other ? '<i class="bi bi-arrow-left-right home-mode-swap"></i>' : '') +
+    '</button>';
+  /* Where the magnifier used to sit, the bar carries the CATEGORY: the same
+     28px chip the Statistics bar shows beside its mode switch, so the two
+     bars read as one system. The filter the magnifier opened goes with it -
+     homeSearchQ is left at '' and nothing writes it any more, so every
+     project in the category is on the pages. */
+  const catName = catId ? getCatName(catId) : '';
+  const searchBox = catName
+    ? '<span class="home-cat-label" title="' + esc(mode.name) + ' · ' + esc(catName) + '">' + esc(catName) + '</span>'
+    : '';
+  /* Open is only offered once there is something to open: it acts on the
+     project picked in the list, so with nothing picked there is nothing for
+     it to do and it stays out of the bar entirely. The pick survives a
+     search, so a filtered list still has it. */
+  const openBtn = proj
+    ? '<button type="button" data-home-open-sel="' + mode.id + '" title="Open ' + esc(proj.name || 'the selected project') + '">' +
+        '<i class="bi bi-folder2-open"></i> Open</button>'
+    : '';
+  const newBtn = catId
+    ? '<button type="button" data-cat-new="' + catId + '" title="New project"><i class="bi bi-plus-lg"></i> New</button>'
+    : '';
 
   root.innerHTML = `
-    <div class="home-panes">${modePanes}</div>
+    <div class="home-dashboard">
+      ${overviewCard}
+
+      <section class="home-workspace">
+        <div class="home-workspace-bar">
+          ${toggleBtn}
+          <span class="home-bar-div" aria-hidden="true"></span>
+          ${searchBox}
+          <div class="home-bar-actions">${openBtn}${newBtn}</div>
+        </div>
+        <div class="home-proj-list" data-proj-layout="${projLayout}">${rows}</div>
+        ${pager}
+      </section>
+    </div>
 
     <style>
-      /* The dashboard: two cards, one per mode, built like the Script page's
-         two panes — the same box (.fnt-pane: surface-2 · line-2 · r-md)
-         stretched over the whole canvas, under a head strip of its own.
+      /* ══ THE DASHBOARD ══
+         Two cards down the middle of the page, both 60% wide and centred on
+         it, so their edges agree: the Stats card, then the workspace card.
 
-         Up in each card: the stats · progress of the project clicked in the
-         list below — the same two halves the projects panel draws
-         (statsHalvesHTML), and empty until a project is clicked.
-         Down: that mode's recent projects. */
+         Neither is a band across the page any more. A column flex item's
+         width defaults to the cross axis — stretch — which is what made the
+         old card the full 1210px however it was styled inside. align-self
+         takes it off stretch, and the 60% is then a real width. Measured at
+         a 1230px page: 726px each, dead centre. */
       html body #page-home.active{
         display:flex;
         flex-direction:column;
@@ -600,121 +792,335 @@ PAGE_RENDERERS.home = function(root){
         min-height:0;
         overflow:hidden;
       }
-      html body .home-panes{
-        flex:1 1 auto;
-        min-height:0;
-        display:flex;
-        align-items:stretch;
-        gap:12px;
-        padding:14px 16px 16px;
+      /* 12px shorter, and it gives them up at its TOP edge: the card's top
+         moves down 12px (margin-top) while its bottom edge stays where it
+         was (132 → 120), so the heading and the hint travel down with it.
+         The inner surface is still 108 + its 6px margins = exactly 120, so
+         the card ends up with the same 6px band top and bottom.
+
+         120px is its floor. The inner surface is 108 with 12/14/8 padding,
+         so it has 88px of content box, and a picked project already fills
+         92 of them (19.5 head + 72.5 dates), which is the 4px the card was
+         clipping before this pass. Anything shorter cuts the Updated date,
+         so the second 12px comes off the top edge instead — measured 24px
+         below the toolbar now, bottom edge 190, height still 120. */
+      html body #page-home .home-overview-card{
+        align-self:center !important;
+        width:60% !important;
+        min-width:430px !important;
+        max-width:100% !important;
+        flex:0 0 auto !important;
+        height:120px !important;
+        min-height:120px !important;
+        max-height:120px !important;
+        margin-top:24px !important;
       }
-      html body .home-pane{
-        flex:1 1 50%;
-        min-width:0;
-        min-height:0;
+      /* width:auto, NOT width:100%: the inner surface carries a 6px margin
+         of its own and a 100% width ignores it, which put it 6px past the
+         card's right edge to be clipped by overflow:hidden. */
+      html body #page-home .home-overview-stats{
+        width:auto !important;
+        justify-content:center !important;
+      }
+      /* stretch, so the half owns the whole 88px content box and the dates
+         block parked on its bottom edge really sits there: the pair moved
+         down 23px (the block's bottom 152.8 → 176) and the Created /
+         Updated line lands 8px above the card's foot like the panel's. */
+      html body #page-home .home-overview-stats .cat-stats-half{
+        flex:1 1 auto !important;
+        align-self:stretch !important;
+        /* the card's own height is definite (108px), so 100% is the 88px
+           content box: the half's second grid row then really is a 1fr row
+           and the dates parked at its end land on the card's foot. A bare
+           align-self:stretch does nothing here — the parent lays its one
+           row out at content height. */
+        height:100% !important;
+        width:100% !important;
+        min-width:0 !important;
+        max-width:none !important;
+        padding-right:0 !important;
+        padding-left:0 !important;
+      }
+      /* ── Created and Updated on ONE line ──
+         .cat-dates is a plain block, so its two .cat-stat children — each a
+         flex column — stacked: Created on the first line, Updated
+         right-aligned on the second. That is what made the pair look
+         inconsistent. The projects panel draws them as a row
+         (pages.css:5623 — "dates sit together, right-aligned"), and this is
+         that same row: Created left, Updated right, both starting on the
+         same line. It also halves the block, 72.5px → 45px. */
+      html body #page-home .home-overview-stats .cat-dates{
+        display:flex !important;
+        align-items:flex-start !important;
+        justify-content:space-between !important;
+        gap:14px !important;
+        width:100% !important;
+      }
+      html body #page-home .home-overview-stats .cat-dates .cat-stat{
+        flex:0 1 auto !important;
+        min-width:0 !important;
+      }
+
+      /* ── the workspace card ──
+         Built exactly like the Stats card above it and like every panel in
+         the app (pages.css:810 / the overlay's .cat-stats): surface-1, no
+         border, an 8px radius. The bar inside it is surface-2 and the two
+         actions are surface-3, which is the app's own nesting — page
+         #1b1a19 → box #292725 → nested #312e2c — so the rows and the
+         buttons read as grey blocks the way they do everywhere else.
+         The card used to be surface-2, the same tone as its rows, which is
+         why nothing on it looked grey at all. */
+      html body .home-workspace{
+        align-self:center !important;
+        width:60% !important;
+        min-width:430px !important;
+        max-width:100% !important;
+        flex:1 1 auto !important;
+        min-height:0 !important;
         display:flex;
         flex-direction:column;
-        background:var(--surface-2);
-        border:1px solid var(--line-2);
-        border-radius:var(--r-md);
+        background:var(--surface-1);
+        border:0;
+        border-radius:8px;
         overflow:hidden;
-        transition:border-color var(--t-fast) var(--ease);
+        /* the mirror of the card above: it gives its height up at its BOTTOM
+           edge, so its top edge and everything in it stays put. 24px now —
+           12 from the first pass, another 12 for "a little more". */
+        margin-bottom:24px !important;
       }
-      html body .home-pane.on{ border-color:var(--accent); }
-      /* the head strip — the pane's own hint row: icon · name · count */
-      html body .home-pane-head{
+
+      /* the bar: toggle · divider · search ......... Open · New Project
+         44px tall with 8px padding, the app's own bar height (.sf-bar is
+         8px 10px around 28px controls); 12px across so the bar, the rows
+         and the pager share one inset. */
+      html body .home-workspace-bar{
+        flex:0 0 auto;
+        display:flex;
+        align-items:center;
+        gap:10px;
+        padding:8px 12px;
+        border-bottom:1px solid var(--line-2);
+        background:var(--surface-2);
+      }
+      /* one step lighter than the bar it sits on, the app's rule for a
+         control inside a panel — and no border, like every control in the
+         catch-up skin. The doubled class beats pages.css:728's 28px/3px 8px
+         floor on every button. */
+      html body .home-workspace-bar .home-mode-toggle{
+        flex:0 0 auto;
+        display:inline-flex;
+        align-items:center;
+        gap:7px;
+        height:28px;
+        padding:0 10px;
+        border:0;
+        border-radius:var(--r-md);
+        background:var(--surface-3);
+        color:var(--ink);
+        cursor:pointer;
+        transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+      }
+      html body .home-workspace-bar .home-mode-toggle:hover{
+        background:var(--surface-4);
+        color:var(--ink);
+      }
+      html body .home-mode-toggle > i:first-child{ font-size:13px; color:var(--accent); }
+      html body .home-mode-swap{ font-size:10px !important; color:var(--ink-4) !important; }
+      html body .home-mode-name{
+        font-size:11px;
+        font-weight:600;
+        text-transform:uppercase;
+        letter-spacing:.08em;
+      }
+      html body .home-bar-div{
+        flex:0 0 auto;
+        width:1px;
+        align-self:stretch;
+        margin:1px 2px;
+        background:var(--line-2);
+      }
+      html body .home-search-btn{
+        flex:0 0 auto;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        width:28px;
+        height:28px;
+        padding:0;
+        border:0;
+        border-radius:var(--r-md);
+        background:var(--surface-3);
+        color:var(--ink-2);
+        cursor:pointer;
+        transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+      }
+      html body .home-search-btn:hover{ background:var(--surface-4); color:var(--ink); }
+      html body .home-search-btn i{ font-size:12px; }
+      html body .home-search{
+        flex:1 1 auto;
+        min-width:0;
+        display:flex;
+        align-items:center;
+        gap:7px;
+        height:28px;
+        padding:0 10px;
+        border:0;
+        border-radius:var(--r-md);
+        background:var(--surface-3);
+      }
+      html body .home-search:focus-within{ background:var(--surface-4); }
+      html body .home-search > i{ font-size:11px; color:var(--ink-4); flex:0 0 auto; }
+      /* the field's leading button — the same control that opened it, so it
+         closes it, and it keeps the magnifier glyph while the field is open.
+         Its tip reads “Search projects”, not “Close …”, on purpose: app.js's
+         icon sweep (§7) rewrites any button whose title or aria-label starts
+         with “close” to bi-x-lg, which is what kept turning this magnifier
+         into an X a frame after the field opened. Two classes deep so
+         pages.css:728's 28px/3px 8px button floor cannot stretch a 16px
+         icon inside a 28px field. */
+      html body .home-search .home-search-toggle{
+        flex:0 0 auto;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        width:16px;
+        height:16px;
+        min-width:0;
+        min-height:0;
+        padding:0;
+        border:0;
+        border-radius:0;
+        background:transparent;
+        color:var(--ink-4);
+        cursor:pointer;
+      }
+      html body .home-search .home-search-toggle:hover{ color:var(--ink); }
+      html body .home-search .home-search-toggle i{ font-size:11px; }
+      html body .home-search input{
+        flex:1 1 auto;
+        min-width:0;
+        height:100%;
+        border:0;
+        background:transparent;
+        color:var(--ink);
+        font-size:11.5px;
+        outline:0;
+      }
+      html body .home-search input::placeholder{ color:var(--ink-4); }
+      html body .home-search input::-webkit-search-cancel-button{ display:none; }
+      html body .home-bar-actions{
         flex:0 0 auto;
         display:flex;
         align-items:center;
         gap:8px;
-        padding:10px 14px;
-        border-bottom:1px solid var(--line-2);
-        background:var(--surface-1);
-        cursor:pointer;
-      }
-      html body .home-pane-head i{ font-size:14px; color:var(--ink-3); }
-      html body .home-pane.on .home-pane-head i{ color:var(--accent); }
-      html body .home-pane-name{
-        font-size:10.5px;
-        font-weight:600;
-        text-transform:uppercase;
-        letter-spacing:.08em;
-        color:var(--ink-3);
-      }
-      html body .home-pane.on .home-pane-name{ color:var(--ink); }
-      html body .home-pane-count{
         margin-left:auto;
-        font-size:9.5px;
-        font-weight:600;
-        color:var(--ink-4);
+      }
+      /* The two actions are the app's project-list head buttons
+         (pages.css:8377 — "Open project · New project"), to the letter:
+         28px tall, 0 10px, no border, surface-3 on ink-2, 11.5px/500, a 6px
+         radius, hover surface-4. Square and outline is what they were when
+         they carried no styling of their own at all. */
+      html body .home-workspace-bar .home-bar-actions button{
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        height:28px;
+        padding:0 10px;
+        border:0;
+        border-radius:var(--r-md);
         background:var(--surface-3);
-        padding:1px 7px;
-        border-radius:10px;
+        color:var(--ink-2);
+        font-size:11.5px;
+        font-weight:500;
+        white-space:nowrap;
+        cursor:pointer;
+        transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
       }
-      html body .home-pane.on .home-pane-count{ background:var(--surface-4); color:var(--ink-2); }
-      html body .home-pane-body{
-        flex:1 1 auto;
+      html body .home-workspace-bar .home-bar-actions button:hover{
+        background:var(--surface-4);
+        color:var(--ink);
+      }
+      html body .home-workspace-bar .home-bar-actions button i{ font-size:12px; }
+
+      /* ── the list ──
+         The row height is final-fix.js's (grid-auto-rows:minmax(0,43px) on
+         .home-proj-list); this only gives it the box. Nothing scrolls: eight
+         rows stay inside the card at every window height. */
+      html body .home-workspace .home-proj-list{
+        flex:0 1 auto;
         min-height:0;
-        display:flex;
-        flex-direction:column;
-        gap:10px;
-        padding:12px 14px 14px;
+        overflow:hidden;
+        padding:12px 12px 0;
       }
-      html body .home-stats{
+      /* ── the rows carry no fill of their own ──
+         A grey block on every row read as ten selected projects. A row is
+         flat until you point at it (--surface-3, the app's own row hover)
+         or pick it, and picking is the only thing that draws a selection:
+         pages.css:777's lighter mix plus its 2px accent bar. :not(.active)
+         keeps this rule off that one. */
+      html body #page-home .home-proj-list :is(.proj-item-wrap,.proj-row):not(.active){
+        background:transparent !important;
+      }
+      html body #page-home .home-proj-list :is(.proj-item-wrap,.proj-row):not(.active):hover{
+        background:var(--surface-3) !important;
+      }
+      html body .home-empty{
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        min-height:90px;
+        padding:16px;
+        color:var(--ink-4);
+        font-size:11.5px;
+        text-align:center;
+      }
+
+      /* ── the pager: chevrons either side, the page in the middle ──
+         margin-top:auto keeps it on the card's bottom edge whatever the
+         list's height is, and a 1px line-2 hairline closes the list off
+         above it — the same border-top every pager in the app carries
+         (the draft list's, the Bible's, the player's). Its 8px bottom
+         padding is the app's own panel padding (.projects-wrap is
+         6px 12px 8px), so it no longer sits 1px off the card's edge. */
+      html body .home-workspace .home-project-pager{ margin-top:auto !important; }
+      html body .home-project-pager{
+        position:relative;
         flex:0 0 auto;
         display:flex;
-        flex-direction:row;
-        align-items:stretch;
-        padding:12px 14px;
-        background:var(--surface-1);
-        border:1px solid var(--line);
-        border-radius:var(--r-md);
-      }
-      html body .home-stats .cat-stats-half{
-        flex:1 1 0;
-        min-width:0;
-        display:flex;
-        flex-direction:column;
-        gap:8px;
-        padding-right:14px;
-      }
-      html body .home-stats .cat-stats-half-b{
-        padding-right:0;
-        padding-left:14px;
-        border-left:1px solid var(--line);
-      }
-      html body .home-stats .cat-dates{
-        display:flex;
-        align-items:flex-start;
+        align-items:center;
         justify-content:space-between;
-        gap:12px;
         width:100%;
+        gap:10px;
+        padding:6px 12px 8px;
+        border-top:1px solid var(--line-2);
+        color:var(--ink-3);
+        font-size:10px;
       }
-      html body .home-stats .cat-stat-val{ font-size:17px; }
-      html body .home-pane-div{ flex:0 0 auto; height:1px; background:var(--line); }
-      html body .home-recent{
-        flex:1 1 auto;
-        min-height:0;
-        display:flex;
-        flex-direction:column;
-        gap:2px;
+      html body .home-pager-num{
+        position:absolute;
+        left:50%;
+        transform:translateX(-50%);
+        white-space:nowrap;
       }
-      html body .home-recent .pages-grid-label{ margin-bottom:0; }
-      html body .home-recent .proj-list-head{ margin-bottom:6px; }
-      html body .home-proj-list{
-        flex:1 1 auto;
-        min-height:0;
-        overflow-y:auto;
-        padding-right:4px;
-        scrollbar-width:thin;
-        scrollbar-color:var(--line-3) transparent;
+      html body .home-project-pager button{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        width:28px;
+        height:28px;
+        padding:0;
+        border:0;
+        border-radius:var(--r-md);
+        background:var(--surface-3);
+        color:var(--ink-2);
+        cursor:pointer;
+        transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
       }
-      html body .home-proj-list .proj-item-wrap{ margin-bottom:4px; }
-      /* one column when there is no room for two */
-      @media (max-width:900px){
-        html body .home-panes{ flex-direction:column; overflow-y:auto; }
-        html body .home-pane{ flex:1 1 auto; min-height:320px; }
+      html body .home-workspace .home-project-pager button:hover:not(:disabled){
+        background:var(--surface-4);
+        color:var(--ink);
       }
+      html body .home-workspace .home-project-pager button:disabled{ opacity:.45; cursor:not-allowed; }
     </style>
   `;
 };
@@ -726,7 +1132,7 @@ const OV_FEATURES_LEGACY = [
     icon:'journal-bookmark', tag:'Story bible', title:'The Bible',
     what:'A living reference for every name, place, item, event and beat in the project — kept beside the draft instead of in a separate document.',
     how:['Open the FAB → <b>Bible</b> (or Pages → Bible).',
-         'Pick a category in the top bar — Characters, Locations, Items, Events, Organizations, Concepts, Timeline.',
+         'Pick a category in the top bar — Events, Characters, Locations, Items, Organizations, Concepts.',
          'The list is on the left, the big working panel on the right. Type and it saves as you go.',
          'Press <b>+</b> in the panel to add an entry, or the <b>Aa</b> button to set that page’s type.'],
     go:'bible', cta:'Open the Bible'
@@ -745,15 +1151,15 @@ const OV_FEATURES_LEGACY = [
     how:['Select text in the editor.',
          'Right-click → the Google-translate-style panel opens with the language list.',
          'Choose <b>Hindi</b>, <b>English</b> or any of the languages, then <b>Replace</b> or <b>Append</b>.',
-         'Turned on/off in Settings → Typography → Intermixed fonts and Settings → AI Assistance → Assistant actions.'],
+         'Turned on/off from the IMF dropdown in the manuscript bar and Settings → AI Assistance → Assistant actions.'],
     go:'write', cta:'Open the editor'
   },
   {
     icon:'fonts', tag:'Typography', title:'Three fonts, mixed live',
     what:'A rotation of three fonts that can drop in per letter, per word or per sentence while you type — plus a per-page type panel for Outline, Kanban and Bible.',
-    how:['Settings → Typography → Intermixed fonts, then pick the three faces.',
-         'Choose the scope: letter, word or sentence.',
-         'Click a Font chip (1, 2, 3) then type — that font is used for what you write next.',
+    how:['Open Manuscript or Script and use the IMF dropdown in the chapter bar.',
+         'Turn Intermixing on, choose Font 1, Font 2 and Font 3, then choose letter, word or sentence.',
+         'Type in the editor; the selected faces rotate automatically as you go.',
          'The <b>Aa</b> button on Outline, Kanban and Bible sets that page’s font, size, leading and weight.'],
     openSettings:'typography', cta:'Open Typography'
   },
@@ -1529,7 +1935,7 @@ PAGE_RENDERERS.kanban = function(root){
         <button class="ol-btn" data-kb="newlist"><i class="bi bi-plus-lg"></i> New list</button>
       </div>
       <div class="ol-actions">
-        <button class="ol-btn" data-kb="reset"><i class="bi bi-arrow-counterclockwise"></i> Reset board</button>
+        <button class="ol-btn" data-kb="reset"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
       </div>
     </div>
     <div class="kb-board" id="kbBoard"></div>`;
@@ -1627,7 +2033,7 @@ PAGE_RENDERERS.kanban = function(root){
 
 // ═══ BIBLE — a story bible with a category bar and one big working panel ═══
 const BB_TABS = [
-  { id:'timeline',     name:'Timeline',      icon:'git',           item:'Timeline entry' },
+  { id:'timeline',     name:'Timeline',      icon:'clock-history', item:'Event' },
   { id:'event',        name:'Events',        icon:'calendar-event',item:'Event' },
   { id:'character',    name:'Characters',    icon:'people',        item:'Character' },
   { id:'location',     name:'Locations',     icon:'geo-alt',       item:'Location' },
@@ -1636,8 +2042,10 @@ const BB_TABS = [
   { id:'concept',      name:'Concepts',      icon:'lightbulb',     item:'Concept' },
   
 ];
-let _bbTab = 'character';
+let _bbTab = 'timeline';   /* the page opens on Timeline, not Characters */
 let _bbSel = null;
+let _bbOff = false;      /* the entry was let go on purpose - do not pick one */
+let _bbPage = 0;
 
 var BB_KEYS = { character:'characters', location:'locations', item:'items', scene:'scenes', event:'events', organization:'organizations', concept:'concepts' };
 
@@ -1690,6 +2098,11 @@ PAGE_RENDERERS.bible = function(root){
           <input id="bbQuery" placeholder="Filter…" autocomplete="off">
         </div>
         <div class="bb-rows" id="bbRows"></div>
+        <div class="bb-pager">
+          <button class="mv-pager-btn" data-bb-page="-1" title="Previous"><i class="bi bi-chevron-left"></i></button>
+          <span class="vpl-range" id="bbRange">0</span>
+          <button class="mv-pager-btn" data-bb-page="1" title="Next"><i class="bi bi-chevron-right"></i></button>
+        </div>
       </aside>
       <section class="bb-detail" id="bbDetail"></section>
     </div>`;
@@ -1717,6 +2130,15 @@ function renderBbTabs(){
       + (n ? '<em>' + n + '</em>' : '') + '</button>';
   }).join('');
 }
+/* How many rows fit the panel. The avatar row is 44px with the comfort
+   scale's padding, and the list is measured rather than assumed, so a tall
+   window pages by more entries than a short one - the same rule
+   draftPerPage() (pages.js) and the notebook's own pager use. */
+function bbPerPage(){
+  const box = $('bbRows');
+  const h = (box && box.clientHeight) || 0;
+  return h ? Math.max(4, Math.floor(h / 44)) : 12;
+}
 function renderBbRows(){
   const box = $('bbRows');
   if(!box) return;
@@ -1728,7 +2150,9 @@ function renderBbRows(){
           || String(e.details || e.desc || '').toLowerCase().indexOf(q) >= 0;
     });
   }
-  if(_bbSel == null || bbIndexOf(_bbTab, _bbSel) < 0){
+  if(_bbOff){
+    _bbSel = null;                       /* let go on purpose: nothing is on */
+  } else if(_bbSel == null || bbIndexOf(_bbTab, _bbSel) < 0){
     _bbSel = list.length ? String(list[0].id || list[0].name) : null;
   }
   if(!list.length){
@@ -1736,8 +2160,18 @@ function renderBbRows(){
     box.innerHTML = '<div class="bb-empty"><i class="bi bi-' + (tab ? tab.icon : 'journal') + '"></i>'
       + '<div>' + (q ? 'Nothing matches “' + esc(q) + '”' : 'No ' + (tab ? tab.name.toLowerCase() : 'entries') + ' yet') + '</div>'
       + '<button class="ol-btn ol-btn-primary" data-bb="add">Add the first one</button></div>';
+    paintBbPager(0, 0, 1, 1);
     return;
   }
+  /* the page the list is cut into - the pager at the panel's foot reads it */
+  const all = list;
+  const per = bbPerPage();
+  const pages = Math.max(1, Math.ceil(all.length / per));
+  if(_bbPage > pages - 1) _bbPage = pages - 1;
+  if(_bbPage < 0) _bbPage = 0;
+  const from = _bbPage * per;
+  list = all.slice(from, from + per);
+  paintBbPager(from, all.length, per, pages);
   box.innerHTML = list.map(function(e){
     const id = String(e.id || e.name);
     const title = e.name || e.title || 'Untitled';
@@ -1749,6 +2183,17 @@ function renderBbRows(){
       + (e.date ? '<span class="bb-row-sub">' + esc(e.date) + '</span>' : (sub ? '<span class="bb-row-sub">' + esc(sub) + '</span>' : ''))
       + '</span></button>';
   }).join('');
+}
+/* the pager's own paint: the dashboard's "1-8", and the two chevrons'
+   on/off state. Kept in one place so an empty list and a full one agree. */
+function paintBbPager(from, total, per, pages){
+  const rng = $('bbRange');
+  /* the dashboard's numbering: the page, then the row that page ends at */
+  if(rng) rng.textContent = total ? ((_bbPage + 1) + '-' + Math.min((_bbPage + 1) * per, total)) : '0';
+  const pv = document.querySelector('[data-bb-page="-1"]');
+  const nx = document.querySelector('[data-bb-page="1"]');
+  if(pv) pv.disabled = _bbPage <= 0;
+  if(nx) nx.disabled = _bbPage >= pages - 1;
 }
 function renderBbDetail(){
   const box = $('bbDetail');
@@ -1799,18 +2244,31 @@ function renderBbDetail(){
 
 /* one delegated handler for the whole page */
 document.addEventListener('click', function(e){
+  const pg = e.target.closest('[data-bb-page]');
+  if(pg){
+    e.preventDefault();
+    _bbPage = Math.max(0, _bbPage + parseInt(pg.dataset.bbPage, 10));
+    renderBbRows();
+    return;
+  }
   const tabBtn = e.target.closest('[data-bb-tab]');
   if(tabBtn){
     e.preventDefault();
     _bbTab = tabBtn.dataset.bbTab;
     _bbSel = null;
+    _bbOff = false;
+    _bbPage = 0;
     renderBbTabs(); renderBbRows(); renderBbDetail(); paintBbWord();
     return;
   }
   const row = e.target.closest('[data-bb-open]');
   if(row){
     e.preventDefault();
-    _bbSel = row.dataset.bbOpen;
+    /* a second click on the entry you are on lets it go — the dashboard's
+       own gesture — and the pane beside the list goes back to asking for one */
+    const same = (row.dataset.bbOpen === _bbSel);
+    _bbSel = same ? null : row.dataset.bbOpen;
+    _bbOff = same;
     renderBbRows(); renderBbDetail();
     return;
   }
@@ -1849,7 +2307,9 @@ document.addEventListener('click', function(e){
 
 document.addEventListener('input', function(e){
   const q = e.target.closest('#bbQuery');
-  if(q){ renderBbRows(); renderBbDetail(); return; }
+  if(q){ _bbPage = 0; renderBbRows(); renderBbDetail(); return; }
+  const dq = e.target.closest('#draftQuery');
+  if(dq){ _draftPage = 0; renderDrafts(); return; }
   const f = e.target.closest('[data-bb-field]');
   if(!f) return;
   const list = bbList(_bbTab);
@@ -2101,13 +2561,17 @@ PAGE_RENDERERS.draft = function(root){
       <aside class="draft-list">
         <div class="draft-list-head">
           <button class="icon-btn-sm" data-act="add-draft" title="New draft"><i class="bi bi-plus-lg"></i></button>
-          <span class="draft-pager">
-            <button class="mv-pager-btn" data-draft-page="-1" title="Previous"><i class="bi bi-chevron-left"></i></button>
-            <span class="vpl-range" id="draftRange">0</span>
-            <button class="mv-pager-btn" data-draft-page="1" title="Next"><i class="bi bi-chevron-right"></i></button>
-          </span>
+        </div>
+        <div class="bb-search">
+          <i class="bi bi-search"></i>
+          <input id="draftQuery" placeholder="Filter…" autocomplete="off">
         </div>
         <div class="draft-rows" id="draftRows"></div>
+        <div class="draft-pager">
+          <button class="mv-pager-btn" data-draft-page="-1" title="Previous"><i class="bi bi-chevron-left"></i></button>
+          <span class="vpl-range" id="draftRange">0</span>
+          <button class="mv-pager-btn" data-draft-page="1" title="Next"><i class="bi bi-chevron-right"></i></button>
+        </div>
       </aside>
       <section class="draft-pane">
         <header class="draft-pane-head">
@@ -2127,6 +2591,9 @@ PAGE_RENDERERS.draft = function(root){
         </header>
         <textarea class="draft-pane-body" id="draftBody" placeholder="Write here — plain text." spellcheck="true"></textarea>
       </section>
+      <button class="ol-btn draft-clear" data-act="draft-clear" title="Clear the text in the draft you are on">
+        <i class="bi bi-eraser"></i><span>Clear</span>
+      </button>
     </div>`;
 
   const f = $('draftFont'), s = $('draftSize');
@@ -2150,12 +2617,28 @@ function renderDrafts(){
   const rows = $('draftRows');
   if(!rows) return;
   DRAFT_PER_PAGE = draftMeasurePerPage();
-  const list = D().drafts || [];
+  /* The filter box above the list narrows the list before it is cut into
+     pages, the way the Bible's own box does, so the pager counts what is
+     really on screen. `all` stays the whole array: every row index
+     (data-draft-pick, the selection, rename, delete) has to keep pointing at
+     the same draft it pointed at before the box was typed in. */
+  const all  = D().drafts || [];
+  const qEl  = $('draftQuery');
+  const q    = (qEl && qEl.value ? qEl.value : '').trim().toLowerCase();
+  const list = q
+    ? all.filter(function(d){
+        return String(d.title || '').toLowerCase().indexOf(q) >= 0
+            || String(d.body  || '').toLowerCase().indexOf(q) >= 0;
+      })
+    : all;
   const per  = draftPerPage();
   const pages = Math.max(1, Math.ceil(list.length / per));
 
-  if(list.length) _draftSel = Math.max(0, Math.min(_draftSel, list.length - 1));
-  else { _draftSel = 0; _draftPage = 0; }
+  if(all.length && _draftSel >= 0) _draftSel = Math.min(_draftSel, all.length - 1);
+  else if(!all.length) { _draftSel = -1; _draftPage = 0; }
+  /* a filter that hides the selected draft picks the first match instead, so
+     the pane never edits a draft that is not in the list */
+  if(_draftSel >= 0 && q && list.length && list.indexOf(all[_draftSel]) < 0) _draftSel = all.indexOf(list[0]);
 
   _draftPage = Math.max(0, Math.min(_draftPage, pages - 1));
 
@@ -2163,8 +2646,8 @@ function renderDrafts(){
   const slice = list.slice(from, from + per);
 
   rows.innerHTML = slice.length
-    ? slice.map(function(d, k){
-        const i = from + k;
+    ? slice.map(function(d){
+        const i = all.indexOf(d);
         return '<div class="draft-row' + (i === _draftSel ? ' on' : '') + '" data-draft-pick="' + i + '">' +
             '<span class="draft-row-num">' + (i + 1) + '</span>' +
             '<span class="draft-row-title">' + esc(d.title || 'Untitled draft') + '</span>' +
@@ -2180,7 +2663,7 @@ function renderDrafts(){
             '</span>' +
           '</div>';
       }).join('')
-    : '<div class="draft-empty">No drafts yet</div>';
+    : '<div class="draft-empty">' + (q ? 'No draft matches this filter' : 'No drafts yet') + '</div>';
 
   /* learn the real row height once, then refit the page to the panel */
   if(!_draftRowH){
@@ -2192,13 +2675,14 @@ function renderDrafts(){
   }
 
   const range = $('draftRange');
-  if(range) range.textContent = list.length ? ((from + 1) + '–' + Math.min(from + per, list.length)) : '0';
+  /* the dashboard's numbering: the page, then the row that page ends at */
+  if(range) range.textContent = list.length ? ((_draftPage + 1) + '-' + Math.min((_draftPage + 1) * per, list.length)) : '0';
   const prev = document.querySelector('[data-draft-page="-1"]');
   const next = document.querySelector('[data-draft-page="1"]');
   if(prev) prev.disabled = _draftPage <= 0;
   if(next) next.disabled = _draftPage >= pages - 1;
 
-  const d = list[_draftSel];
+  const d = all[_draftSel];
   const t = $('draftTitle'), b = $('draftBody'), f = $('draftFont'), s = $('draftSize');
 
   if(t){
@@ -2229,11 +2713,115 @@ function draftToolbarSync(){
   save();
 }
 
+/* ── RENAME IN PLACE ────────────────────────────────────
+   The pencil used to focus #draftTitle - a title field in the pane head. The
+   pane head is the font and size drops now and has no title field, so
+   $('draftTitle') was null and the pencil did nothing at all. The + button
+   was worse: it focused the same missing field, so a new draft could never
+   be named either. That is the bug, and it is in two places, not one.
+   The row's own title becomes an input instead - exactly what the chat list
+   beside it does (draft-chat.js) - wearing that list's .dc-rename skin. The
+   title is written only on commit, so a repaint can never pull the input out
+   from under the caret mid-word. */
+function draftRenameStart(i){
+  const d = (D().drafts || [])[i];
+  if(!d) return;
+  const row = document.querySelector('.draft-row[data-draft-pick="' + i + '"]');
+  const span = row && row.querySelector('.draft-row-title');
+  if(!span || span.tagName === 'INPUT') return;
+  const inp = document.createElement('input');
+  inp.className = 'draft-row-title dc-rename';
+  inp.setAttribute('data-draft-rename-input', String(i));
+  inp.value = d.title || '';
+  inp.placeholder = 'Draft name';
+  inp.spellcheck = false;
+  span.replaceWith(inp);
+  inp.focus();
+  inp.select();
+}
+function draftRenameCommit(i, val, cancel){
+  const d = (D().drafts || [])[i];
+  if(d && !cancel){
+    const name = String(val == null ? '' : val).trim();
+    if(name !== (d.title || '')){
+      d.title = name;
+      save();
+      if(typeof toast === 'function') toast(name ? 'Renamed' : 'Name cleared');
+    }
+  }
+  renderDrafts();
+}
+window.draftRenameStart = draftRenameStart;
+
+/* Escape has to be caught on the way DOWN, on window, before anything else
+   looks at the key. The app's own Escape handling blurs whatever is focused,
+   and a blur is what commits this field - so a cancel that arrived at
+   document level ran AFTER the commit and wrote the typed name into the file
+   anyway. Measured, not guessed: Escape left "TYPED" stored in the draft.
+   All this does is raise a flag; the blur handler is the only place that
+   writes. Order can no longer decide whether a cancel cancels.
+   Enter is caught here too, because a text input does not blur itself on
+   Enter; blur() is what commits. */
+window.addEventListener('keydown', function(e){
+  const t = e.target;
+  const inp = t && t.closest && t.closest('[data-draft-rename-input]');
+  if(!inp) return;
+  if(e.key === 'Escape'){
+    /* put the row back at once: waiting for the blur would leave the field
+       open with the abandoned name still in it, and the flag on it would
+       then swallow the next commit as well (measured). */
+    e.preventDefault(); e.stopPropagation();
+    inp.__sfCancel = true;
+    renderDrafts();
+  }
+  else if(e.key === 'Enter'){ e.preventDefault(); inp.blur(); }
+}, true);
+
+/* blur does not bubble, so this listens on the way down. An input that is no
+   longer in the document is one a repaint already took away - nothing left to
+   commit. */
+document.addEventListener('blur', function(e){
+  const t = e.target;
+  const inp = t && t.closest && t.closest('[data-draft-rename-input]');
+  if(!inp) return;
+  /* A cancelled rename has already been put back by the Escape handler, and
+     repainting again from here lands INSIDE the blur that removing the input
+     dispatched - Chromium refuses the second innerHTML with "the node to be
+     removed is no longer a child of this node" (measured, page error). The
+     cancel path owns its own repaint; this one just gets out of the way. */
+  if(inp.__sfCancel) return;
+  if(!document.body.contains(inp)) return;
+  draftRenameCommit(parseInt(inp.dataset.draftRenameInput, 10) || 0, inp.value, false);
+}, true);
+
+/* ── CLEAR ─────────────────────────────────────────────
+   The end of the bar, the way the Idea and Plan pages keep their own Clear:
+   it empties the thing the page is showing, which here is the text of the
+   draft you are on. The NAME is left alone on purpose - naming is the
+   pencil's job, and a Clear that also unnamed the draft would be a delete
+   that never said so (there is already a Remove beside it, and it asks). */
+document.addEventListener('click', function(e){
+  const btn = e.target.closest('[data-act="draft-clear"]');
+  if(!btn) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  const d = (D().drafts || [])[_draftSel];
+  if(!d) return;
+  if(!String(d.body || '').trim()){ if(typeof toast === 'function') toast('This draft is empty'); return; }
+  if(!confirm('Clear the text in "' + (d.title || 'this draft') + '"? Cannot be undone.')) return;
+  d.body = '';
+  save();
+  renderDrafts();
+  if(typeof toast === 'function') toast('Draft cleared');
+}, true);
+
 /* pick · page · rename */
 document.addEventListener('click', function(e){
   const pick = e.target.closest('[data-draft-pick]');
   if(pick && !e.target.closest('button')){
-    _draftSel = parseInt(pick.dataset.draftPick, 10) || 0;
+    /* a second click on the draft you are on lets it go (-1) — the same
+       gesture the dashboard's project card has — and the pane goes quiet */
+    const n = parseInt(pick.dataset.draftPick, 10) || 0;
+    _draftSel = (n === _draftSel) ? -1 : n;
     save(); renderDrafts(); return;
   }
     const add = e.target.closest('[data-act="add-draft"]');
@@ -2247,8 +2835,9 @@ document.addEventListener('click', function(e){
     });
     _draftSel = 0; _draftPage = 0;
     save(); renderDrafts();
-    const t = $('draftTitle');
-    if(t){ t.focus(); t.select(); }
+    /* straight into its name: the field in the pane head this used to focus
+       is gone, so a new draft could never be named */
+    draftRenameStart(0);
     return;
   }
   const del = e.target.closest('[data-draft-del]');
@@ -2276,8 +2865,7 @@ document.addEventListener('click', function(e){
   const ren = e.target.closest('[data-draft-rename]');
   if(ren){
     e.preventDefault();
-    const t = $('draftTitle');
-    if(t){ t.focus(); t.select(); }
+    draftRenameStart(parseInt(ren.dataset.draftRename, 10) || 0);
     return;
   }
   /* the dropdown card writes .value on the hidden <select> — resync after it */
@@ -3092,33 +3680,55 @@ PAGE_RENDERERS.stats = function(root){
         }).join('');
   };
 
-  // Category selected from either Novel or Screenplay
-  const selectedNovel = S.config.statsNovel || 'none';
-  const selectedScreenplay = S.config.statsScreenplay || 'none';
-  void selectedNovel; void selectedScreenplay;   // read via S.config in paintCat
+  /* ── THE BAR ─────────────────────────────────────────────────────
+     The dashboard's own three-part shape, on this page: the mode switch, a
+     hairline, then the control the switch belongs to.
+
+     This page used to carry a Novel card AND a Screenplay card side by side,
+     each with its own list, and nothing that said which mode you were
+     reading — the body below decided that for itself, from whichever
+     category was set, preferring novel when both were. Now the switch is the
+     mode on screen, it flips to the other one exactly as the workspace
+     card's toggle does, and the one category list follows it. The two modes
+     stay mutually exclusive, the way they always were: choosing a category
+     for one clears the other, which is also what keeps renderStatsBody()
+     and polish.js's KPI labels in step without either of them learning a
+     new key. */
+  const STAT_KEY = { novel:'statsNovel', screenplay:'statsScreenplay' };
+  const statKey  = function(id){ return STAT_KEY[id] || STAT_KEY.novel; };
+  const statDef  = function(id){ return MODES.filter(function(m){ return m.id === id; })[0] || MODES[0]; };
+  const viewedMode = function(){
+    const pick = S.config.statsMode;
+    if(pick === 'novel' || pick === 'screenplay') return pick;
+    if((S.config.statsNovel || 'none') !== 'none') return 'novel';
+    if((S.config.statsScreenplay || 'none') !== 'none') return 'screenplay';
+    const cur = (typeof currentMode === 'function') ? currentMode() : null;
+    return (cur && cur.id) || MODES[0].id;
+  };
+
+  const onMode = viewedMode();
+  const onDef  = statDef(onMode);
+  const offDef = MODES.filter(function(m){ return m.id !== onMode; })[0] || null;
 
   root.innerHTML = `
     <div class="stats-page">
 
+      <div class="modal-head stats-head" id="statsHead">
+        <button class="icon-btn v-close" data-act="stats-close" title="Close" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
       <div class="stats-top">
         <div class="stats-drops">
-          <div class="stats-cat-card" data-stats-novel>
-            <button type="button" class="stats-cat-title"><i class="bi bi-journal-bookmark"></i> Novel<span class="stats-cat-value">None</span><i class="bi bi-chevron-down stats-cat-caret"></i></button>
-            <div class="stats-cat-list">
-              <button class="stats-cat-item" data-value="none"><span>None</span><i class="bi bi-check2"></i></button>
-              <button class="stats-cat-item" data-value="fiction"><span>Fiction</span><i class="bi bi-check2"></i></button>
-            </div>
-          </div>
-          <div class="stats-cat-card" data-stats-screenplay>
-            <button type="button" class="stats-cat-title"><i class="bi bi-film"></i> Screenplay<span class="stats-cat-value">None</span><i class="bi bi-chevron-down stats-cat-caret"></i></button>
-            <div class="stats-cat-list">
-              <button class="stats-cat-item" data-value="none"><span>None</span><i class="bi bi-check2"></i></button>
-              <button class="stats-cat-item" data-value="fiction"><span>Fiction</span><i class="bi bi-check2"></i></button>
-            </div>
-          </div>
+          <button type="button" class="stats-mode-toggle" data-act="stats-mode" data-stats-other="${offDef ? offDef.id : onMode}" title="${offDef ? 'Switch to ' + esc(offDef.name) : esc(onDef.name)}"><i class="bi bi-${onDef.icon}"></i><span class="stats-mode-name">${esc(onDef.name)}</span><i class="bi bi-arrow-left-right stats-mode-swap"></i></button>
+          <span class="stats-bar-div" aria-hidden="true"></span>
+          <span class="stats-cat-label" id="statsCatLabel"></span>
         </div>
         <button class="btn btn-ghost" data-act="stats-export">
-          <i class="bi bi-download"></i> Export report
+          <i class="bi bi-box-arrow-up"></i> Export
         </button>
       </div>
 
@@ -3138,43 +3748,58 @@ PAGE_RENDERERS.stats = function(root){
     </div>
   `;
 
-  /* The lists come from the modes: Novel and Screenplay each offer their
-     own categories and nothing else. */
-  ['novel', 'screenplay'].forEach(function(id){
-    const card = root.querySelector('[data-stats-' + id + ']');
-    const list = card && card.querySelector('.stats-cat-list');
-    if(list && !list.querySelector('[data-value="nonfiction"]')) list.innerHTML = catItems(id);
-  });
-  // Paint + wire the category boxes (Vercel-style scrollable lists)
-  const novelBox  = root.querySelector('[data-stats-novel]');
-  const screenBox = root.querySelector('[data-stats-screenplay]');
+  /* ── THE CATEGORY ON THE BAR ─────────────────────────────────────
+     It is a label, not a picker. A mode carries exactly one category
+     (MODES, state.js), so a list beside it could only ever offer that
+     one and "None" - two ways of saying the same thing, one of them an
+     empty page. The switch beside it decides whose category the figures
+     are counted from, and this says which: Fiction, or Fiction.
 
-  function paintCat(box, current){
-    if(!box) return;
-    box.querySelectorAll('.stats-cat-item').forEach(function(item){
-      item.classList.toggle('active', item.dataset.value === current);
-    });
-    const val = box.querySelector('.stats-cat-value');
-    if(val) val.textContent = catName(current) || 'None';
-  }
-  function bindCat(box, otherBox, key, otherKey){
-    if(!box) return;
-    paintCat(box, S.config[key] || 'none');
-    box.addEventListener('click', function(e){
-      const title = e.target.closest('.stats-cat-title');
-      if(title){ box.classList.toggle('open'); return; }
-      const item = e.target.closest('.stats-cat-item');
-      if(!item) return;
-      S.config[key] = item.dataset.value;
-      S.config[otherKey] = 'none';
-      paintCat(box, item.dataset.value);
-      if(otherBox) paintCat(otherBox, 'none');
-      box.classList.remove('open');
-      save();
-      renderStatsBody();
-    });
-  }
-  // Clicking elsewhere closes any open category dropdown
+     The two config keys are still written on every paint, because the
+     body below, the exported report and polish.js's KPI labels all read
+     them - only the click that used to write them is gone. The category
+     comes from the mode itself, so it follows a project moved to another
+     category instead of going stale. */
+  const modeBtn  = root.querySelector('[data-act="stats-mode"]');
+  const catLabel = root.querySelector('#statsCatLabel');
+
+  const catFor = function(modeId){
+    const mData = (S.modes && S.modes[modeId]) || null;
+    const cur   = mData && mData.currentCategory;
+    if(cur) return cur;
+    const def = statDef(modeId);
+    return ((def.categories || [])[0] || {}).id || 'none';
+  };
+
+  const paintCat = function(){
+    const id = viewedMode();
+    S.config[statKey(id)] = catFor(id);
+    S.config[statKey(id === 'novel' ? 'screenplay' : 'novel')] = 'none';
+    if(catLabel) catLabel.textContent = catName(catFor(id)) || 'Fiction';
+    return id;
+  };
+  paintCat();
+
+  if(modeBtn) modeBtn.addEventListener('click', function(e){
+    e.preventDefault();
+    const to = modeBtn.dataset.statsOther;
+    if(!to || !STAT_KEY[to]) return;
+    S.config.statsMode = to;
+    const toDef   = statDef(to);
+    const nextOff = MODES.filter(function(m){ return m.id !== to; })[0] || null;
+    modeBtn.dataset.statsOther = nextOff ? nextOff.id : to;
+    modeBtn.title = nextOff ? 'Switch to ' + nextOff.name : toDef.name;
+    const icon = modeBtn.querySelector('i');
+    if(icon) icon.className = 'bi bi-' + toDef.icon;
+    const nm = modeBtn.querySelector('.stats-mode-name');
+    if(nm) nm.textContent = toDef.name;
+    paintCat();
+    save();
+    renderStatsBody();
+  });
+
+  /* Clicking elsewhere closes the open list — the same document listener the
+     two cards shared. */
   if(!document.__statsCatOutside){
     document.__statsCatOutside = true;
     document.addEventListener('click', function(e){
@@ -3183,12 +3808,69 @@ PAGE_RENDERERS.stats = function(root){
       });
     }, true);
   }
-  bindCat(novelBox,  screenBox, 'statsNovel',      'statsScreenplay');
-  bindCat(screenBox, novelBox,  'statsScreenplay', 'statsNovel');
+
+  const closeBtn = root.querySelector('[data-act="stats-close"]');
+  if(closeBtn) closeBtn.addEventListener('click', function(e){
+    e.preventDefault();
+    if(typeof goPage === 'function') goPage('home');
+  });
+
+  /* ── THE HEAD IS THE GRAB HANDLE ────────────────────────────────
+     Press it and the panel follows the pointer, the way the Settings modal
+     is moved by its own head — the hand the writer already knows from
+     there. The box is pinned before it leaves the flow: position:fixed
+     would otherwise re-resolve the panel's max-height and margin:auto
+     against the viewport instead of the page, and the panel would change
+     size as it was picked up. Everything is written !important because the
+     page's own size rules in final-fix.js are !important too, and an inline
+     style without it loses to them.
+
+     The two document listeners are wired once for the app's lifetime and
+     look the panel up on every move, so coming back to this page cannot
+     stack a second set on top of the first. */
+  const head = root.querySelector('.stats-head');
+  if(head) head.addEventListener('mousedown', function(e){
+    if(e.button !== 0) return;
+    if(e.target.closest('button, a, input, select, textarea')) return;   /* ✕ stays clickable */
+    const panel = document.querySelector('#page-stats .stats-page');
+    if(!panel) return;
+    const r = panel.getBoundingClientRect();
+    const pin = function(prop, value){ panel.style.setProperty(prop, value, 'important'); };
+    pin('width',      r.width + 'px');
+    pin('height',     r.height + 'px');
+    pin('max-width',  'none');
+    pin('max-height', 'none');
+    pin('margin',     '0');
+    pin('left',       r.left + 'px');
+    pin('top',        r.top + 'px');
+    panel.style.position = 'fixed';
+    panel.classList.add('stats-dragging');
+    document.__statsDrag = { panel:panel, dx:e.clientX - r.left, dy:e.clientY - r.top, w:r.width, h:r.height };
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  if(!document.__statsDragWired){
+    document.__statsDragWired = true;
+    document.addEventListener('mousemove', function(e){
+      const d = document.__statsDrag;
+      if(!d) return;
+      d.panel.style.setProperty('left', Math.max(4, Math.min(window.innerWidth  - d.w - 4, e.clientX - d.dx)) + 'px', 'important');
+      d.panel.style.setProperty('top',  Math.max(4, Math.min(window.innerHeight - d.h - 4, e.clientY - d.dy)) + 'px', 'important');
+    });
+    document.addEventListener('mouseup', function(){
+      const d = document.__statsDrag;
+      if(!d) return;
+      d.panel.classList.remove('stats-dragging');
+      document.__statsDrag = null;
+      document.body.style.userSelect = '';
+    });
+  }
 
   renderStatsBody();
   renderDayLine();
 };
+
 
 // ─── DAY LINE ─── one circle per day sitting on a hairline. A day the app
 // was opened on is filled white; every other day stays a hollow ring. The

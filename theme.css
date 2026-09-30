@@ -318,6 +318,26 @@ body.no-animations *{animation-duration:.01ms!important;transition-duration:.01m
   color:var(--ink-4);
 }
 
+/* ── NUMBER FIELDS ── no native stepper ──
+   input[type=number] keeps appearance:auto here, so Chrome draws its own
+   up/down stepper in a fixed UA grey that does not follow the theme. In
+   Settings > AI the arrows on Max tokens were the faintest mark on the
+   field — a grey control sitting in a themed one — and it was the only
+   number input in the panel showing one, because the text and password
+   fields beside it have nothing to draw.
+
+   The write toolbar already suppressed this for its own number fields
+   (pages.css:1664). This does it for the other eight: Settings' Max tokens
+   and size, the draft-chat token count, and the three utility-panel
+   numbers. So a number field looks like every other field. Typing still
+   works and the Up/Down keys still step the value; only the drawn widget
+   goes. -moz-appearance covers Firefox, which ignores the webkit rules. */
+input[type="number"]{ -moz-appearance:textfield; }
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button{
+  -webkit-appearance:none; appearance:none; margin:0;
+}
+
 /* ── RANGE SLIDERS ── Vercel minimal */
 .rng{
   width:150px;
@@ -335,7 +355,7 @@ body.no-animations *{animation-duration:.01ms!important;transition-duration:.01m
   width:14px;
   height:14px;
   border-radius:50%;
-  background:var(--ink);
+  background:var(--accent);
   border:none;
   cursor:pointer;
   transition:transform var(--t-fast) var(--ease);
@@ -345,7 +365,7 @@ body.no-animations *{animation-duration:.01ms!important;transition-duration:.01m
   width:14px;
   height:14px;
   border-radius:50%;
-  background:var(--ink);
+  background:var(--accent);
   border:none;
   cursor:pointer;
 }
@@ -406,9 +426,10 @@ input[type="color"].inp{
   --line-2:#3e3a36;   /* card outlines              */
   --line-3:#4c4741;   /* interactive outlines       */
 
-  --accent:#e6dfd5; --accent-2:#cfc7bb; --accent-ink:#1b1a19;
-  --accent-soft:rgba(230,223,213,.08); --accent-line:rgba(230,223,213,.22);
-  --grad:linear-gradient(135deg,#e6dfd5 0%,#b8b0a4 100%);
+  /* the fallback before a theme is painted — the Yellow palette */
+  --accent:#f0b877; --accent-2:#d99b52; --accent-ink:#1b1610;
+  --accent-soft:rgba(240,184,119,.12); --accent-line:rgba(240,184,119,.34);
+  --grad:linear-gradient(135deg,#f0b877 0%,#c9863a 100%);
 
   --ok:#7fb069; --warn:#e0a458; --err:#e07a5f; --info:#8ab4d8;
 
@@ -418,10 +439,21 @@ input[type="color"].inp{
   --e-3:0 8px 24px rgba(0,0,0,.50); --e-4:0 16px 40px rgba(0,0,0,.55);
 }
 
+/* The four semantic colours used to have a second, darker set for the light
+   themes, gated on [data-theme-mode="light"]. Those themes are gone, every
+   palette is dark, and so the set in the block above is the only set. */
+
 /* native dark rendering — scrollbars, carets, selections, focus */
 html,body{ color-scheme:dark; }
 *{ scrollbar-color:var(--surface-4) var(--bg); }
-input, select, textarea, button{ accent-color:#fab387; }
-input, select, textarea{ caret-color:#fab387; }         /* warm peach caret */
-::selection{ background:#fab387; color:#211f1d; }       /* warm peach, not white */
-:focus-visible{ outline:2px solid #fab387; outline-offset:2px; }
+/* These four were a hard-coded peach (#fab387) on all 27 themes: the same
+   caret, the same selection and the same focus ring whether the app was on
+   Paper or on Pitch. Against a white theme that peach is 2.2:1, so the
+   focus ring - the one thing that has to be visible when you tab into a
+   field - was the least visible thing on the screen. They follow the
+   theme's own accent now, which also means they change when you change
+   color. */
+input, select, textarea, button{ accent-color:var(--accent); }
+input, select, textarea{ caret-color:var(--accent); }
+::selection{ background:var(--accent); color:var(--accent-ink); }
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }

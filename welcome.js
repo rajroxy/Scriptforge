@@ -410,14 +410,15 @@
 /* ═══════════════════════════════════════════════════════════
    The dropdowns themselves.
 
-   pages.js paints its two lists from its own copy of catItems, which is
-   local to the renderer and cannot be reached from here — so the entry is
-   taken out of the lists as they land. The click handling is delegated on
-   each box, so a list with one item fewer behaves exactly as before.
+   pages.js paints its list from its own copy of catItems, which is local
+   to the renderer and cannot be reached from here — so the entry is taken
+   out of the list as it lands. There is one list on that page now, not
+   two: the mode switch above it decides whose categories it holds, and the
+   strip follows it whichever mode it is showing. The click handling is
+   delegated on the box, so a list with one item fewer behaves as before.
    ═══════════════════════════════════════════════════════════ */
 (function(){
-  const ITEM = '[data-stats-novel] .stats-cat-item[data-value="nonfiction"],'
-             + '[data-stats-screenplay] .stats-cat-item[data-value="nonfiction"]';
+  const ITEM = '[data-stats-cat] .stats-cat-item[data-value="nonfiction"]';
   const KEYS = ['statsNovel', 'statsScreenplay'];
 
   const configOf = function(){
@@ -544,6 +545,12 @@
   };
 
   window.addEventListener('keydown', function(e){
+    if(isSlash(e)){
+      /* On non-writing pages, leave the normal key input alone and prevent
+         pages.js from opening Advanced Formatting for it. */
+      if(page() !== 'manuscript') e.stopImmediatePropagation();
+      return;
+    }
     if(!isAt(e)) return;
     if(page() !== 'manuscript') return;
 
@@ -605,8 +612,8 @@
 
   document.addEventListener('keydown', function(e){
     if(isSlash(e)){
-      if(page() === 'manuscript') return;    /* its own page — pages.js owns it */
-      closeAdv();
+      /* pages.js owns Shift + / on every surface. Do not close its panel
+         immediately after the same key event opens it. */
       return;
     }
 
@@ -1049,8 +1056,9 @@
 
      left click    the page list (unchanged)
      right click   the AI assistant (unchanged)
-     hover + ← →   the previous / next workspace
-     hover + wheel the same, a notch at a time
+     hover + ← →   the previous / next workspace, sideways
+     hover + ↑ ↓   the same, and the page slides up and down
+     hover + wheel the same, a notch at a time, up and down
 
    A switch says so — "Workspace 3 of 5 · Act two" — and the page slides
    the way you moved. The name of each workspace is set in
@@ -1190,13 +1198,21 @@
   };
 
   /* ═══ the switch ═══ */
-  const flash = function(dir, i){
+  const flash = function(dir, i, axis){
     const wrap = document.getElementById('fabWrap');
     const stage = document.getElementById('stage');
-    const cls = dir > 0 ? 'ws-slide-fwd' : 'ws-slide-back';
+    /* The axis follows the gesture. ← → move the workspace across and the
+       page slides across; the wheel and ↑ ↓ move it up and down and the page
+       slides up and down - you get the direction you actually moved in,
+       not the same one whatever you pressed. pages.css owns the four
+       classes, at the same 14px and 420ms on either axis. */
+    const vert = axis === 'y';
+    const cls = vert ? (dir > 0 ? 'ws-slide-down' : 'ws-slide-up')
+                     : (dir > 0 ? 'ws-slide-fwd' : 'ws-slide-back');
+    const all = ['ws-slide-fwd', 'ws-slide-back', 'ws-slide-down', 'ws-slide-up'];
     [wrap, stage].forEach(function(el){
       if(!el || !el.classList) return;
-      el.classList.remove('ws-slide-fwd', 'ws-slide-back');
+      all.forEach(function(c){ el.classList.remove(c); });
       /* re-add on the next frame, so the animation replays every time */
       void el.offsetWidth;
       el.classList.add(cls);
@@ -1208,6 +1224,16 @@
   const badge = function(i){
     const wrap = document.getElementById('fabWrap');
     if(!wrap) return;
+    /* workspaces switched off (Settings → Custom): the button carries no
+       number and never shows the sideways hint */
+    /* one workspace left (or none): there is nothing to count and nothing
+       to move to, so the number stands down */
+    if(!armed()){
+      const gone = wrap.querySelector('.fab-ws-badge');
+      if(gone) gone.remove();
+      wrap.classList.remove('ws-hover');
+      return;
+    }
     let b = wrap.querySelector('.fab-ws-badge');
     if(!b){
       b = document.createElement('span');
@@ -1220,14 +1246,105 @@
     b.title = nameOf(n);
   };
 
-  const goTo = function(i, dir){
+  /* ═══ which workspaces are ON (Settings → Custom → Workspaces) ═══
+
+     A switch PER WORKSPACE, so a writer who never uses 4 and 5 takes them
+     out of the rotation instead of hiding the whole feature: the round
+     button steps over a workspace that is off, and with one workspace left
+     there is nothing to count and nowhere to move — the number and the
+     sideways movements stand down without anything being deleted.
+
+     `wsOff` is the only source of truth. "workspaces" simply means "more
+     than one of them is on". */
+  const offList = function(){
+    if(!S.config) S.config = {};
+    if(!Array.isArray(S.config.wsOff) || S.config.wsOff.length !== COUNT){
+      /* a profile written before the per-workspace switches kept ONE flag
+         for the whole feature; it opens as every workspace off, which is
+         exactly what that flag meant */
+      const allOff = S.config.workspaces === false;
+      S.config.wsOff = [];
+      for(let i = 0; i < COUNT; i++) S.config.wsOff.push(allOff);
+    }
+    return S.config.wsOff;
+  };
+  const onList = function(){
+    const off = offList(), out = [];
+    for(let i = 0; i < COUNT; i++) if(!off[i]) out.push(i);
+    return out;
+  };
+  const armed = function(){ return onList().length > 1; };
+  /* the next workspace that is ON, walking `dir` from `from` (-1 = none) */
+  const nextOn = function(from, dir){
+    const off = offList();
+    for(let k = 1; k <= COUNT; k++){
+      const i = ((from + dir * k) % COUNT + COUNT) % COUNT;
+      if(!off[i]) return i;
+    }
+    return -1;
+  };
+  /* the move itself, without goTo's gate — used when the workspace you are
+     ON is the one just switched off, which is a move you did not ask for
+     but cannot avoid making */
+  const moveTo = function(n){
+    const proj = currentProj();
+    if(!proj) return false;
+    ensure(proj);
+    saveIt();
+    proj.wsActive = n;
+    try{ if(typeof useProjectData === 'function') useProjectData(proj); }catch(e){}
+    try{ if(typeof goPage === 'function') goPage(S.page); }catch(e){}
+    try{ if(typeof renderModePills === 'function') renderModePills(); }catch(e){}
+    try{ if(typeof updateBreadcrumb === 'function') updateBreadcrumb(); }catch(e){}
+    saveIt();
+    badge();
+    return true;
+  };
+
+  window.sfWsOff     = function(i){ return !!offList()[i]; };
+  window.sfWsArmed   = armed;
+  window.sfWsOnCount = function(){ return onList().length; };
+  window.sfWsToggle  = function(i, on){
+    i = Math.max(0, Math.min(COUNT - 1, Number(i) || 0));
+    offList()[i] = !on;
+    saveIt();
+
+    const onNow = onList();
+    if(!onNow.length) moveTo(0);                                  /* none on: one workspace, the first */
+    else if(onNow.indexOf(window.sfWsActive()) < 0) moveTo(onNow[0]);
+
+    badge();
+    try{ if(typeof renderFabMenu === 'function') renderFabMenu(); }catch(e){}
+    return !offList()[i];
+  };
+  /* the whole feature at once, for anything that wants it */
+  window.sfWsEnable = function(on){
+    const off = offList();
+    for(let i = 0; i < COUNT; i++) off[i] = !on;
+    saveIt();
+    if(!onList().length) moveTo(0);
+    badge();
+    try{ if(typeof renderFabMenu === 'function') renderFabMenu(); }catch(e){}
+    return onList().length > 1;
+  };
+
+  const goTo = function(i, dir, axis){
+    /* with one workspace on there is nowhere to move to */
+    if(!armed()) return false;
     const proj = currentProj();
     if(!proj){
       toastIt('Open a project first', 'warn');
       return false;
     }
     ensure(proj);
-    const n = ((Math.round(i) % COUNT) + COUNT) % COUNT;
+    let n = ((Math.round(i) % COUNT) + COUNT) % COUNT;
+    /* a workspace that is switched off is not a place you can land: keep
+       walking the way the gesture was going until one that is on */
+    if(offList()[n]){
+      const step = (dir === -1) ? -1 : 1;
+      n = nextOn(n - step, step);
+    }
+    if(n < 0) return false;
     if(n === proj.wsActive){
       toastIt('Already on ' + nameOf(n));
       return false;
@@ -1246,14 +1363,16 @@
     try{ if(typeof updateBreadcrumb === 'function') updateBreadcrumb(); }catch(e){}
     saveIt();
 
-    flash(dir || 1, n);
+    flash(dir || 1, n, axis);
     toastIt('Workspace ' + (n + 1) + ' of ' + COUNT + ' · ' + nameOf(n));
     return true;
   };
   window.sfWsGo = function(i){ return goTo(i, (i > window.sfWsActive()) ? 1 : -1); };
-  window.sfWsStep = function(dir){
+  /* axis is optional and stays optional: a caller that is not a gesture
+     (the Settings card, a plugin) gets the sideways slide it always got. */
+  window.sfWsStep = function(dir, axis){
     const at = window.sfWsActive();
-    return goTo(at + (dir >= 0 ? 1 : -1), dir >= 0 ? 1 : -1);
+    return goTo(at + (dir >= 0 ? 1 : -1), dir >= 0 ? 1 : -1, axis);
   };
   window.sfWsCycle = function(){ return window.sfWsStep(1); };
 
@@ -1267,6 +1386,7 @@
     wrap.__sfWsBound = true;
 
     wrap.addEventListener('mouseenter', function(){
+      if(S.config && S.config.workspaces === false) return;
       hovering = true;
       wrap.classList.add('ws-hover');
       badge();
@@ -1275,33 +1395,39 @@
       hovering = false;
       wrap.classList.remove('ws-hover');
     });
-    /* the wheel over the button: a notch is one workspace either way */
+    /* the wheel over the button: a notch is one workspace either way, and
+       the page moves the way the wheel went - up and down */
     wrap.addEventListener('wheel', function(e){
+      if(S.config && S.config.workspaces === false) return;
       if(!wrap.classList.contains('ws-hover')) return;
       e.preventDefault();
       e.stopPropagation();
       if(wheelLock) return;
       wheelLock = true;
       setTimeout(function(){ wheelLock = false; }, 320);
-      window.sfWsStep(e.deltaY > 0 ? 1 : -1);
+      window.sfWsStep(e.deltaY > 0 ? 1 : -1, 'y');
     }, { passive:false });
 
-    wrap.addEventListener('focusin', function(){ hovering = true; wrap.classList.add('ws-hover'); badge(); });
+    wrap.addEventListener('focusin', function(){ if(S.config && S.config.workspaces === false) return; hovering = true; wrap.classList.add('ws-hover'); badge(); });
     wrap.addEventListener('focusout', function(){ hovering = false; wrap.classList.remove('ws-hover'); });
     badge();
   };
 
-  /* ← and → while the pointer is on the button. Nothing else uses them there:
-     the button has no caret, and the pages are one click each. */
+  /* All four arrows while the pointer is on the button. Nothing else uses
+     them there: the button has no caret, and the pages are one click each.
+     The pair you press is the pair the page moves in - ← → across, ↑ ↓ up and
+     down - and ↓ is the next workspace, the way the wheel's own down is. */
   document.addEventListener('keydown', function(e){
     if(!hovering) return;
-    if(e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const key = e.key;
+    if(key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'ArrowUp' && key !== 'ArrowDown') return;
     /* a panel or the command box on top of the app keeps its own arrows */
     const open = document.querySelector('.settings-panel.open, .modal.open, .cmd-box.open, .fab-menu:not([hidden]), .fab-ai:not([hidden])');
     if(open) return;
     e.preventDefault();
     e.stopPropagation();
-    window.sfWsStep(e.key === 'ArrowRight' ? 1 : -1);
+    const axis = (key === 'ArrowUp' || key === 'ArrowDown') ? 'y' : 'x';
+    window.sfWsStep((key === 'ArrowLeft' || key === 'ArrowUp') ? -1 : 1, axis);
   }, true);
 
   /* the badge counts on every repaint of the page, so it can never be stale */
@@ -1382,13 +1508,10 @@
 
     c.appendChild(row('Workspace label', 'The name shown when you switch — this project’s 1 to 5', [pick, nameInp]));
 
-    const goBtn = document.createElement('button');
-    goBtn.type = 'button';
-    goBtn.className = 'btn btn-ghost';
-    goBtn.innerHTML = '<i class="bi bi-collection"></i> Go to it';
-    goBtn.onclick = function(){ goTo(Number(pick.value) || 0, 1); badge(); };
-    c.appendChild(row('Switch', 'Or hover the round button and press ← → , or scroll a notch over it', [goBtn]));
-
+    /* The Switch row and its “Go to it” button are gone: the picker above
+       already moves between workspaces (and so do ← → on the round
+       button), so the row was a second way to do the thing the row above
+       it had just done. */
     root.appendChild(c);
   }
 

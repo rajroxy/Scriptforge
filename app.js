@@ -22,7 +22,14 @@
 // recent-project rows can open a project on double-click as well.
 function openProjectById(pid){
   const d = D();
-  const proj = (d.projects || []).find(p => p.id === pid);
+  let proj = (d.projects || []).find(p => p.id === pid);
+  if(!proj){
+    Object.keys(S.modes || {}).some(function(modeId){
+      const found = ((S.modes[modeId] && S.modes[modeId].projects) || []).find(p => p.id === pid);
+      if(found){ proj = found; return true; }
+      return false;
+    });
+  }
   if(!proj){ console.warn('[open-project] not found:', pid); return; }
 
   // Set the mode to match the project
@@ -50,10 +57,11 @@ function openProjectById(pid){
   if(typeof togglePagesOverlay === 'function') togglePagesOverlay(false);
   if(typeof hideInfoPanel === 'function') hideInfoPanel();
 
-  // Refresh the pills, then open the editor — projects land on the Idea view
+  // Novel projects keep the Idea landing page; screenplay projects open the
+  // actual Script surface (the manuscript page is its script implementation).
   if(typeof renderModePills === 'function') renderModePills();
   if(typeof updateBreadcrumb === 'function') updateBreadcrumb();
-  goPage('inspire');
+  goPage(S.mode === 'screenplay' ? 'manuscript' : 'inspire');
 
   toast('Opened: ' + proj.name);
 }
@@ -93,13 +101,24 @@ if(t.closest('[data-act="go-overview"]')){
   if(typeof goPage === 'function') goPage('overview');
   return;
 }
-// Dashboard mode cards — switch mode and stay on the dashboard
+// Dashboard mode toggle — the one at the workspace card's top left. It
+// carries the OTHER mode's id, so clicking it swaps and stays on the page.
 if(t.closest('[data-home-mode]')){
   e.preventDefault();
   const want = t.closest('[data-home-mode]').dataset.homeMode;
   if(want && want !== S.mode && typeof switchMode === 'function') switchMode(want);
   return;
 }
+
+  // ── Dashboard search: one magnifier, one toggle. It opens the field, and
+  //    the same button in the same spot closes it again (which also drops
+  //    the filter). Typing is handled by the input listener further down,
+  //    not here — a click is not an edit.
+  if(t.closest('[data-home-search-toggle]')){
+    e.preventDefault();
+    if(typeof toggleHomeSearch === 'function') toggleHomeSearch();
+    return;
+  }
 
   // ─── Export project (from Write toolbar) ───
   if(t.closest('[data-act="export-project"]')){
@@ -127,6 +146,18 @@ if(t.closest('[data-home-mode]')){
     } else {
       toast('Not saved to disk yet. Click Export to save it first.', 'warn');
     }
+    return;
+  }
+
+  // ─── Dashboard card: page through the complete project list ───
+  const homePage = t.closest('[data-home-page]');
+  if(homePage){
+    e.preventDefault();
+    e.stopPropagation();
+    const mode = homePage.dataset.homePageMode;
+    const current = parseInt(homePage.dataset.homePageIndex, 10) || 0;
+    const delta = homePage.dataset.homePage === 'next' ? 1 : -1;
+    if(typeof setHomeProjectPage === 'function') setHomeProjectPage(mode, current + delta);
     return;
   }
 
@@ -176,6 +207,11 @@ if(t.closest('[data-home-mode]')){
     if(typeof setStatsProject === 'function') setStatsProject(pid);
     if(typeof renderProjectsForCategory === 'function') renderProjectsForCategory(d.currentCategory);
     if(typeof renderProjectStatsPanel === 'function') renderProjectStatsPanel();
+    // The second click of a double-click also arrives as a click event;
+    // keep the row selectable on click and open it on the second click.
+    if(e.detail >= 2){
+      openProjectById(pid);
+    }
     return;
   } 
 
@@ -218,11 +254,20 @@ if(t.closest('[data-home-mode]')){
     e.stopPropagation();
     const pid = projRename.dataset.projRename;
     const d = D();
-    const proj = d.projects.find(x => x.id === pid);
+    /* Dashboard rows can belong to either mode. D() is only the active mode,
+       so looking there made screenplay rename buttons silently do nothing. */
+    let owner = null;
+    Object.keys(S.modes || {}).forEach(function(modeId){
+      const list = (S.modes[modeId] && S.modes[modeId].projects) || [];
+      const found = list.find(x => x.id === pid);
+      if(found) owner = found;
+    });
+    const proj = owner || (d.projects || []).find(x => x.id === pid);
     if(!proj) return;
     const newName = prompt('Rename project:', proj.name);
-    if(!newName || newName === proj.name) return;
-    proj.name = newName.trim();
+    const cleanName = newName == null ? '' : newName.trim();
+    if(!cleanName || cleanName === proj.name) return;
+    proj.name = cleanName;
     save();
     if(typeof renderProjectsForCategory === 'function') renderProjectsForCategory(d.currentCategory);
     if(typeof renderProjectStatsPanel === 'function') renderProjectStatsPanel();
@@ -294,7 +339,7 @@ if(t.closest('[data-home-mode]')){
       totalWords += (p.chapters ? p.chapters.reduce((a, c) => a + wordCount(c.content), 0) : 0);
     });
 
-    let report = 'ScriptForge — Statistics Report\n';
+    let report = 'Statistics Report\n';
     report += 'Generated: ' + new Date().toLocaleString() + '\n';
     report += 'Mode: ' + (modeId || '(none)') + '\n';
     report += 'Category: ' + (catId || '(none)') + '\n\n';
@@ -305,7 +350,7 @@ if(t.closest('[data-home-mode]')){
     const blob = new Blob([report], {type: 'text/plain'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'scriptforge-stats-' + Date.now() + '.txt';
+    a.download = 'statistics-' + Date.now() + '.txt';
     a.click();
     toast('Report exported');
     return;
@@ -371,12 +416,6 @@ if(pillEl){
       toast('A project named "' + name.trim() + '" already exists in this category', 'warn');
       return;
     }
-    // Cap each category at 5 recent projects
-    const catProjects = (d.projects || []).filter(p => p.category === catId);
-    if(catProjects.length >= 5){
-      toast('Category is full — 5 recent projects max', 'warn');
-      return;
-    }
     const id = uid();
        const firstChapterId = uid();
     const freshProject = {
@@ -398,7 +437,7 @@ if(pillEl){
     d.currentChapter = firstChapterId;
     save();
     togglePagesOverlay(false);
-    goPage('inspire');          // every project lands on the Idea view
+    goPage('home');             // creating a project keeps you on the dashboard
     toast('Project created');
     return;
   }
@@ -416,19 +455,21 @@ if(pillEl){
       if(!f) return;
       const text = await f.text();
       const d = D();
+      const catId = catOpen.dataset.catOpen;
       const id = uid();
       const imported = {
-        id, name: f.name.replace(/\.[^.]+$/, ''), category: catOpen.dataset.catOpen,
+        id, name: f.name.replace(/\.[^.]+$/, ''), category: catId,
         mode: S.mode, created: Date.now(),
         chapters: [{id: uid(), title:'Section 1', content: text.replace(/\n/g,'<br>'), children:[], collapsed:false}],
         currentChapter: null
       };
-      d.projects.push(imported);
+      if(!Array.isArray(d.projects)) d.projects = [];
+      d.projects.unshift(imported);
       useProjectData(imported);
-      d.currentCategory = catOpen.dataset.catOpen;
+      d.currentCategory = catId;
       save();
       togglePagesOverlay(false);
-      goPage('inspire');        // imports land on the Idea view too
+      goPage('home');             // imported projects stay on the dashboard
       toast('Project imported');
     };
     input.click();
@@ -452,6 +493,43 @@ if(pillEl){
   // Breadcrumb mode → open modes
   
 });
+
+
+/* The dashboard's search box filters the workspace card as the writer types.
+   A click on the box is not an edit, so a click handler would never see a
+   letter — this is an input listener. The value lives in pages.js and is
+   written back into the input on every repaint, which is what lets a search
+   survive clicking a row, the toggle or another page, and why the caret has
+   to be put back afterwards. */
+(function(){
+  let timer = 0;
+  document.addEventListener('input', function(e){
+    const el = e.target;
+    if(!el || !el.dataset || el.dataset.homeSearch === undefined) return;
+    const at = el.selectionStart;
+    clearTimeout(timer);
+    timer = setTimeout(function(){
+      if(typeof setHomeSearch === 'function') setHomeSearch(el.value);
+      const now = document.querySelector('#page-home [data-home-search]');
+      if(!now) return;
+      now.focus();
+      try{ now.setSelectionRange(at, at); }catch(err){}
+    }, 140);
+  });
+  document.addEventListener('keydown', function(e){
+    const el = e.target;
+    if(!el || !el.dataset || el.dataset.homeSearch === undefined) return;
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      clearTimeout(timer);
+      if(typeof setHomeSearch === 'function') setHomeSearch(el.value);
+    }else if(e.key === 'Escape'){
+      e.preventDefault();
+      clearTimeout(timer);
+      if(typeof clearHomeSearch === 'function') clearHomeSearch();
+    }
+  });
+})();
 
 /* A recent-project row on a dashboard card: the single click above only
    selects it, so opening it is a double-click — or the card's Open button. */
@@ -860,7 +938,7 @@ function boot(){
     if(typeof renderModePills === 'function') renderModePills();
     if(typeof updateStatusBar === 'function') updateStatusBar();
 
-       console.log('%c ✓ ScriptForge booted', 'color:#10b981;font-weight:700;');
+       console.log('%c ✓ App booted', 'color:#10b981;font-weight:700;');
   }catch(e){
     console.error('Boot failed:', e);
     const stage = document.getElementById('stage');
@@ -982,14 +1060,15 @@ function showPageInfo(pageId){
   if(!panel || !title || !body) return;
 
   const def = PAGE_META[pageId] || {name: pageId, icon: 'file'};
+  const pageName = (window.pname ? pname(pageId) : def.name);
   const count = (typeof pageCount === 'function') ? pageCount(pageId) : null;
 
-  title.innerHTML = `<i class="bi bi-${def.icon}"></i> ${(window.pname ? pname(pageId) : def.name)}`;
+  title.innerHTML = `<i class="bi bi-${def.icon}"></i> ${pageName}`;
   body.innerHTML = `
     <div class="info-section">
       <div class="info-label">Page</div>
       <div class="info-value">
-        <strong>${def.name}</strong><br>
+        <strong>${pageName}</strong><br>
         Part of <strong>${currentMode()?.name || 'Novel'}</strong> mode.
       </div>
     </div>
@@ -1009,7 +1088,7 @@ function showPageInfo(pageId){
       </div>
     </div>
     <button class="info-open" data-info-open-page="${pageId}">
-      <i class="bi bi-box-arrow-in-right"></i> Open ${def.name}
+      <i class="bi bi-box-arrow-in-right"></i> Open ${pageName}
     </button>
   `;
 
@@ -1337,7 +1416,7 @@ function cmdPageCommands(){
   groups.forEach(function(g){
     (g.views || []).forEach(function(v){
       const pid  = (typeof v === 'string') ? v : v.id;
-      const name = (typeof v === 'string' || !v.name) ? pid : v.name;
+      const name = (typeof window.pname === 'function') ? pname(pid) : ((typeof v === 'string' || !v.name) ? pid : v.name);
       const icon = (typeof v === 'string' || !v.icon) ? 'file' : v.icon;
       const key  = CMD_PAGE_KEYS[pid] || pid.slice(0, 2);
       out[key] = { label:name, icon:icon, run:function(){ goPage(pid); } };
@@ -2428,6 +2507,11 @@ document.addEventListener('click', function(e){
 document.addEventListener('contextmenu', function(e){
   if(e.target.closest('#fabBtn')){
     e.preventDefault();
+    /* Kanban keeps the round button a round button. The board already has its
+       own right-click menu on the cards (plan-boards.js), and a second one on
+       the button was one menu too many there. Off on that page only - every
+       other page still gets the panel. */
+    if(typeof S !== 'undefined' && S.page === 'kanban') return;
     toggleFabAI();
   }
 }, true);
@@ -3020,7 +3104,9 @@ window.importJSONProject = importJSONProject;
     const count = document.getElementById('ideaCount');
     if(count) count.textContent = String(list.length);
     const range = document.getElementById('ideaRange');
-    if(range) range.textContent = list.length ? ((from + 1) + '–' + Math.min(from + per, list.length)) : '0';
+    /* The dashboard's own numbering: the page you are on, then the row that
+       PAGE ends at - 1-10, 2-20, 3-30 - not the first row it shows. */
+    if(range) range.textContent = list.length ? ((page + 1) + '-' + Math.min((page + 1) * per, list.length)) : '0';
     const prev = document.querySelector('#page-inspire [data-idea-page="-1"]');
     const next = document.querySelector('#page-inspire [data-idea-page="1"]');
     if(prev) prev.disabled = page <= 0;
@@ -3069,7 +3155,11 @@ window.importJSONProject = importJSONProject;
       +   '<div class="idea-cards" id="inspireBox"></div>'
       + '</section>'
       + '<aside class="idea-side">'
-      +   '<div class="idea-side-head"><i class="bi bi-bookmark"></i><span>Saved prompts</span><em id="ideaCount">0</em></div>'
+      +   '<div class="idea-side-head"><i class="bi bi-bookmark"></i><span>Saved prompts</span></div>'
+      +   '<div class="bb-search">'
+      +     '<i class="bi bi-search"></i>'
+      +     '<input id="ideaQuery" placeholder="Filter…" autocomplete="off">'
+      +   '</div>'
       +   '<div class="idea-rows" id="ideaRows"></div>'
       +   '<div class="idea-pager">'
       +     '<button class="mv-pager-btn" data-idea-page="-1" title="Previous"><i class="bi bi-chevron-left"></i></button>'
@@ -3189,9 +3279,6 @@ window.importJSONProject = importJSONProject;
     const box  = document.getElementById('bbRows');
     if(!list || !box) return;
 
-    const bar = list.querySelector('.bb-pager');
-    if(bar && bar.parentElement) bar.parentElement.removeChild(bar);
-
     Array.prototype.slice.call(box.querySelectorAll('.bb-row')).forEach(function(r){
       if(r.style.display === 'none') r.style.display = '';
     });
@@ -3236,13 +3323,12 @@ window.importJSONProject = importJSONProject;
     scan(document.body);
     tidy();
     document.addEventListener('click', tidy, true);
-    document.addEventListener('click', function(e){
-      const b = e.target.closest('[data-bb-page]');
-      if(!b) return;
-      e.preventDefault();
-      BB_PAGE = Math.max(0, BB_PAGE + (parseInt(b.dataset.bbPage, 10) || 1));
-      pageBibleRows();
-    }, true);
+    /* The Bible's own pager buttons are wired by pages.js, beside the
+       renderer that draws them (see the [data-bb-page] branch in its click
+       handler). This layer carried a copy that stepped a BB_PAGE it never
+       declared and then called pageBibleRows(), which no longer pages -
+       so with the pager back it threw BB_PAGE is not defined on every
+       click. Removed; pageBibleRows() is now only the row un-hider. */
     if(typeof MutationObserver !== 'function') return;
     new MutationObserver(function(muts){
       for(let i = 0; i < muts.length; i++){
@@ -3481,9 +3567,13 @@ window.importJSONProject = importJSONProject;
   }, { passive:true, capture:true });
 })();
 
-/* ── 13 · Settings button — left-click opens Settings, right-click opens
-   the Advanced panel: the four writer switches plus working options that
-   jump into the matching places of the big Settings sheet. ── */
+/* ── 13 · Settings button — left-click opens Settings, and that is all it
+   does now. Its right-click used to drop the four-switch Advanced panel
+   built further down; that is retired, so the right-click is swallowed
+   (nothing opens, and the browser's own menu cannot drop over the app).
+   The panel's own code is left where it is, unbuilt: the features behind
+   its four switches are untouched, they simply have no switch on the gear
+   any more. ── */
 (function(){
   const applyCfg = function(k){
     try{ if(typeof applyConfig === 'function') applyConfig(k); }catch(e){}
@@ -3631,19 +3721,20 @@ window.importJSONProject = importJSONProject;
     paint();
   };
 
+  /* the gear's right-click: swallowed, and nothing opens behind it */
   document.addEventListener('contextmenu', function(e){
     const b = e.target && e.target.closest && e.target.closest('[data-act="open-settings"]');
     if(!b) return;
     e.preventDefault();
     e.stopPropagation();
-    const p = build();
-    if(!p.hidden){ p.hidden = true; return; }
-    place(b);
   }, true);
 
   document.addEventListener('click', function(e){
-    const p = build();
-    if(p.hidden) return;
+    /* the panel is never built now, so this looks it up instead of making
+       it: with nothing to open it, a click anywhere used to create an
+       empty hidden #sfAdv and leave it on the page */
+    const p = document.getElementById('sfAdv');
+    if(!p || p.hidden) return;
     const t = e.target;
     if(!t || !t.closest) return;
 
@@ -3878,10 +3969,9 @@ window.importJSONProject = importJSONProject;
   };
 })();
 
-/* ── 15 · Bible opens on the Timeline ── */
-(function(){
-  try{ _bbTab = 'timeline'; }catch(e){ /* the binding lives in pages.js */ }
-})();
+/* ── 15 · Bible tab ──
+   This used to force the Bible open on its Timeline tab. There is no
+   Timeline tab any more, so the panel opens on the first category it has. */
 
 /* ── 16 · A menu that knows where you are ──
    The FAB's right-click AI panel used to be the same seven buttons on every
@@ -4222,26 +4312,130 @@ document.addEventListener('click', function(e){
     ta.remove();
   };
 
+  /* How many rows fit is read from the column itself — and that read is the
+     whole reason the list used to stop short of the bottom. It ran while
+     the page was still being laid out, so the column reported a height it
+     did not end up with: nine prompts in a tall column were cut at seven,
+     the pager read 1–7, and the rest went to page two with empty space
+     under the rows. The pass runs again on the next frame, when the
+     height is real, and again whenever the column is resized. */
+  /* ── HOW MANY ROWS FIT ──
+     A row of this list is a 44px line. The count used to divide the
+     column by 62, which is 18px more than a row: a 575px column holds
+     thirteen of them and the count was asking for nine, so nine prompts
+     were shown, the other three went to page two, and the bottom 177px
+     of the column stood empty. The row's own height is measured now, and
+     the count is what the column can really hold. */
   const perPage = function(){
     const rows = document.getElementById('ideaRows');
-    return Math.max(2, Math.floor(((rows && rows.clientHeight) || 0) / 62) || 5);
+    if(!rows) return 10;
+    const cs = getComputedStyle(rows);
+    const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    const gap = parseFloat(cs.rowGap) || 3;
+    const room = Math.max(0, rows.clientHeight - pad);
+    /* AS MANY AS THE COLUMN HOLDS - the Bible's own left card is the
+       reference. A row here is the dashboard project card's own 38px line
+       (34px on a short window), and the page is the column divided by that
+       line, so a page fills the card from its top to its foot. A cap of ten
+       is what used to leave the bottom of the card standing empty under the
+       tenth row. Nothing stretches a page: the height of a row on screen IS
+       the line the list is drawn with, it is read back, and the count
+       follows what the column really holds. */
+    /* The line a row is drawn on is read from the grid's own track, not
+       from whichever row happens to be on screen: on the first pass a row
+       can still be undressed and report the 34px it has before the page's
+       own styles have landed - that asked for fifteen rows in a column
+       that holds fourteen, and the fifteenth was clipped at the card's
+       foot. The track is the number the rows are actually drawn with. */
+    const track = parseFloat(cs.gridAutoRows);
+    const one = rows.querySelector('.idea-row');
+    const ROW = (track > 0) ? track : ((one && one.offsetHeight) ? one.offsetHeight : 38);
+    return Math.max(2, Math.floor((room + gap) / (ROW + gap)) || 10);
+  };
+  /* What the column was last laid out FOR is the number of rows, not its
+     height: a pass that re-drew the list whenever the height moved redrew
+     it once more the moment New prompt had opened its name field, and the
+     field went with the rows. Only a real change of capacity redraws. */
+  let renderedPer = -1;
+  let settlePasses = 0;
+  const settleList = function(){
+    const rows = document.getElementById('ideaRows');
+    if(!rows){ settlePasses = 0; return; }
+    /* a row being named holds the list still */
+    if(document.querySelector('#page-inspire .idea-rename')) return;
+    if(perPage() === renderedPer){ settlePasses = 0; return; }
+    /* the column can grow a step at a time as the rest of the page settles,
+       so one redraw is not enough — it looks again until the capacity stops
+       moving, and never chases it further than a handful of steps */
+    if(++settlePasses > 6){ settlePasses = 0; return; }
+    renderSaved();
+    soonSettle();
+  };
+  const soonSettle = function(){
+    if(typeof requestAnimationFrame !== 'function'){ setTimeout(settleList, 0); return; }
+    requestAnimationFrame(function(){ requestAnimationFrame(settleList); });
+  };
+  /* and one more look a beat later. The column finishes settling AFTER the
+     frame the list was drawn in - the head, the pager and the fonts all
+     land in their own time - and the count has to be the one the box ends
+     up wearing, not the one it had while it was still being measured. The
+     page settles into the same count on every later look, so this is one
+     extra pass and not a loop: a pass that finds the count already right
+     schedules nothing. */
+  const laterSettle = function(){
+    settlePasses = 0;
+    [260, 900, 2400].forEach(function(ms){ setTimeout(soonSettle, ms); });
+  };
+  window.addEventListener('resize', soonSettle);
+  /* the column's own size, watched: the rest of the page settles in steps
+     after the first paint (the strip, the pickers, the fonts), so the list
+     is told again whenever the room it has to fill actually moves */
+  let watchedRows = null, rowsObserver = null;
+  const watchRowsBox = function(box){
+    if(!box || box === watchedRows || typeof ResizeObserver !== 'function') return;
+    if(!rowsObserver) rowsObserver = new ResizeObserver(function(){ settlePasses = 0; soonSettle(); });
+    if(watchedRows) rowsObserver.unobserve(watchedRows);
+    watchedRows = box;
+    rowsObserver.observe(box);
   };
 
   const renderSaved = function(){
     const box = document.getElementById('ideaRows');
     if(!box) return;
-    const list = saved();
+    watchRowsBox(box);
+    /* The filter box above the list narrows it before it is cut into pages,
+       the way the Bible's box does, so the pager and the count describe what
+       is really on screen. `all` stays the whole list: every row and every
+       tool carries an index into savedPrompts (data-idea-open, -copy, -del),
+       so the index a row is drawn with has to survive the filter. */
+    const all  = saved();
+    const qEl  = document.getElementById('ideaQuery');
+    const q    = (qEl && qEl.value ? qEl.value : '').trim().toLowerCase();
+    const list = q
+      ? all.filter(function(p){
+          return String(p.title || '').toLowerCase().indexOf(q) >= 0
+              || String(p.text  || '').toLowerCase().indexOf(q) >= 0;
+        })
+      : all;
     const per  = perPage();
+    renderedPer = per;              /* what this pass was laid out for */
     const pages = Math.max(1, Math.ceil(list.length / per));
     page = Math.max(0, Math.min(page, pages - 1));
     const from = page * per;
     const slice = list.slice(from, from + per);
-
+    /* Every row keeps the dashboard project card's own 38px line and no
+       page is ever stretched: the rows are packed from the top of the list
+       and the count above is what the column really holds, so the last row
+       sits on the bottom edge of the list, at the pager - this is how the
+       Bible's own left card fills itself, and the Bible's card is what the
+       list is measured against. Stretching a page's rows to share the
+       column instead came out 55px tall with the title floating in the
+       middle of each one, which does not read as a list of prompts. */
     if(from > 0 && !slice.length && list.length){ page = 0; return renderSaved(); }
 
     box.innerHTML = slice.length
-      ? slice.map(function(p, k){
-          const i = from + k;
+      ? slice.map(function(p){
+          const i = all.indexOf(p);
           const t = p.title || titleOf(p.text);
           return '<div class="idea-row" data-idea-open="' + i + '">'
             + '<span class="idea-row-txt"><b>' + esc(t) + '</b>'
@@ -4250,17 +4444,40 @@ document.addEventListener('click', function(e){
             + '<button class="ol-tool" data-idea-del="' + i + '" title="Remove"><i class="bi bi-trash"></i></button>'
             + '</div>';
         }).join('')
-      : '<div class="idea-empty">No saved prompts yet.<br>Press <b>Save</b> to keep one here.</div>';
+      : (q
+          ? '<div class="idea-empty">No saved prompt matches this filter.</div>'
+          : '<div class="idea-empty">No saved prompts yet.<br>Press <b>Save</b> to keep one here.</div>');
 
     const count = document.getElementById('ideaCount');
     if(count) count.textContent = String(list.length);
     const range = document.getElementById('ideaRange');
-    if(range) range.textContent = list.length ? ((from + 1) + '–' + Math.min(from + per, list.length)) : '0';
+    /* The dashboard's own numbering: the page you are on, then the row that
+       PAGE ends at - 1-10, 2-20, 3-30 - not the first row it shows. */
+    if(range) range.textContent = list.length ? ((page + 1) + '-' + Math.min((page + 1) * per, list.length)) : '0';
     const prev = document.querySelector('#page-inspire [data-idea-page="-1"]');
     const next = document.querySelector('#page-inspire [data-idea-page="1"]');
     if(prev) prev.disabled = page <= 0;
     if(next) next.disabled = page >= pages - 1;
+
+    /* The column can still be moving while the count above is read - the
+       head, the pager, the pickers and the fonts all settle it in steps -
+       and a pass that drew more rows than the box then has room for leaves
+       the last of them clipped at the card's foot. The rows just drawn are
+       measured against the box they were drawn in: a pass that ran over is
+       asked for again, and the count it is asked for is the one the box
+       really holds. (The Bible's list has the same guard by construction:
+       its page size is the column divided by the row.) */
+    if(slice.length && box.scrollHeight - box.clientHeight > 1){
+      renderedPer = -1;
+      soonSettle();
+    }
+    laterSettle();
   };
+
+  /* the filter box above the list - the Bible's own box, same behaviour */
+  document.addEventListener('input', function(e){
+    if(e.target && e.target.id === 'ideaQuery'){ page = 0; renderSaved(); }
+  }, true);
 
   const AISET = function(){
     const c = cfg();
@@ -4299,7 +4516,11 @@ document.addEventListener('click', function(e){
       +   '<div class="idea-card" id="inspireBox"></div>'
       + '</section>'
       + '<aside class="idea-side">'
-      +   '<div class="idea-side-head"><i class="bi bi-bookmark"></i><span>Saved prompts</span><em id="ideaCount">0</em></div>'
+      +   '<div class="idea-side-head"><i class="bi bi-bookmark"></i><span>Saved prompts</span></div>'
+      +   '<div class="bb-search">'
+      +     '<i class="bi bi-search"></i>'
+      +     '<input id="ideaQuery" placeholder="Filter…" autocomplete="off">'
+      +   '</div>'
       +   '<div class="idea-rows" id="ideaRows"></div>'
       +   '<div class="idea-pager">'
       +     '<button class="mv-pager-btn" data-idea-page="-1" title="Previous"><i class="bi bi-chevron-left"></i></button>'
@@ -4312,6 +4533,7 @@ document.addEventListener('click', function(e){
     if(!current) current = window.SF_PICK || '';
     showPrompt();
     renderSaved();
+    soonSettle();
   };
 
   /* draw the card (and keep a plain-text copy of what is on it) */
@@ -4477,7 +4699,11 @@ document.addEventListener('click', function(e){
 
 /* ══════════ no-pager.js ══════════ */
 /* ═══════════════════════════════════════════════════════════
-   Writer — the chevron pagers are gone; every list scrolls.
+   Writer — the Outline's chevron pager is gone; the Outline scrolls.
+   The Draft, Bible and Idea pagers were taken out here too and are back:
+   asked for, in the dashboard's own shape (the skin is in final-fix.js).
+   What is left of this layer is the Outline, which still scrolls, plus the
+   row un-hider below for builds that left rows behind a page break.
 
    The Outline and the Bible were dealt with in pages-fix.js. These two
    are drawn by pages.js itself, so they are finished off here:
@@ -4498,15 +4724,16 @@ document.addEventListener('click', function(e){
    ═══════════════════════════════════════════════════════════ */
 (function(){
   /* ── DRAFT ── */
-  window.draftPerPage = function(){ return Number.MAX_SAFE_INTEGER; };
+  /* draftPerPage() is pages.js's own - it measures the panel and returns the
+     rows that fit, which is exactly what the pager at the foot of the list
+     pages by. It used to be pinned to Number.MAX_SAFE_INTEGER here so every
+     draft was drawn at once; that override is gone with the pager's return. */
 
   /* Every chevron pager the app draws for a LIST is taken out, wherever it
      was put and by whichever script put it there: Draft, Idea, Outline and
      Bible all scroll instead. Removing them is idempotent, so the sweep can
      run on every repaint. */
-  const PAGERS = '#page-draft .draft-pager, #page-inspire .idea-pager,' +
-                 '#page-outline .pg-pager, #page-bible .bb-pager,' +
-                 '#page-outline .draft-pager, #page-bible .draft-pager';
+  const PAGERS = '#page-outline .pg-pager';
   const clearPagers = function(){
     Array.prototype.forEach.call(document.querySelectorAll(PAGERS), function(p){
       if(p.parentElement) p.parentElement.removeChild(p);
@@ -4560,8 +4787,6 @@ document.addEventListener('click', function(e){
 
   const sweep = function(){
     clearPagers();
-    refillDrafts();
-    refillIdeaRows();
   };
 
   let raf = 0;
@@ -5514,11 +5739,14 @@ document.addEventListener('click', function(e){
 
   /* Only the writing surfaces count. Settings fields, the command box, the
      search panels and the plugin cards are not the writer working on the
-     project, so they must never trigger a backup on their own. */
+     project, so they must never trigger a backup on their own. Neither
+     are the Idea page's cards: a prompt is not the manuscript, and a
+     backup that landed as the tick was pressed read as the tick's own
+     doing. */
   const WRITES = '#editor, .editor-doc, .write-doc, [contenteditable="true"], textarea, input';
   const writing = function(t){
     if(!t || !t.closest) return false;
-    if(t.closest('.modal-scrim, #cmdBox, #fabAI, #fabMenu, .sf-plugin, .sf-tip, .toast-area, .set-shell')) return false;
+    if(t.closest('.modal-scrim, #cmdBox, #fabAI, #fabMenu, .sf-plugin, .sf-tip, .toast-area, .set-shell, #page-inspire')) return false;
     if(!t.matches || !t.matches(WRITES)) return false;
     if(t.tagName === 'INPUT' && /^(checkbox|radio|color|file)$/i.test(t.type || '')) return false;
     return true;
@@ -5661,5 +5889,1383 @@ document.addEventListener('click', function(e){
 
   setInterval(tick, 10 * 1000);            /* the file is rewritten every 10 seconds */
   setTimeout(tick, 10 * 1000);
+})();
+
+/* ═══════════════════════════════════════════════════════════
+   PAGE BARS, THE IDEA PAGE, THE DASHBOARD, THE PLAN HEAD
+
+   Everything below was the tail of app.js from the start; it used to sit
+   in its own files (page-bars.js, idea-cards.js, dash.js, plan-head.js)
+   and was merged in here, in its original load order, so the app is one
+   script instead of five. Nothing below was rewritten.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ══════════ the page bars ══════════ */
+/* ═══════════════════════════════════════════════════════════
+   ScriptForge — page bars
+
+   One bar for every page, the same box the Idea page uses:
+
+     Draft    · New draft · New Chat                   (build here)
+     Outline  · T · New chapter · New subchapter       … Expand / Collapse
+     Plan     · T · Add beat                           … Add act / scene / Clear
+     Bible    · T · New entry                          … category tabs
+     Kanban   · T · New list                           … Reset board
+     Canvas   · New card · Fit                         … zoom · Clear
+
+   Draft has no header of its own, so its bar is built here. The other
+   five already have a header row — that row is renamed into a bar: it
+   gets the bar classes and a small label in front, and every page keeps
+   its own buttons (nothing is re-wired, the handlers are delegated).
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── the five pages whose own header row becomes a bar ── */
+(function(){
+  const HEADS = {
+    outline: { label:'Outline', icon:'list-nested' },
+    plan:    { label:'Plan',    icon:'list-check' },
+    bible:   { label:'Bible',   icon:'journal-bookmark' },
+    kanban:  { label:'Kanban',  icon:'kanban' },
+    mindmap: { label:'Canvas',  icon:'diagram-3' }
+  };
+
+  const bar = function(page){
+    const root = document.getElementById('page-' + page);
+    if(!root) return;
+    const head = root.querySelector('.page-head');
+    if(!head) return;
+
+    head.classList.add('sf-bar-page');
+    /* the page's own title block is not part of a bar */
+    Array.prototype.forEach.call(head.querySelectorAll('.page-title, .page-sub'), function(el){
+      el.style.display = 'none';
+    });
+
+    /* the page's name is not written on the bar — the bar holds the
+       page's own buttons and nothing else */
+    Array.prototype.forEach.call(head.querySelectorAll('.sf-bar-label'), function(el){ el.remove(); });
+  };
+
+  const sweep = function(){ Object.keys(HEADS).forEach(bar); };
+
+  let raf = 0;
+  const schedule = function(){
+    if(raf) return;
+    raf = requestAnimationFrame(function(){ raf = 0; sweep(); });
+  };
+
+  if(typeof MutationObserver === 'function' && document.body){
+    new MutationObserver(schedule).observe(document.body, { childList:true, subtree:true });
+  }
+  window.addEventListener('resize', schedule);
+  document.addEventListener('click', schedule, true);
+  if(document.body) schedule();
+  else document.addEventListener('DOMContentLoaded', schedule);
+})();
+
+(function(){
+  const PAGE = 'draft';   /* The bar holds New draft while you are writing, and New Chat while
+     the draft chat is up — the same slot, one at a time. New draft calls the
+     app's own action directly: the old delegated click pointed at a + this bar
+     had already replaced. While an AI panel or the chat is up, the bar stays
+     and New draft steps aside. */
+  const ACTS = [
+    { icon:'plus-lg',   t:'New draft', act:'tools:addDraft' },
+    { icon:'chat-dots', t:'New Chat',  act:'chat:new', chat:true }
+  ];
+
+  const build = function(){
+    const bar = document.createElement('div');
+    bar.className = 'sf-bar';
+    bar.dataset.sfBar = PAGE;
+    bar.innerHTML =
+      ACTS.map(function(a){
+          return '<button class="ol-btn"' + (a.chat ? ' data-sfbar-chat="1"' : '') + ' data-sfbar="' + a.act + '">'
+               + '<i class="bi bi-' + a.icon + '"></i> ' + a.t + '</button>';
+        }).join('');
+    return bar;
+  };
+
+  const apply = function(){
+    const page = (typeof S !== 'undefined' && S.page) || '';
+    const root = document.getElementById('page-' + page);
+
+    /* The bar this file builds only ever lives on its own page. It must
+       NOT touch another layer's bar: the script page builds its own bar
+       with the same .sf-bar class, and a sweep that removed every .sf-bar
+       off this page deleted the script's bar on every repaint. Only the
+       bars carrying data-sf-bar are this file's. */
+    Array.prototype.slice.call(document.querySelectorAll('.sf-bar[data-sf-bar]')).forEach(function(b){
+      if(page !== PAGE || b.parentElement !== root) b.remove();
+    });
+    if(page !== PAGE || !root) return;
+    if(root.querySelector(':scope > .sf-bar')) return;
+    root.insertBefore(build(), root.firstChild);
+  };
+
+  let raf = 0;
+  const schedule = function(){
+    if(raf) return;
+    raf = requestAnimationFrame(function(){ raf = 0; apply(); });
+  };
+
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest('[data-sfbar]');
+    if(!btn) return;
+    e.preventDefault();
+    const what = btn.dataset.sfbar;
+    if(what.indexOf('ai:') === 0){
+      const fn = what.slice(3);
+      if(window.AI_FNS && window.AI_FNS[fn]) window.AI_FNS[fn]();
+      else if(typeof toast === 'function') toast('That action is not available here', 'warn');
+      return;
+    }
+    if(what === 'tools:addDraft'){
+      /* New draft goes through the app's OWN action — the one behind the “+”
+         on the page — so the new draft is the selected one and the title is
+         focused, exactly as it is when the page's own button is used. The
+         action is bound to a hidden stand-in; the bar's button only asks. */
+      const ghost = document.createElement('button');
+      ghost.type = 'button';
+      ghost.setAttribute('data-act', 'add-draft');
+      ghost.style.display = 'none';
+      document.body.appendChild(ghost);
+      ghost.click();
+      ghost.remove();
+      return;
+    }
+    if(what.indexOf('tools:') === 0){
+      const fn = what.slice(6);
+      const T = window.TOOLS;
+      if(T && typeof T[fn] === 'function') T[fn]();
+      else if(typeof toast === 'function') toast('That action is not available here', 'warn');
+      return;
+    }
+    if(what.indexOf('chat:') === 0){
+      const fn = what.slice(5);
+      const DC = window.DraftChat;
+      if(!DC){ toast && toast('The draft chat is not available here', 'warn'); return; }
+      const on = !!(document.querySelector('#page-draft.dc-on') ||
+                    document.querySelector('#page-draft [data-dc="1"]'));
+      if(fn === 'new'){
+        if(!on && DC.open) DC.open();      /* the chat view has to exist first */
+        if(DC.newChat) DC.newChat();
+        if(DC.render) DC.render();
+        return;
+      }
+      if(fn === 'toggle'){ if(on && DC.close) DC.close(); else if(DC.open) DC.open(); }
+      else if(fn === 'open' && DC.open) DC.open();
+      return;
+    }
+    const target = document.querySelector(what.slice(6));
+    if(target) target.click();
+  }, true);
+
+  if(typeof MutationObserver === 'function' && document.body){
+    new MutationObserver(schedule).observe(document.body, { childList:true, subtree:true });
+  }
+  window.addEventListener('resize', schedule);
+  if(document.body) schedule();
+  else document.addEventListener('DOMContentLoaded', schedule);
+})();
+
+
+/* ══════════ the Idea page ══════════ */
+/* ═══════════════════════════════════════════════════════════
+   ScriptForge — Idea page.
+
+   · Six cards, and every one of them is the writer’s own: write your prompt
+     in a card. Nothing is written for you and nothing is sent anywhere —
+     there is no AI on this page. The page’s AI is the round button’s
+     right-click, which is the app’s own panel.
+   · A card is a VIEW. The prompt sits there to be read, not typed over; the
+     pencil on the card opens it for writing and it closes again the moment
+     you click away. What you write lives with the project, so the cards are
+     still full when you come back to them.
+   · Copy and paste are one right-click, anywhere in the app:
+       right-click a saved prompt   → its label is copied
+       right-click a prompt in a card → the prompt is copied
+       right-click an empty box     → what was copied goes in
+     The app’s own writing menu and the browser’s own menu still open
+     wherever there is nothing of ours to do.
+   · Saving asks for a name first — the title typed in that little window is
+     what the Saved prompts column shows.
+   · Every row in the column is a prompt of its own and holds ALL SIX cards:
+     a click opens that prompt — the grid on the right becomes its six cards,
+     with the row you are on marked the way the draft list marks its own — the
+     row’s pencil renames it, and Remove stays where it was.
+   · New prompt adds one: a fresh prompt with six empty cards, its name asked
+     for the way New draft asks for a draft’s.
+   · The bar carries Genres · Tags, and Clear at its right end — Clear takes
+     the prompt out of the card you are on.
+   · Every dropdown on the Plan board (each beat’s type) wears the app’s own
+     dropdown card.
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  if(typeof PAGE_RENDERERS === 'undefined' || typeof PAGE_RENDERERS.inspire !== 'function') return;
+
+  const CARDS = 6;                    /* six cards to write in */
+  let sel = 0;                        /* the card you are on */
+  let editing = -1;                   /* the card open for writing (−1 = none) */
+  let clip = '';                      /* what the right-click last copied */
+
+  const esc2 = function(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/\"/g, '&quot;');
+  };
+
+  const toastIt = function(msg, kind){
+    try{ if(typeof toast === 'function') toast(msg, kind); }catch(e){}
+  };
+  const saveIt = function(){ try{ if(typeof save === 'function') save(); }catch(e){} };
+
+  /* ── EVERY PROMPT OWNS ALL SIX CARDS ──
+     One row in the left card is one prompt, and the grid on the right is
+     whatever that row holds: click a row and its own six cards come up.
+     savedPrompts stays the list itself — the rows, the filter and the pager
+     are drawn from it by other layers — so the six cards ride on the entry,
+     and an entry written before a prompt owned its cards ({ title, text })
+     reads as a prompt whose first card is that text. Nothing is lost. */
+  let cur = 0;                        /* the prompt you are on, a row of the left card */
+
+  const cardsOf = function(entry){
+    if(!entry || typeof entry !== 'object') return null;
+    if(!Array.isArray(entry.cards)){
+      entry.cards = [];
+      for(let i = 0; i < CARDS; i++) entry.cards[i] = '';
+      if(entry.text) entry.cards[0] = String(entry.text);
+    }
+    /* A prompt STARTS with six cards and keeps as many as it has: the bin on
+       a card takes that card away, so a list shorter than six is a prompt the
+       writer has cut down and it is left exactly as it is here. This used to
+       fill every list out to six, which put a deleted card straight back —
+       the bin looked dead. Only a slot holding something that is not a string
+       is repaired, and a prompt with no cards at all is left empty: the grid
+       says so and the row's Add card makes one. */
+    for(let i = 0; i < entry.cards.length; i++){
+      if(typeof entry.cards[i] !== 'string') entry.cards[i] = '';
+    }
+    return entry.cards;
+  };
+
+  const blank = function(){
+    return { title:'', text:'', cards: new Array(CARDS).fill('') };
+  };
+
+  /* The prompts are settled once, before the left card is drawn from them:
+     a profile written before a prompt owned its cards brings the six this
+     page was holding into the list as a prompt of its own, so nothing
+     already written is lost. NOTHING ELSE here makes a prompt - not the
+     pencil, not a keystroke, not Clear. Only New prompt does, and that is
+     the writer's own press. */
+  /* ── TEN PROMPTS TO START WITH ──
+     The left card is a page of ten, the way the dashboard is a page of ten
+     projects, and an empty shelf shows none of what it is for. A profile that
+     does not yet hold ten prompts is topped up to ten, once — names the
+     writer can keep, rename or bin. */
+  const STARTERS = [
+    'The opening image', 'The inciting incident', 'Who wants what',
+    'The first obstacle', 'A secret kept', 'The midpoint turn',
+    'What it costs them', 'The lowest point', 'The choice they make',
+    'The closing image'
+  ];
+  const seedStarters = function(){
+    if(typeof S === 'undefined' || !S.config) return;
+    if(S.config.ideaStarters) return;
+    S.config.ideaStarters = true;
+    const list = savedEntries();
+    /* ONLY a shelf with nothing on it is filled. This used to top a short
+       list up to ten, which pushed the starters that were missing from the
+       END of STARTERS onto a list the writer had already written: open the
+       page with seven prompts of your own and three prompts nobody asked
+       for were added, so the count went 7 -> 10 in one step. A list that
+       already holds anything is left exactly as it is, and the flag above
+       means a shelf the writer empties stays empty. */
+    if(list.length) return;
+    for(let i = 0; i < STARTERS.length; i++){
+      const entry = blank();
+      entry.title = STARTERS[i];
+      list.push(entry);
+    }
+  };
+
+  const migrate = function(){
+    if(typeof S === 'undefined' || !S.config) return;
+    seedStarters();
+    if(!S.config.ideaSeeded){
+      S.config.ideaSeeded = true;
+      const old = Array.isArray(S.config.ideaCards) ? S.config.ideaCards : null;
+      if(old && old.some(function(v){ return String(v || '').trim(); })){
+        savedEntries().unshift({ title:'', text:'', cards: old.slice(0, CARDS) });
+      }
+    }
+    clampCur();
+  };
+
+  const clampCur = function(){
+    const list = savedEntries();
+    Array.prototype.forEach.call(list, cardsOf);
+    if(cur >= list.length) cur = list.length - 1;
+    if(cur < -1) cur = -1;
+    return list;
+  };
+
+  /* the prompt's own text stays its cards put together, so the row's label,
+     the filter and anything else reading a prompt still reads it */
+  const syncText = function(list, entry){
+    if(!list) return;
+    const e = entry || savedEntries()[cur];
+    if(!e) return;
+    e.text = list.filter(function(v){ return String(v || '').trim(); }).join('\n\n');
+  };
+
+  const store = function(){
+    if(typeof S === 'undefined') return null;
+    if(!S.config) S.config = {};
+    const list = clampCur();
+    const entry = list[cur];
+    if(!entry) return null;
+    const cards = cardsOf(entry);
+    syncText(cards, entry);
+    return cards;
+  };
+
+  /* the row you are on is the row the grid belongs to */
+  const markRows = function(){
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#page-inspire #ideaRows [data-idea-open]'),
+      function(row){
+        row.classList.toggle('on', parseInt(row.dataset.ideaOpen, 10) === cur);
+      });
+  };
+
+  const saveSoon = (typeof debounce === 'function')
+    ? debounce(function(){ saveIt(); }, 400)
+    : saveIt;
+
+  /* the card’s own text — the prompt, exactly as the writer wrote it */
+  const wordsOf = function(i){
+    const list = store();
+    return list ? String(list[i] || '').trim() : '';
+  };
+
+  const titleOf = function(txt){
+    const words = String(txt || '').replace(/\s+/g, ' ').trim().split(' ');
+    const t = words.slice(0, 6).join(' ');
+    return (words.length > 6 ? t + '\u2026' : t) || 'Untitled prompt';
+  };
+
+  /* ═══ COPY & PASTE, BY RIGHT-CLICK ═══
+     One clipboard of our own holds what the writer last copied; the system
+     clipboard is written too, so a paste into another app still works. */
+  const copyBlock = function(txt, what){
+    txt = String(txt == null ? '' : txt);
+    if(!txt.trim()){ toastIt('Nothing to copy', 'warn'); return; }
+    clip = txt;
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt);
+    }catch(e){ /* the app’s own clipboard is enough for our paste */ }
+    toastIt('Copied ' + what);
+  };
+
+  const copyText = function(txt){
+    txt = String(txt == null ? '' : txt);
+    if(!txt.trim()){ toastIt('Write something first', 'warn'); return; }
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(txt);
+        toastIt('Copied');
+        return;
+      }
+    }catch(e){ /* fall through to the old path */ }
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); toastIt('Copied'); }catch(e){}
+    ta.remove();
+  };
+
+  /* the box a paste may land in: a plain field, never one that is read-only
+     (a card in view mode is read-only, and that is the whole point) */
+  const PLAIN = /^(text|search|url|email|tel|password|number|)$/i;
+  const fieldOf = function(el){
+    if(!el || !el.tagName) return null;
+    if(el.isContentEditable) return el;
+    if(el.tagName === 'TEXTAREA') return el;
+    if(el.tagName === 'INPUT' && PLAIN.test(el.type || '')) return el;
+    return null;
+  };
+  const isBlank = function(el){
+    if(!el) return false;
+    if(el.isContentEditable) return !String(el.textContent || '').trim();
+    return !String(el.value || '').trim();
+  };
+  const pasteInto = function(el, txt){
+    if(el.isContentEditable){
+      try{
+        el.focus();
+        document.execCommand('insertText', false, txt);
+        return true;
+      }catch(e){ return false; }
+    }
+    const v = String(el.value || '');
+    const from = (typeof el.selectionStart === 'number') ? el.selectionStart : v.length;
+    const to   = (typeof el.selectionEnd   === 'number') ? el.selectionEnd   : from;
+    el.value = v.slice(0, from) + txt + v.slice(to);
+    const at = from + txt.length;
+    try{ el.setSelectionRange(at, at); }catch(e){}
+    try{ el.focus(); }catch(e){}
+    try{ el.dispatchEvent(new Event('input',  { bubbles:true })); }catch(e){}
+    try{ el.dispatchEvent(new Event('change', { bubbles:true })); }catch(e){}
+    return true;
+  };
+
+  /* ═══ THE SAVED PROMPTS LIST ═══
+     One line per prompt — its title and nothing else — and two things are
+     done by hand: the row’s own button is the Rename pencil (copying a row
+     is the right-click), and the prompt itself is never printed there.
+
+     Two other layers draw these rows (pages-fix.js writes them, no-pager.js
+     re-fills them), so the dressing runs again on every change to the column
+     and is written to be harmless the second time. */
+  const savedEntries = function(){
+    if(typeof S === 'undefined') return [];
+    if(!S.config) S.config = {};
+    if(!Array.isArray(S.config.savedPrompts)) S.config.savedPrompts = [];
+    return S.config.savedPrompts;
+  };
+
+  const entryText = function(entry){
+    if(entry == null) return '';
+    return (typeof entry === 'string') ? entry : String(entry.text || '');
+  };
+  const entryTitle = function(entry){
+    if(entry == null) return '';
+    return (typeof entry === 'string') ? titleOf(entry) : (entry.title || titleOf(entry.text));
+  };
+
+  const dressRow = function(row){
+    /* the prompt itself is not shown in the list — its title is the row */
+    const txt = row.querySelector('.idea-row-txt');
+    if(txt){
+      Array.prototype.forEach.call(txt.querySelectorAll('em, .idea-row-text'), function(el){ el.remove(); });
+    }
+    /* the row’s button becomes the Rename pencil: a copy of the row is a
+       right-click now, so the button that used to copy has nothing to do */
+    Array.prototype.forEach.call(row.querySelectorAll('[data-idea-copy]'), function(b){
+      b.removeAttribute('data-idea-copy');
+      b.setAttribute('data-idea-ren', '1');
+      b.title = 'Rename';
+      const ic = b.querySelector('i');
+      if(ic) ic.className = 'bi bi-pencil';
+    });
+
+    /* and the row's own Add card, ahead of the pencil: a card joins THIS
+       prompt, to the right of the ones it has, and opens in the writing
+       pane ready to type in. (The pencil on a card opens a card that is
+       already there; this one is the way a prompt gains one.) */
+    Array.prototype.forEach.call(
+      row.querySelectorAll('[data-idea-edit]'),
+      function(b){ if(b.parentNode) b.parentNode.removeChild(b); });
+    const ren = row.querySelector('[data-idea-ren]');
+    if(ren && !row.querySelector('[data-idea-newcard]')){
+      const add = document.createElement('button');
+      add.className = 'ol-tool';
+      add.setAttribute('data-idea-newcard', row.dataset.ideaOpen || '');
+      add.title = 'Add card';
+      add.innerHTML = '<i class="bi bi-file-earmark-plus"></i>';
+      ren.parentNode.insertBefore(add, ren);
+    }
+    row.setAttribute('title', 'Right-click to copy its label · Click to open this prompt, with its six cards');
+  };
+
+  const dressList = function(){
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#page-inspire #ideaRows [data-idea-open]'), dressRow);
+    markRows();
+    /* every prompt removed: the cards on the right are nobody's, so they are
+       drawn as they are without one - inert, and saying how to start */
+    if(!savedEntries().length && document.querySelector('#page-inspire #ideaCards .idea-slot-acts')) paint();
+
+    /* prompts are made by New prompt now, not by keeping a card */
+    const hint = document.querySelector('#page-inspire #ideaRows .idea-empty');
+    if(hint && hint.dataset.sfHint !== '1'){
+      hint.dataset.sfHint = '1';
+      hint.innerHTML = 'No prompts yet.<br>Press <b>New prompt</b> to start one.';
+    }
+  };
+
+  let listSeen = null, listWatch = null;
+  const watchList = function(){
+    const box = document.getElementById('ideaRows');
+    if(!box) return;
+    if(box !== listSeen){
+      if(listWatch) listWatch.disconnect();
+      listSeen = box;
+      if(typeof MutationObserver === 'function'){
+        listWatch = new MutationObserver(dressList);
+        listWatch.observe(box, { childList:true, subtree:true });
+      }
+    }
+    dressList();
+  };
+
+  /* ── rename: the row’s pencil edits its title in place ── */
+  const startRename = function(row){
+    if(!row || row.querySelector('.idea-rename')) return;
+    const i = parseInt(row.dataset.ideaOpen, 10);
+    if(isNaN(i)) return;
+    const b = row.querySelector('b');
+    if(!b) return;
+    const cur = entryTitle(savedEntries()[i]);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'idea-rename';
+    input.value = cur;
+    input.setAttribute('data-idea-ren-input', String(i));
+    b.parentNode.replaceChild(input, b);
+    input.focus();
+    input.select();
+  };
+
+  const endRename = function(input, revert){
+    if(!input || input.dataset.ideaRenDone) return;
+    input.dataset.ideaRenDone = '1';
+    const i = parseInt(input.dataset.ideaRenInput, 10);
+    const entry = savedEntries()[i];
+    let title = '';
+
+    if(entry !== undefined && !isNaN(i)){
+      const text = entryText(entry);
+      if(!revert){
+        title = String(input.value || '').replace(/\s+/g, ' ').trim();
+        /* ONE PROMPT, ONE NAME. A name already on the left card is refused
+           rather than made twice — the writer is told, and the row keeps the
+           name it had. */
+        if(title && nameUsed(title, i)){
+          toastIt('"' + title + '" is already a prompt here', 'warn');
+          title = '';
+        }
+        if(title){
+          if(typeof entry === 'string') savedEntries()[i] = { title:title, text:text };
+          else entry.title = title;
+          saveIt();
+          toastIt('Renamed');
+        }
+      }
+      if(!title) title = entryTitle(entry);
+    }
+
+    /* put the title back in the row exactly where the field was */
+    const b = document.createElement('b');
+    b.textContent = title || 'Untitled prompt';
+    if(input.parentNode) input.parentNode.replaceChild(b, input);
+  };
+
+  /* ═══ SAVING — the writer names the prompt ═══
+     The card’s Save asks what the prompt should be called before anything is
+     written down, and that typed title is what the right-hand column shows:
+     the list reads as the writer’s own shelf of prompts instead of six
+     truncated first lines. Cancelling the little window keeps nothing. */
+  const savePrompt = function(title, txt){
+    if(typeof S === 'undefined') return;
+    /* the card you kept becomes a prompt of its own — all six cards come
+       with it, the one you kept holding what was in it */
+    const entry = blank();
+    entry.title = title;
+    entry.cards[0] = String(txt || '');
+    entry.text = entry.cards[0];
+    savedEntries().unshift(entry);
+    cur = 0;
+    saveIt();
+    toastIt('Prompt saved');
+
+    /* repaint the page so the left card carries the new prompt */
+    const root = document.getElementById('page-inspire');
+    if(root && typeof PAGE_RENDERERS.inspire === 'function') PAGE_RENDERERS.inspire(root);
+    else paint();
+  };
+
+  const askTitle = async function(txt){
+    txt = String(txt || '');
+    if(!txt.trim()){ toastIt('Write something first', 'warn'); return; }
+    const list = savedEntries();
+    const has = list.some(function(p){ return entryText(p) === txt; });
+    if(has){ toastIt('Already saved'); return; }
+
+    let title = titleOf(txt);
+    if(typeof window.askPrompt === 'function'){
+      /* the app’s own little window, so it matches every other named thing */
+      const answer = await window.askPrompt('Name this prompt', title);
+      if(answer == null) return;
+      title = String(answer).replace(/\s+/g, ' ').trim() || titleOf(txt);
+    }
+    savePrompt(title, txt);
+  };
+
+  /* ── the cards ── */
+  const cardHTML = function(i, noOwner){
+    const open = !noOwner && (i === editing);
+    const ph = noOwner ? 'Press New prompt to start one'
+             : (open ? 'Write your prompt…' : 'Click the pencil to write a prompt…');
+    return '<article class="idea-slot idea-slot-brief' + (!noOwner && i === sel ? ' on' : '') + '"'
+      + ' data-ic-slot="' + i + '" data-ic-mode="' + (open ? 'edit' : 'view') + '">'
+      + '<textarea class="idea-brief-input" data-ic-input="' + i + '" rows="3" spellcheck="false"'
+      +   (open ? '' : ' readonly')
+      +   ' placeholder="' + ph + '">'
+      +   esc2(wordsOf(i)) + '</textarea>'
+      /* Two buttons on a card: the pencil, which turns into a tick while the
+         card is open for writing, and the bin beside it, which takes that one
+         card away. Keeping a card as a prompt of its own went with the shelf:
+         every prompt is in the left card already. */
+      + (noOwner ? '' : '<div class="idea-slot-acts">'
+        +   '<button class="ol-tool" data-ic-edit="' + i + '" title="Edit this card"><i class="bi bi-pencil-square"></i></button>'
+        +   '<button class="ol-tool" data-ic-del="' + i + '" title="Delete this card"><i class="bi bi-trash"></i></button>'
+        + '</div>')
+      + '</article>';
+  };
+
+  const paint = function(){
+    const box = document.getElementById('ideaCards');
+    if(!box) return;
+    const list = store();
+    /* every card of this prompt deleted: the grid says so rather than
+       standing blank, and the row's Add card puts one back */
+    if(list && !list.length){
+      box.innerHTML = '<article class="idea-slot idea-slot-ghost">'
+        + '<span class="idea-ghost">No cards on this prompt.<br>'
+        + 'Press <b>Add card</b> on its row to make one.</span></article>';
+      return;
+    }
+    const n = list ? list.length : CARDS;
+    let html = '';
+    for(let i = 0; i < n; i++) html += cardHTML(i, !list);
+    box.innerHTML = html;
+  };
+
+  /* ── ONE PROMPT, ONE NAME ──
+     The left card is a shelf of prompts, so two rows may not wear the same
+     name. Renaming to a name that is already there is refused (and said), and
+     a prompt made by New prompt takes the next free “Untitled prompt”, so
+     pressing it five times cannot leave five rows that read the same. */
+  const nameUsed = function(name, except){
+    const want = String(name || '').trim().toLowerCase();
+    if(!want) return false;
+    return savedEntries().some(function(p, i){
+      return i !== except && entryTitle(p).trim().toLowerCase() === want;
+    });
+  };
+
+  const freeTitle = function(base){
+    base = String(base || '').trim() || 'Untitled prompt';
+    if(!nameUsed(base, -1)) return base;
+    let n = 2;
+    while(nameUsed(base + ' ' + n, -1)) n++;
+    return base + ' ' + n;
+  };
+
+  const mark = function(){
+    const cards = document.querySelectorAll('#ideaCards [data-ic-slot]');
+    Array.prototype.forEach.call(cards, function(c){
+      c.classList.toggle('on', parseInt(c.dataset.icSlot, 10) === sel);
+    });
+  };
+
+  /* ── the pencil opens a card for writing; clicking away closes it again ──
+     The two modes are switched on the card that is already on screen rather
+     than by drawing the grid again: the button the writer is pressing has to
+     survive the click that follows the press, and a fresh grid would take it
+     out of the page first. */
+  const viewCard = function(i, mode){
+    const slot = document.querySelector('#ideaCards [data-ic-slot="' + i + '"]');
+    if(!slot) return null;
+    const open = (mode === 'edit');
+    slot.setAttribute('data-ic-mode', open ? 'edit' : 'view');
+    const ta = slot.querySelector('[data-ic-input]');
+    if(ta){
+      if(open) ta.removeAttribute('readonly');
+      else ta.setAttribute('readonly', 'readonly');
+      ta.placeholder = open ? 'Write your prompt…' : 'Click the pencil to write a prompt…';
+    }
+    /* the button that opened the card becomes the tick that closes it */
+    const btn = slot.querySelector('[data-ic-edit]');
+    if(btn){
+      btn.setAttribute('title', open ? 'Done' : 'Edit this prompt');
+      if(open) btn.setAttribute('data-ic-done', '1');
+      else btn.removeAttribute('data-ic-done');
+      const ic = btn.querySelector('i');
+      if(ic) ic.className = open ? 'bi bi-check2' : 'bi bi-pencil-square';
+    }
+    return ta;
+  };
+
+  /* the card's own pencil does not write in the 306px card any more: it
+     opens that card in the writing pane, the width of the column */
+  const openCard = function(i){
+    openFull(i);
+  };
+
+  const closeCard = function(){
+    if(editing < 0) return;
+    viewCard(editing, 'view');
+    editing = -1;
+  };
+
+  /* ── A ROW'S OWN ADD CARD ──
+     One more card joins the prompt that row stands for, to the right of the
+     ones it has. A prompt starts with six and can hold more; nothing else on
+     the page adds one. The card does NOT open: it lands empty in the grid,
+     where its own pencil opens it, so pressing Add card never throws the
+     page into the writing column. A pane that is already open is put away
+     first - what was typed in it is committed to the card it belongs to,
+     because the page is about to move to the prompt this card joins and
+     text left in the open pane would otherwise land on the wrong card. */
+  const addCardTo = function(i){
+    const all = savedEntries();
+    if(isNaN(i) || i < 0 || i >= all.length) return;
+    const openPane = document.querySelector('#page-inspire .idea-write:not([hidden])');
+    if(openPane) closeFull();
+    const list = cardsOf(all[i]);
+    if(!list) return;
+    cur = i;
+    list.push('');
+    syncText(list, all[i]);
+    saveIt();
+    paint();
+    markRows();
+    /* the card that was just made is the one thing the press was for, and
+       with the columns keeping their size it lands a column further right,
+       behind the grid's scrollbar: the grid is taken to that end so the new
+       card is the one in view. */
+    const box = document.getElementById('ideaCards');
+    if(box) box.scrollLeft = box.scrollWidth - box.clientWidth;
+  };
+
+  /* the prompt in view is taken out of the card you are on */
+  const clearCard = function(){
+    const list = store();
+    if(!list) return;
+    if(!String(list[sel] || '').trim()){ toastIt('Nothing to clear', 'warn'); return; }
+    list[sel] = '';
+    editing = -1;
+    paint();
+    saveSoon();
+    toastIt('Cleared');
+  };
+
+  /* ── the bin on a card ──
+     The bin takes the card AWAY — the card itself, not only what is written
+     in it — and the ones behind it close up, so a prompt can be cut down to
+     the cards it really uses. Clear (on the bar) is what empties a card in
+     place; this is the one that removes it. Cutting the last card away is
+     allowed too: the grid says the prompt has none, and the row's own Add
+     card puts one back. */
+  const deleteCard = function(i){
+    const list = store();
+    if(!list) return;
+    if(isNaN(i) || i < 0 || i >= list.length) return;
+    list.splice(i, 1);
+    const entry = savedEntries()[cur];
+    if(entry) syncText(list, entry);
+    if(editing >= list.length) editing = -1;
+    if(sel >= list.length) sel = Math.max(0, list.length - 1);
+    saveIt();
+    paint();
+    mark();
+    markRows();
+    toastIt('Card deleted');
+  };
+
+  /* ── the row you are on ──
+     A click on the left card's row opens that prompt: the six cards on the
+     right become its own. It is the draft list's own gesture. A click on
+     the row you are ALREADY on lets it go (-1): the six cards go back to
+     being nobody's, exactly as they are on a page with no prompt. */
+  const openPrompt = function(i){
+    const list = savedEntries();
+    if(isNaN(i) || i >= list.length) return;
+    cur = i;
+    editing = -1;
+    paint();
+    markRows();
+    saveSoon();
+  };
+
+  /* ── New card is gone ──
+     A prompt holds its six cards and nothing here adds a seventh: the row
+     of cards never runs past the column, so there is no sideways scrollbar
+     under it. A card is written by opening it in the pane. */
+
+  /* ── New prompt ──
+     A prompt of its own joins the left card with all six cards empty and
+     ready, and it is asked for its name the way New draft asks for a
+     draft's. Nothing already written is touched. */
+  const newPrompt = function(){
+    const list = savedEntries();
+    const entry = blank();
+    /* the new row is named the moment it is made, and never with a name that
+       is already on the shelf */
+    entry.title = freeTitle('Untitled prompt');
+    list.unshift(entry);
+    cur = 0;
+    editing = -1;
+    saveIt();
+    const root = document.getElementById('page-inspire');
+    if(root && typeof PAGE_RENDERERS.inspire === 'function') PAGE_RENDERERS.inspire(root);
+    else paint();
+    const row = document.querySelector('#page-inspire #ideaRows [data-idea-open="0"]');
+    if(row) startRename(row);
+    toastIt('New prompt');
+  };
+
+  /* ── the page ── */
+  const orig = PAGE_RENDERERS.inspire;
+  PAGE_RENDERERS.inspire = function(root){
+    /* The prompts are settled BEFORE the left card is drawn from them: an
+       entry written before a prompt owned its cards and the cards this page
+       was holding both turn into prompts here, so the rows the renderer
+       paints are the rows that exist - and the row you are on is the one the
+       grid belongs to. */
+    if(root && typeof S !== 'undefined' && S.config) migrate();
+    orig(root);
+    if(!root || !root.querySelector) return;
+
+    editing = -1;
+
+    /* one big card → the six-card grid. The grid is the page's ONLY surface,
+       with or without a prompt: it is what is on the right the moment the
+       page opens, and it stays there. */
+    const box = root.querySelector('#inspireBox');
+    if(box){
+      box.hidden = true;
+      box.id = 'inspireBoxOld';
+      box.className = '';
+      const grid = document.createElement('div');
+      grid.className = 'idea-cards';
+      grid.id = 'ideaCards';
+      box.parentNode.insertBefore(grid, box);
+    }
+
+    /* The bar's left slot is the page's own AI door — “Prompt me” and the
+       settings that fed it. This page does not write prompts: the cards are
+       the writer's, and the app's AI is the round button's right-click. */
+    const aiDoor = root.querySelector('.idea-bar-left')
+      || root.querySelector('.idea-bar [data-idea="prompt"], .idea-bar [data-ic-prompt]');
+    if(aiDoor && aiDoor.parentNode) aiDoor.parentNode.removeChild(aiDoor);
+
+    /* ═══ The bar is the page's strip ═══
+       It used to sit inside the writing card, over that one column. It is
+       the page's own row now: the SAME element, lifted out of .idea-main and
+       made the page's first child, so it runs the full width of the page
+       above BOTH cards — the strip the Draft page's .sf-bar and the
+       Bible's .page-head are. No markup is rebuilt and no handler is
+       re-bound: only the parent changes, and every repaint of the page
+       moves it again. */
+    const barEl = root.querySelector('.idea-bar');
+    if(barEl && barEl.parentNode !== root) root.insertBefore(barEl, root.firstChild);
+
+    /* the bar's left end: this page's own type (T) and New prompt, in the
+       order the Canvas bar uses them (mindmap.js:452). New card has left the
+       bar — a card is written from the prompt's own row. */
+    if(barEl && !barEl.querySelector('.idea-head-left')){
+      const left = document.createElement('div');
+      left.className = 'idea-head-left';
+      left.innerHTML =
+        '<button class="ol-btn ol-btn-icon" data-typop="inspire" title="Font, size and leading"><i class="bi bi-fonts"></i></button>'
+        + '<button class="ol-btn idea-new" data-ic-new="1"><i class="bi bi-plus-lg"></i> <span>New prompt</span></button>';
+      barEl.insertBefore(left, barEl.firstChild);
+    }
+
+    /* The bar's Copy belongs to the old single prompt; it acts on the card
+       you are on now, so it is taken off the page's own wiring before the
+       page can read it as its own. The Save beside it — “Keep this prompt” —
+       is gone: a prompt is made by New prompt, and every card is already in
+       the left column. */
+    Array.prototype.forEach.call(
+      root.querySelectorAll('.idea-tools [data-idea="save"]'),
+      function(b){ if(b.parentNode) b.parentNode.removeChild(b); });
+    Array.prototype.forEach.call(
+      root.querySelectorAll('.idea-tools [data-idea="copy"]'),
+      function(b){
+        b.removeAttribute('data-idea');
+        b.setAttribute('data-ic-bar-copy', '1');
+      });
+
+    if(typeof window.enhanceSelects === 'function') window.enhanceSelects(root);
+    paint();
+    watchList();
+
+    /* the T on the bar is this page's own type, the way it is on every other
+       page: the six cards' prompt text reads the --pg-* the panel writes.
+       Seeded at 12px - what the cards already wear - so the panel opens on
+       the page as it looks now instead of moving the words a step on its
+       first apply. */
+    if(typeof S !== 'undefined' && S.config){
+      if(!S.config.typo || typeof S.config.typo !== 'object') S.config.typo = {};
+      if(!S.config.typo.inspire) S.config.typo.inspire = { font:'', size:12, lh:1.6, weight:'400' };
+    }
+    if(typeof typoApply === 'function') typoApply('inspire', root);
+  };
+
+  /* ═══ THE WRITING PANE ═══
+     A card is WRITTEN in the column, not in the 306px card it is shown in:
+     the pane is the Draft page's own writing surface — the same
+     --surface-1 card, the same 1px line, the same rounded corner — at the
+     width and height the six cards take. The six step aside while it is
+     open; the tick writes what was written back into the card it was
+     opened for and the six come back exactly as they were. A prompt's own
+     row opens it too (Edit this prompt), on that prompt's first card. */
+  const paneRoot = function(){
+    const main = document.querySelector('#page-inspire .idea-main');
+    if(!main) return null;
+    let pane = main.querySelector('.idea-write');
+    if(!pane){
+      pane = document.createElement('div');
+      pane.className = 'idea-write';
+      pane.hidden = true;
+      pane.innerHTML =
+        '<div class="idea-write-head">'
+        +   '<span class="idea-write-num"></span>'
+        +   '<button class="ol-btn idea-write-done" data-ic-wdone="1" title="Done — keep this card">'
+        +     '<i class="bi bi-check2"></i><span>Done</span></button>'
+        + '</div>'
+        + '<textarea class="idea-write-body" spellcheck="false" placeholder="Write your prompt…"></textarea>';
+      main.appendChild(pane);
+    }
+    return pane;
+  };
+
+  const openFull = function(i){
+    const list = store();
+    if(!list){ toastIt('Pick a prompt on the left first', 'warn'); return; }
+    if(isNaN(i) || i < 0 || i >= list.length) return;
+    const pane = paneRoot();
+    if(!pane) return;
+    sel = i;
+    editing = i;
+    const ta = pane.querySelector('.idea-write-body');
+    const num = pane.querySelector('.idea-write-num');
+    const entry = savedEntries()[cur];
+    /* "of" is the prompt's OWN card count - the six it starts with, or more
+       once the row's Add card has made a seventh */
+    if(num) num.textContent = 'Card ' + (i + 1) + ' of ' + list.length + (entry ? ' \u00b7 ' + entryTitle(entry) : '');
+    if(ta) ta.value = String(list[i] || '');
+    const grid = document.getElementById('ideaCards');
+    pane.hidden = false;
+    if(grid) grid.classList.add('ic-away');
+    markRows();
+    if(!ta) return;
+    try{ ta.focus(); }catch(e){}
+    try{ const at = ta.value.length; ta.setSelectionRange(at, at); }catch(e){}
+  };
+
+  /* the tick: what was written goes into that card, and the six come back */
+  const closeFull = function(){
+    const pane = document.querySelector('#page-inspire .idea-write');
+    if(!pane || pane.hidden) return;
+    const ta = pane.querySelector('.idea-write-body');
+    const list = store();
+    if(list && editing >= 0 && ta){
+      list[editing] = ta.value;
+      const entry = savedEntries()[cur];
+      if(entry) syncText(list, entry);
+      saveIt();
+    }
+    pane.hidden = true;
+    const grid = document.getElementById('ideaCards');
+    if(grid) grid.classList.remove('ic-away');
+    editing = -1;
+    paint();
+    mark();
+    markRows();
+  };
+
+  /* the button that opened the pane must not steal focus on the press */
+  document.addEventListener('mousedown', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    if(t.closest('[data-ic-wdone]')) e.preventDefault();
+  }, true);
+
+  document.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    if(t.closest('[data-ic-wdone]')){
+      e.preventDefault();
+      e.stopPropagation();
+      closeFull();
+    }
+  }, true);
+
+  /* every keystroke in the pane is the card's own text, kept with the project */
+  document.addEventListener('input', function(e){
+    const t = e.target;
+    if(!t || !t.classList || !t.classList.contains('idea-write-body')) return;
+    const list = store();
+    if(!list || editing < 0) return;
+    list[editing] = t.value;
+    const entry = savedEntries()[cur];
+    if(entry) syncText(list, entry);
+    saveSoon();
+  }, true);
+
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Escape') return;
+    const pane = document.querySelector('#page-inspire .idea-write');
+    if(pane && !pane.hidden){ e.preventDefault(); closeFull(); }
+  }, true);
+
+  /* ── the card's own button must not steal focus ──
+     A press on the pencil (or on the tick it becomes) would otherwise blur
+     the field the card is written in, and blurring closes the card: the tick
+     would shut it a beat before the click that follows opened it again, so
+     the tick looked dead. The press no longer moves focus, and the click
+     alone decides which way the card goes. */
+  document.addEventListener('mousedown', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    if(t.closest('#ideaCards [data-ic-edit], #ideaCards [data-ic-del]')) e.preventDefault();
+  }, true);
+
+  /* ── clicks ── */
+  document.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+
+    /* Clear — the prompt leaves the card it is shown in */
+    const cl = t.closest('[data-sf-clear]');
+    if(cl){ e.preventDefault(); e.stopPropagation(); clearCard(); return; }
+
+    /* New prompt makes a prompt — its own row in the left card, with all
+       six cards empty and ready */
+    if(t.closest('[data-ic-new]')){
+      e.preventDefault(); e.stopPropagation();
+      newPrompt();
+      return;
+    }
+
+    /* the bar's Copy and Save, acting on the card you are on */
+    if(t.closest('[data-ic-bar-copy]')){
+      e.preventDefault(); e.stopPropagation();
+      copyText(wordsOf(sel));
+      return;
+    }
+    if(t.closest('[data-ic-bar-save]')){
+      e.preventDefault(); e.stopPropagation();
+      askTitle(wordsOf(sel));
+      return;
+    }
+
+    /* the bin on a card: that one card leaves the prompt */
+    const dl = t.closest('#ideaCards [data-ic-del]');
+    if(dl){
+      e.preventDefault(); e.stopPropagation();
+      deleteCard(parseInt(dl.getAttribute('data-ic-del'), 10));
+      return;
+    }
+
+    const ed = t.closest('#ideaCards [data-ic-edit]');
+    if(ed){
+      e.preventDefault(); e.stopPropagation();
+      const i = parseInt(ed.dataset.icEdit, 10);
+      if(isNaN(i)) return;
+      /* the tick closes the card the pencil opened */
+      if(ed.hasAttribute('data-ic-done') || i === editing) closeCard();
+      else openCard(i);
+      return;
+    }
+
+
+    /* a row's own Add card: one more card on THAT prompt, opened in the
+       writing pane */
+    const nw = t.closest('#page-inspire #ideaRows [data-idea-newcard]');
+    if(nw){
+      e.preventDefault(); e.stopPropagation();
+      addCardTo(parseInt(nw.getAttribute('data-idea-newcard'), 10));
+      return;
+    }
+
+    /* a prompt opened: the grid becomes ITS six cards */
+    const row = t.closest('[data-idea-open]');
+    if(row){
+      if(t.closest('.ol-tool')) return;             /* its own edit / rename / remove */
+      const i = parseInt(row.dataset.ideaOpen, 10);
+      /* a second click on the row you are on lets it go - the same gesture
+         the dashboard's project card has */
+      openPrompt(i === cur ? -1 : i);
+      return;
+    }
+
+    /* the card itself — never preventDefault, the field needs the caret */
+    const sl = t.closest('[data-ic-slot]');
+    if(sl){
+      const i = parseInt(sl.dataset.icSlot, 10);
+      if(!isNaN(i)){
+        sel = i;
+        mark();
+      }
+    }
+  }, true);
+
+  /* ── right-click: copy, and paste ── */
+  document.addEventListener('contextmenu', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+
+    /* a saved prompt — its label goes onto the clipboard */
+    const row = t.closest('#page-inspire #ideaRows [data-idea-open]');
+    if(row && !t.closest('.ol-tool')){
+      e.preventDefault(); e.stopPropagation();
+      const i = parseInt(row.dataset.ideaOpen, 10);
+      if(!isNaN(i)) copyBlock(entryTitle(savedEntries()[i]), 'the label');
+      return;
+    }
+
+    /* the prompt in a card, while the card is a view — the prompt itself */
+    const slot = t.closest('#ideaCards [data-ic-slot]');
+    if(slot && !t.closest('.idea-slot-acts') && parseInt(slot.dataset.icSlot, 10) !== editing){
+      const txt = wordsOf(parseInt(slot.dataset.icSlot, 10));
+      if(txt){ e.preventDefault(); e.stopPropagation(); copyBlock(txt, 'the prompt'); }
+      return;
+    }
+
+    /* an empty box on any page — what was copied goes in.
+       Nothing of ours to do when the app (or the browser) already has the
+       right-click: the manuscript's own editor keeps its writing menu, and
+       so does any handler that has already answered this one. */
+    if(!clip || e.defaultPrevented) return;
+    if(t.closest('#editor, .write-canvas, .editor-doc')) return;
+    const field = fieldOf(t);
+    if(!field || field.readOnly || field.disabled || !isBlank(field)) return;
+    if(!pasteInto(field, clip)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    toastIt('Pasted');
+  }, true);
+
+  /* the write is closed by clicking away, and by Escape */
+  document.addEventListener('blur', function(e){
+    const t = e.target;
+    if(!t || !t.dataset || typeof t.dataset.icInput === 'undefined') return;
+    if(parseInt(t.dataset.icInput, 10) === editing) closeCard();
+  }, true);
+
+  document.addEventListener('keydown', function(e){
+    const t = e.target;
+    if(!t || !t.dataset) return;
+
+    if(e.key === 'Escape' && typeof t.dataset.icInput !== 'undefined' && parseInt(t.dataset.icInput, 10) === editing){
+      e.preventDefault();
+      closeCard();
+      return;
+    }
+
+    if(typeof t.dataset.ideaRenInput === 'undefined') return;
+    if(e.key === 'Enter'){ e.preventDefault(); endRename(t, false); }
+    else if(e.key === 'Escape'){ e.preventDefault(); endRename(t, true); }
+  }, true);
+
+  document.addEventListener('blur', function(e){
+    const t = e.target;
+    if(!t || !t.dataset || typeof t.dataset.ideaRenInput === 'undefined') return;
+    endRename(t, false);                     /* clicking away keeps it too */
+  }, true);
+
+  /* ── the row’s pencil renames it ── */
+  document.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    const ren = t.closest('[data-idea-ren]');
+    if(!ren) return;
+    e.preventDefault();
+    e.stopPropagation();
+    startRename(ren.closest('[data-idea-open]'));
+  }, true);
+
+  /* every keystroke is the writer’s own text, kept with the project */
+  document.addEventListener('input', function(e){
+    const t = e.target;
+    if(!t || !t.dataset || typeof t.dataset.icInput === 'undefined') return;
+    if(t.readOnly) return;
+    const i = parseInt(t.dataset.icInput, 10);
+    if(isNaN(i)) return;
+    const list = store();
+    if(!list) return;
+    list[i] = t.value;
+    syncText(list);
+    sel = i;
+    mark();
+    saveSoon();
+  }, true);
+
+  /* ── Plan board — every beat’s type picker wears the app’s dropdown card.
+     The dropdown component is wired to <select class="sel">, so the board’s
+     selects get that class before they are enhanced. ── */
+  const skinBoard = function(){
+    const board = document.getElementById('beatList');
+    if(!board) return;
+    Array.prototype.slice.call(board.querySelectorAll('select.beat-type')).forEach(function(s){
+      s.classList.add('sel');
+    });
+    if(typeof window.enhanceSelects === 'function') window.enhanceSelects(board);
+  };
+
+  if(typeof window.renderBeats === 'function'){
+    const rb = window.renderBeats;
+    window.renderBeats = function(){
+      const r = rb.apply(this, arguments);
+      skinBoard();
+      return r;
+    };
+  }
+
+  /* the board’s own click handler redraws it — keep that path skinned too */
+  document.addEventListener('change', function(e){
+    if(e.target && e.target.classList && e.target.classList.contains('beat-type')) setTimeout(skinBoard, 0);
+  }, true);
+
+  /* ── keep the open list fully visible ──
+     The board scrolls and the cards are small, so an open dropdown raises its
+     own card and flips the list above the title when there is no room below. ── */
+  document.addEventListener('click', function(e){
+    const board = document.getElementById('beatList');
+    if(!board) return;
+    const t = e.target;
+
+    if(!t || !t.closest || !t.closest('#beatList .dd-card')){
+      Array.prototype.slice.call(board.querySelectorAll('.beat-card.beat-open')).forEach(function(c){
+        c.classList.remove('beat-open');
+      });
+      return;
+    }
+
+    setTimeout(function(){
+      const bRect = board.getBoundingClientRect();
+      Array.prototype.slice.call(board.querySelectorAll('.beat-card')).forEach(function(cardEl){
+        const card = cardEl.querySelector('.dd-card');
+        if(!card) return;
+        const open = card.classList.contains('open');
+        cardEl.classList.toggle('beat-open', open);
+        if(!open){ card.classList.remove('dd-up'); return; }
+        const roomBelow = bRect.bottom - card.getBoundingClientRect().bottom;
+        card.classList.toggle('dd-up', roomBelow < 190);
+      });
+    }, 0);
+  }, true);
+})();
+
+
+/* ══════════ the dashboard ══════════ */
+/* ═══════════════════════════════════════════════════════════
+   Dashboard — no players on it.
+
+   While the dashboard is the page, both player panels (Music and
+   Video), the video playlist and both mini players stay hidden. The
+   Player button is gone from the dashboard's top bar too (index.html).
+   Everywhere else — the writer, the FAB menu, the overlay — nothing
+   changes.
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  const mark = function(id){
+    if(!document.body) return;
+    document.body.classList.toggle('sf-dash', id === 'home');
+  };
+
+  /* follow the router */
+  if(typeof window.goPage === 'function' && !window.goPage.__dashWrapped){
+    const orig = window.goPage;
+    const wrapped = function(id){
+      const out = orig.apply(this, arguments);
+      try{ mark(id); }catch(e){ /* never break navigation over a class */ }
+      return out;
+    };
+    wrapped.__dashWrapped = true;
+    window.goPage = wrapped;
+  }
+
+  const start = function(){ mark((window.S && S.page) || 'home'); };
+  if(document.body) start();
+  else document.addEventListener('DOMContentLoaded', start);
+})();
+
+
+/* ══════════ the Plan page’s head ══════════ */
+/* ═══════════════════════════════════════════════════════════
+   Plan — the head.
+
+   · T stays on the left, with “New board” right after it.
+   · Top right: an “All boards” switch, then Reset.
+       – All boards  : on, the board tightens up so every card is on
+                       screen at once instead of scrolling.
+       – Reset       : clears the board (the app's own confirm first —
+                       it reuses the clear-beats action).
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  if(typeof PAGE_RENDERERS === 'undefined' || typeof PAGE_RENDERERS.plan !== 'function') return;
+
+  const on = function(){ return !!(S.config && S.config.planAll); };
+
+  const paintSwitch = function(btn){
+    if(!btn) return;
+    btn.classList.toggle('on', on());
+    btn.setAttribute('aria-pressed', on() ? 'true' : 'false');
+  };
+
+  const orig = PAGE_RENDERERS.plan;
+  PAGE_RENDERERS.plan = function(root){
+    orig(root);
+    if(!root || !root.querySelector) return;
+
+    const head = root.querySelector('.plan-head') || root.querySelector('.page-head');
+    if(!head) return;
+
+    /* ── the buttons are the page's own; plan-boards.js places them.
+       Add beat is not renamed: starting a board is the picker's own ＋. ── */
+
+    /* ── right: All boards, then Reset ── */
+    let right = head.querySelector('.plan-actions');
+    if(!right){
+      right = document.createElement('div');
+      right.className = 'ol-actions plan-actions';
+      head.appendChild(right);
+    }
+
+    let allSw = right.querySelector('[data-act="plan-all"]');
+    if(!allSw){
+      allSw = document.createElement('button');
+      allSw.className = 'ol-btn plan-allsw';
+      allSw.setAttribute('data-act', 'plan-all');
+      allSw.title = 'Fit every board on screen at once';
+      allSw.innerHTML = '<i class="bi bi-grid-3x3-gap"></i> All boards';
+      right.insertBefore(allSw, right.firstChild || null);
+    }
+    paintSwitch(allSw);
+
+    /* one Clear for the board — the page already draws one, so only add it
+       when this head has none at all */
+    if(!head.querySelector('[data-act="clear-beats"]')){
+      const reset = document.createElement('button');
+      reset.className = 'ol-btn';
+      reset.setAttribute('data-act', 'clear-beats');
+      reset.title = 'Clear the cards off this board';
+      reset.innerHTML = '<i class="bi bi-eraser"></i> Clear';
+      right.appendChild(reset);
+    }
+
+    /* the switch's state lives on the page */
+    root.classList.toggle('plan-all', on());
+  };
+
+  document.addEventListener('click', function(e){
+    const t = e.target;
+    if(!t || !t.closest || !t.closest('[data-act="plan-all"]')) return;
+    e.preventDefault();
+    if(!S.config) S.config = {};
+    S.config.planAll = !S.config.planAll;
+    if(typeof save === 'function') save();
+    paintSwitch(t.closest('[data-act="plan-all"]'));
+    const root = document.getElementById('page-plan');
+    if(root) root.classList.toggle('plan-all', on());
+  }, true);
 })();
 
